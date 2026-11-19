@@ -1514,6 +1514,13 @@ try {
   check("connections_setup_save and connections_off are app-only, and show_connections_setup names the card",
     connListed.length === 3 && connListed.every((t: any) => t.name === "show_connections_setup" ? t._meta?.ui?.resourceUri === "ui://fabrik-apps/connections-setup.html"
       : JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), connListed.map((t: any) => [t.name, t._meta]));
+  // graph-reader takes the keys it holds out of its own replies. The connections tools take out any other key too, on
+  // every path, as a reply naming one would read.
+  const { reason: connectionsReason } = await import(new URL("../../setup/functions/fabrik-apps/connections.ts", import.meta.url).href);
+  const strayKey = "sk-ant-standin-stray-key-0123456789abcdef";
+  const scrubbed = connectionsReason({ status: 502, body: { problem: `Anthropic did not answer: ${strayKey} was refused` } });
+  check("a reply from graph-reader that names an Anthropic key reaches the person with the key taken out, on the check and Turn off paths too",
+    scrubbed === "Anthropic did not answer: [key] was refused", scrubbed);
   check("the key is in no answer the connector gave, the cards' calls included", !answersSeen.some((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)), answersSeen.filter((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)).map((t) => t.slice(0, 300)));
   check("the connections card's page and its tools' descriptions say connections, and never graph",
     ok(connPage) && !/graph/i.test(v(connPage)?.body ?? "graph") && connListed.every((t: any) => !/graph/i.test(t.description)),
