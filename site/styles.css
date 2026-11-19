@@ -228,16 +228,28 @@ footer .brand svg{width:36px;height:36px;display:block}
 :root[data-theme="dark"] .how-card:nth-child(3){--hc-bg:#24375C;--hc-ink:#F6F1E7;--hc-fill:#F0BE4C}
 :root[data-theme="dark"] .how-card:nth-child(4){--hc-bg:#1E3350;--hc-ink:#F6F1E7;--hc-fill:#F0BE4C}
 
-/* Search: the three ways fabrik finds a file, beside one search that finds a file each way. The relationship way is gold. */
+/* Search: the three ways fabrik finds a file, beside one search that finds a file each way. Graph is gold. A way's line
+   and its result are buttons: pressing either picks that way, which enlarges its line and outlines its result. */
 #search .find{margin-top:clamp(40px,5vw,64px)}
 .find{background:radial-gradient(120% 90% at 100% 0%,var(--panel-glow),transparent 60%),var(--panel-b)}
 .moment.find .pic{transform:rotate(.7deg)}
-.ways{list-style:none;margin:0;padding:0;display:grid;gap:clamp(20px,2.4vw,28px);font-size:clamp(17px,1.4vw,19px);font-weight:300;line-height:1.5}
-.ways li{display:grid;gap:8px;justify-items:start}
+.ways{display:grid;gap:clamp(10px,1.4vw,16px);justify-items:start}
+.way-pick{display:grid;gap:8px;justify-items:start;margin:0;padding:8px 0 8px 18px;border:0;border-left:4px solid transparent;background:none;font:inherit;color:var(--body);text-align:left;cursor:pointer;transition:border-color .25s}
+.way-say{font-size:clamp(17px,1.4vw,19px);font-weight:300;line-height:1.5;transition:font-size .3s ease,color .3s}
+.way-pick:hover .way-say{color:var(--ink);text-decoration:underline;text-decoration-color:var(--key);text-decoration-thickness:2px;text-underline-offset:5px}
+.way-pick.on{border-left-color:var(--ink)}
+.way-pick.on .way-say{font-size:clamp(19px,1.7vw,23px);font-weight:400;color:var(--ink)}
 .way{display:inline-block;padding:3px 12px;border-radius:999px;background:var(--ink);color:var(--page);font:600 13px/1.4 var(--font);letter-spacing:.02em}
-.by-link .way{background:var(--key);color:var(--key-ink)}
-.ways .by-link{font-size:clamp(19px,1.7vw,23px);font-weight:400;color:var(--ink)}
+[data-way="graph"] .way{background:var(--key);color:var(--key-ink)}
+.way-pick.on[data-way="graph"]{border-left-color:var(--key)}
+.rank{margin-top:clamp(8px,1.4vw,16px);padding-top:18px;background:var(--hand-rule) left top/100% 6px no-repeat;font-size:15px;line-height:1.55;color:var(--muted)}
+button.fk-item{margin:0;width:100%;background:var(--card);font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .25s,box-shadow .25s,background .25s}
+button.fk-item:hover{border-color:var(--ink)}
 .fk-tag.way{padding:0 8px;border:0;color:var(--page);font-size:12px;font-weight:600;line-height:1.6}
-.fk-item.by-link{padding:10px 12px;border:2px solid var(--key);background:color-mix(in srgb,var(--key) 12%,var(--card))}
-.fk-item.by-link b{font-size:16px}
-.by-link .fk-tag.way{color:var(--key-ink)}
+[data-way="graph"] .fk-tag.way{color:var(--key-ink)}
+.fk-item.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:color-mix(in srgb,var(--ink) 5%,var(--card))}
+.fk-item.on[data-way="graph"]{border-color:var(--key);box-shadow:inset 0 0 0 1px var(--key);background:color-mix(in srgb,var(--key) 12%,var(--card))}
+/* a picked way's line and its result's line rise into place */
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.way-pick.said .way-say,.fk-item.said .fk-sub{animation:rise .45s ease both}
+@media (prefers-reduced-motion:reduce){.way-pick,.way-say,button.fk-item{transition:none}.way-pick.said .way-say,.fk-item.said .fk-sub{animation:none}}
