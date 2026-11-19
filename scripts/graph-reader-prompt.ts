@@ -1,5 +1,5 @@
 // Writes graph-reader's prompt.ts, in the setup skill's functions/graph-reader folder: the rules graph-reader gives
-// Claude, taken from section 19 of the fabrik plugin's records skill, "Reading a part for its graph", in this repository.
+// Claude, taken from section 19 of the fabrik plugin's records skill, "Reading a part for its connections", in this repository.
 // A developer runs it after section 19 changes, and commits prompt.ts:
 //   deno run --allow-read --allow-write scripts/graph-reader-prompt.ts
 // With --check, it writes nothing, and fails when prompt.ts differs from what it would write. From ACMEKB's.
@@ -7,9 +7,9 @@ const HERE = new URL("../setup/functions/graph-reader/", import.meta.url);
 const SKILL = new URL("../plugins/fabrik/skills/records/SKILL.md", import.meta.url).pathname;
 
 const skill = await Deno.readTextFile(SKILL);
-const start = skill.indexOf("## 19. Reading a part for its graph");
+const start = skill.indexOf("## 19. Reading a part for its connections");
 const end = skill.indexOf("\n## ", start + 1);
-if (start < 0 || end < 0) throw new Error(`${SKILL} has no section 19, "Reading a part for its graph"`);
+if (start < 0 || end < 0) throw new Error(`${SKILL} has no section 19, "Reading a part for its connections"`);
 const section = skill.slice(start, end);
 const credit = section.match(/^These rules are adapted from .*$/m)?.[0];
 const from = section.indexOf("**Types and relationships:**"), to = section.indexOf("**The save:**");

@@ -27,14 +27,19 @@
 // none; a plan's board holds its task in its state's column; a model's board and graph draw its nodes, and a node shows
 // its attributes; a plan's graph opens its task's record. A record whose title and field hold markup shows as text on
 // the records card, the board and the graph card's refusal, with no element made from it. card_call keeps each card to its own tools, card_page refuses an
-// old shell, and card.ts is what make-card.ts makes. A Brand record in General gives the cards its accent, fonts and logo. run.sh runs it.
+// old shell, and card.ts is what make-card.ts makes. A Brand record in General gives the cards its accent, fonts and logo.
+// The connections card's Save sends the typed key to the real graph-reader's set_key with the person's sign-in, against
+// a stand-in for Anthropic's Models API. A key Anthropic refuses is not kept, and a person who isn't an administrator is
+// refused. Turn off removes the key, and no answer holds it. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from "npm:jose@6.2.17";
 import { Window } from "npm:happy-dom@20.0.10";
+import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 
 const DB = Deno.env.get("STAND_IN_DB")!;
 const FUNCTION = new URL("../../setup/functions/fabrik-apps/index.ts", import.meta.url);
 const SEARCH = new URL("../../setup/functions/file-search/index.ts", import.meta.url);
+const GRAPH_READER = new URL("../../setup/functions/graph-reader/index.ts", import.meta.url);
 const BUILD = new URL("../../setup/build.mjs", import.meta.url);
 const tempDirs: string[] = [];
 const OBSERVE = Deno.env.get("OBSERVE") === "1";
@@ -64,6 +69,13 @@ const api = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   if (path === "/auth/v1/user") {
     const [known] = await sql`select 1 from auth.users where id = ${String(claims.sub)}::uuid`;
     return known ? Response.json({ id: claims.sub }) : Response.json({ msg: "User not found" }, { status: 403 });
+  }
+  // The real graph-reader hosted function, which checks the token's user is an administrator. Each call's action and
+  // user are kept for the connections card's checks.
+  if (path === "/functions/v1/graph-reader") {
+    const given = await req.clone().json().catch(() => ({}));
+    readerCalls.push({ action: String(given.action), user: String(claims.sub) });
+    return await graphReader(req);
   }
   // The real file-search hosted function, which searches as the token's user.
   if (path === "/functions/v1/file-search") return await fileSearch(req);
@@ -149,9 +161,28 @@ async function load(url: URL) {
 const { module: connector, handler } = await load(FUNCTION);
 const { handler: fileSearch } = await load(SEARCH);
 
+// The Anthropic API's Models API, as far as graph-reader's set_key and check use it: it takes ANTHROPIC_KEY alone. Each call's key
+// is kept, so a check can say which key reached Anthropic.
+const ANTHROPIC_KEY = "sk-ant-standin-connections-0123456789abcdef";
+const anthropicKeys: string[] = [];
+/** Set while a check stands for Anthropic being down: every call answers 500. */
+let anthropicDown = false;
+const anthropic = Deno.serve({ port: 0, onListen() {} }, (req) => {
+  const key = req.headers.get("x-api-key") ?? "";
+  anthropicKeys.push(key);
+  if (anthropicDown) return Response.json({ type: "error", error: { type: "api_error", message: "Internal server error" } }, { status: 500 });
+  if (key !== ANTHROPIC_KEY) return Response.json({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, { status: 401 });
+  return Response.json({ type: "model", id: "claude-haiku-5-5", display_name: "Claude Haiku 5.5", created_at: "2026-09-01T00:00:00Z" });
+});
+const readerCalls: { action: string; user: string }[] = [];
+const { module: graphReaderModule, handler: graphReader } = await load(GRAPH_READER);
+graphReaderModule.seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
+
 const ADDRESS = "https://abcdefghijklmnopqrst.supabase.co/functions/v1/fabrik-apps";
 /** One JSON-RPC call to the connector, as Claude sends it through the Edge Functions gateway, with its answer from JSON or an event stream. */
 let rpcId = 1;
+/** Every answer the connector gave, as sent, for the check that no answer holds the business's key. */
+const answersSeen: string[] = [];
 async function mcp(token: string | null, method: string, params: Record<string, unknown> = {}) {
   const res = await handler(new Request("http://127.0.0.1/fabrik-apps", {
     method: "POST",
@@ -163,6 +194,7 @@ async function mcp(token: string | null, method: string, params: Record<string, 
     body: JSON.stringify({ jsonrpc: "2.0", id: rpcId++, method, params }),
   }));
   const text = await res.text();
+  answersSeen.push(text);
   const json = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5)).join("") || text;
   // deno-lint-ignore no-explicit-any
   let body: any = null;
@@ -313,14 +345,14 @@ try {
   const listed = (list.body?.result?.tools ?? []) as any[];
   check("every tool's input in tools/list refuses an argument it does not name",
     listed.length > 0 && listed.every((t) => t.inputSchema?.additionalProperties === false), listed.filter((t) => t.inputSchema?.additionalProperties !== false).map((t) => t.name));
-  const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save",
+  const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save", "connections_setup_save", "connections_off",
     "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
-  const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call",
+  const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call", "show_connections_setup", "connections_setup_save",
     "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
   check("tools/list gives every tool a title and a hint: read-only tools, the show cards among them, readOnlyHint true; deleting, removing, replacing and sending tools destructiveHint true",
     listed.length > 0 && listed.every((t) => typeof t.title === "string" && t.title.length > 0 && typeof t.annotations?.readOnlyHint === "boolean"
       && (t.annotations.readOnlyHint || typeof t.annotations.destructiveHint === "boolean"))
-      && ["search", "get_record", "list_scopes", "guide", "show_records", "show_board", "show_graph", "show_mail_setup", "mail_read"].every((n) => listed.find((t) => t.name === n)?.annotations?.readOnlyHint === true)
+      && ["search", "get_record", "list_scopes", "guide", "show_records", "show_board", "show_graph", "show_mail_setup", "show_connections_setup", "mail_read"].every((n) => listed.find((t) => t.name === n)?.annotations?.readOnlyHint === true)
       && ["save_record", "task_create", "card_call"].every((n) => listed.find((t) => t.name === n)?.annotations?.readOnlyHint === false && listed.find((t) => t.name === n)?.annotations?.destructiveHint === false)
       && JSON.stringify(listed.filter((t) => t.annotations?.destructiveHint === true).map((t) => t.name).sort()) === JSON.stringify(DESTRUCTIVE)
       && JSON.stringify(listed.filter((t) => t.annotations?.openWorldHint === true).map((t) => t.name).sort()) === JSON.stringify(OUTSIDE),
@@ -1416,6 +1448,112 @@ try {
   const hostileOnGraph = { ...markup(hostileGraph), body: within(hostileGraph, "#fk-body") };
   await hostileGraph.close();
 
+  // ---- The connections card, opened as Claude opens it: it shows connections off, its Save sends the typed key to
+  // graph-reader's set_key with the person's own sign-in, which keeps it in the Vault once Anthropic takes it, and its
+  // Turn off removes it. A key Anthropic refuses is not kept, and a person who isn't an administrator is refused before
+  // Anthropic is reached. No answer holds the key, and the card and its tools never say graph. ----
+  const vaultKey = async () => (await sql`select secret from vault.secrets where name = 'anthropic_api_key'`)[0]?.secret ?? null;
+  const conn: Record<string, unknown> = {};
+  const connCard = await openCard(ownerToken, "show_connections_setup", {});
+  await until(() => connCard.doc.getElementById("cs-state")?.textContent === "Connections are off.", "connections shown as off", connCard);
+  conn.offShown = { text: connCard.text(), offHidden: connCard.doc.getElementById("cs-off")?.hidden, uri: connCard.uri, result: connCard.result };
+  connCard.doc.getElementById("cs-key").value = ANTHROPIC_KEY;
+  const callsBefore = readerCalls.length;
+  connCard.doc.getElementById("cs-form").dispatchEvent(new connCard.w.Event("submit", { bubbles: true, cancelable: true }) as never);
+  await until(() => (connCard.doc.getElementById("cs-said")?.textContent ?? "").startsWith("Connected"), "the key saved", connCard);
+  conn.saved = { said: connCard.doc.getElementById("cs-said")?.textContent, state: connCard.doc.getElementById("cs-state")?.textContent,
+    keyField: connCard.doc.getElementById("cs-key")?.value, offHidden: connCard.doc.getElementById("cs-off")?.hidden,
+    calls: readerCalls.slice(callsBefore), called: [...connCard.called], vault: await vaultKey(), anthropic: anthropicKeys.at(-1) === ANTHROPIC_KEY };
+  const onAgain = await tool(ownerToken, "show_connections_setup", {});
+  // Anthropic down while a key is kept: the card still opens, says why, and offers both Save and Turn off.
+  anthropicDown = true;
+  let downCard;
+  try {
+    downCard = await openCard(ownerToken, "show_connections_setup", {});
+    await until(() => (downCard!.doc.getElementById("cs-state")?.textContent ?? "").startsWith("fabrik couldn't ask Anthropic"), "the card open with Anthropic down", downCard);
+    conn.down = { state: downCard.doc.getElementById("cs-state")?.textContent, offHidden: downCard.doc.getElementById("cs-off")?.hidden,
+      save: downCard.doc.getElementById("cs-save")?.textContent, result: downCard.result?.structuredContent?.state };
+  } finally { anthropicDown = false; await downCard?.close(); }
+  // An administrator who hasn't given their second factor is told so, and a sign-in Auth can't confirm is told to sign in again.
+  await sql`update fabrik_private.sign_in_setting set second_factor = 'administrators'`;
+  let noFactor;
+  try { noFactor = await tool(ownerToken, "show_connections_setup", {}); }
+  finally { await sql`update fabrik_private.sign_in_setting set second_factor = 'off'`; }
+  const unknownUser = await tool(await tokenOf(crypto.randomUUID()), "show_connections_setup", {});
+  const wrongKey = "sk-ant-standin-wrong-key-0123456789abcdef";
+  const connWrong = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey } });
+  const askedBefore = anthropicKeys.length;
+  const notAKey = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: "my key" } });
+  conn.notAKeyAsked = anthropicKeys.length !== askedBefore;
+  conn.afterWrong = await vaultKey();
+  const anthropicBefore = anthropicKeys.length;
+  const readerShow = await tool(readerToken, "show_connections_setup", {});
+  const readerSave = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey } });
+  const readerOff = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_off", arguments: {} });
+  conn.readerCalls = readerCalls.slice(-3);
+  conn.readerReachedAnthropic = anthropicKeys.length !== anthropicBefore;
+  conn.afterReader = await vaultKey();
+  const readerCard = await openCard(readerToken, "show_connections_setup", {});
+  await until(() => readerCard.text().includes("Only an administrator"), "the reader's card refused", readerCard);
+  conn.readerCard = readerCard.text();
+  await readerCard.close();
+  const connCross = await tool(ownerToken, "card_call", { card: "records", name: "connections_setup_save", arguments: { key: ANTHROPIC_KEY } });
+  const offCalls = readerCalls.length;
+  connCard.press(connCard.doc.getElementById("cs-off"));
+  await until(() => connCard.doc.getElementById("cs-state")?.textContent === "Connections are off.", "connections turned off", connCard);
+  conn.off = { said: connCard.doc.getElementById("cs-said")?.textContent, calls: readerCalls.slice(offCalls), vault: await vaultKey() };
+  await connCard.close();
+  // deno-lint-ignore no-explicit-any
+  const connListed = ((await mcp(ownerToken, "tools/list")).body?.result?.tools ?? []).filter((t: any) => ["show_connections_setup", "connections_setup_save", "connections_off"].includes(t.name));
+  const connPage = await tool(ownerToken, "card_page", { card: "connections-setup", shell: 1 });
+  if (OBSERVE) console.log("== connections", JSON.stringify({ conn, onAgain, connWrong, notAKey, readerShow, readerSave, readerOff, connCross, connListed }, null, 1));
+  check("show_connections_setup, opened as Claude opens it, draws the connections card at its own address, saying connections are off, with no Turn off",
+    conn.offShown && (conn.offShown as any).uri === "ui://fabrik-apps/connections-setup.html" && (conn.offShown as any).offHidden === true
+      && (conn.offShown as any).result?.structuredContent?.state === "off", conn.offShown);
+  check("the card's Save sends the typed key to graph-reader's set_key as the owner, through card_call, and graph-reader keeps it in the Vault once Anthropic takes it",
+    (conn.saved as any).said === "Connected. Tell Claude connections are on." && (conn.saved as any).state === "Connections are on." && (conn.saved as any).keyField === ""
+      && (conn.saved as any).offHidden === false && JSON.stringify((conn.saved as any).calls) === JSON.stringify([{ action: "set_key", user: owner }])
+      && (conn.saved as any).called.includes("card_call connections-setup/connections_setup_save") && (conn.saved as any).vault === ANTHROPIC_KEY && (conn.saved as any).anthropic === true,
+    conn.saved);
+  check("show_connections_setup then says connections are on, from graph-reader's check",
+    v(onAgain)?.state === "on" && onAgain?.content?.[0]?.text.includes("Connections are on.") === true, onAgain);
+  check("with Anthropic down, the connections card still opens, says fabrik couldn't ask Anthropic and why, and offers Save a new key and Turn off",
+    (conn.down as any)?.result === "unknown" && String((conn.down as any)?.state).includes("Anthropic did not answer") && (conn.down as any)?.offHidden === false
+      && (conn.down as any)?.save === "Save a new key", conn.down);
+  check("an administrator without their second factor is told to sign in with a code, and a sign-in Auth can't confirm is told to sign in again",
+    said(noFactor) === "Sign in with a code from your authenticator app, then try again." && said(unknownUser) === "fabrik couldn't confirm your sign-in. Sign in again, then try again.",
+    { noFactor, unknownUser });
+  check("a key Anthropic refuses is not kept, and the card is told so; a text that isn't a key is refused before Anthropic is asked",
+    said(connWrong) === "Anthropic refused the new key. Nothing was kept." && said(notAKey) === "That isn't an Anthropic API key, which starts sk-ant-. Nothing was kept." && conn.notAKeyAsked === false && conn.afterWrong === ANTHROPIC_KEY,
+    { connWrong, notAKey, asked: conn.notAKeyAsked, vault: conn.afterWrong });
+  check("a person who isn't an administrator is refused the card, Save and Turn off in connections' words, and Anthropic is not reached",
+    [readerShow, readerSave, readerOff].every((r) => said(r) === "Only an administrator turns connections on or off.")
+      && JSON.stringify(conn.readerCalls) === JSON.stringify([{ action: "check", user: reader }, { action: "set_key", user: reader }, { action: "remove_key", user: reader }])
+      && conn.readerReachedAnthropic === false && conn.afterReader === ANTHROPIC_KEY && String(conn.readerCard).includes("Only an administrator turns connections on or off."),
+    { readerShow, readerSave, readerOff, calls: conn.readerCalls, reached: conn.readerReachedAnthropic, card: conn.readerCard });
+  check("card_call keeps connections_setup_save to the connections card", said(connCross) === "connections_setup_save is not a tool the records card calls.", connCross);
+  check("the card's Turn off calls graph-reader's remove_key as the owner, which takes the key out of the Vault, and the card says connections are off",
+    (conn.off as any).said === "Connections are off. The connections fabrik already keeps stay." && JSON.stringify((conn.off as any).calls) === JSON.stringify([{ action: "remove_key", user: owner }])
+      && (conn.off as any).vault === null, conn.off);
+  // deno-lint-ignore no-explicit-any
+  const order = ((await mcp(ownerToken, "tools/list")).body?.result?.tools ?? []).map((t: any) => t.name);
+  check("Claude lists the connections tools after every mail tool", order.indexOf("show_connections_setup") > Math.max(order.indexOf("mail_reply"), order.indexOf("mail_send"), order.indexOf("show_mail_setup")),
+    order.slice(Math.max(0, order.indexOf("show_mail_setup") - 1), order.indexOf("connections_off") + 1));
+  check("connections_setup_save and connections_off are app-only, and show_connections_setup names the card",
+    connListed.length === 3 && connListed.every((t: any) => t.name === "show_connections_setup" ? t._meta?.ui?.resourceUri === "ui://fabrik-apps/connections-setup.html"
+      : JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), connListed.map((t: any) => [t.name, t._meta]));
+  // graph-reader takes the keys it holds out of its own replies. The connections tools take out any other key too, on
+  // every path, as a reply naming one would read.
+  const { reason: connectionsReason } = await import(new URL("../../setup/functions/fabrik-apps/connections.ts", import.meta.url).href);
+  const strayKey = "sk-ant-standin-stray-key-0123456789abcdef";
+  const scrubbed = connectionsReason({ status: 502, body: { problem: `Anthropic did not answer: ${strayKey} was refused` } });
+  check("a reply from graph-reader that names an Anthropic key reaches the person with the key taken out, on the check and Turn off paths too",
+    scrubbed === "Anthropic did not answer: [key] was refused", scrubbed);
+  check("the key is in no answer the connector gave, the cards' calls included", !answersSeen.some((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)), answersSeen.filter((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)).map((t) => t.slice(0, 300)));
+  check("the connections card's page and its tools' descriptions say connections, and never graph",
+    ok(connPage) && !/graph/i.test(v(connPage)?.body ?? "graph") && connListed.every((t: any) => !/graph/i.test(t.description)),
+    { body: v(connPage)?.body?.slice(0, 300), descriptions: connListed.map((t: any) => t.description) });
+
   // ---- The business's brand on the cards. With no Brand record in General, a card's page is the kit's as it was; with
   // one, the card takes its accent, in its light and dark values, its fonts and its logo, and keeps the host's text and
   // background. A person who cannot read General gets the page as it was. A new version changes the next card. ----
@@ -1714,5 +1852,6 @@ try {
   for (const dir of tempDirs) { try { Deno.removeSync(dir, { recursive: true }); } catch { /* already gone */ } }
   await sql.end();
   await api.shutdown();
+  await anthropic.shutdown();
 }
 if (failed) { console.log(`FAIL ${failed} fabrik-apps check(s)`); Deno.exit(1); }
