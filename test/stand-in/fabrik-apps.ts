@@ -1452,11 +1452,13 @@ try {
   // graph-reader's set_key with the person's own sign-in, which keeps it in the Vault once Anthropic takes it, and its
   // Turn off removes it. A key Anthropic refuses is not kept, and a person who isn't an administrator is refused before
   // Anthropic is reached. No answer holds the key, and the card and its tools never say graph. ----
+  const connections = await import(new URL("../../setup/functions/fabrik-apps/connections.ts", import.meta.url).href);
   const vaultKey = async () => (await sql`select secret from vault.secrets where name = 'anthropic_api_key'`)[0]?.secret ?? null;
   const conn: Record<string, unknown> = {};
   const connCard = await openCard(ownerToken, "show_connections_setup", {});
   await until(() => connCard.doc.getElementById("cs-state")?.textContent === "Connections are off.", "connections shown as off", connCard);
   conn.offShown = { text: connCard.text(), offHidden: connCard.doc.getElementById("cs-off")?.hidden, uri: connCard.uri, result: connCard.result };
+  const ownerPass = connCard.result?._meta?.pass;
   connCard.doc.getElementById("cs-key").value = ANTHROPIC_KEY;
   const callsBefore = readerCalls.length;
   connCard.doc.getElementById("cs-form").dispatchEvent(new connCard.w.Event("submit", { bubbles: true, cancelable: true }) as never);
@@ -1481,15 +1483,16 @@ try {
   finally { await sql`update fabrik_private.sign_in_setting set second_factor = 'off'`; }
   const unknownUser = await tool(await tokenOf(crypto.randomUUID()), "show_connections_setup", {});
   const wrongKey = "sk-ant-standin-wrong-key-0123456789abcdef";
-  const connWrong = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey } });
+  const connWrong = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey, pass: ownerPass } });
   const askedBefore = anthropicKeys.length;
-  const notAKey = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: "my key" } });
+  const notAKey = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: "my key", pass: ownerPass } });
   conn.notAKeyAsked = anthropicKeys.length !== askedBefore;
   conn.afterWrong = await vaultKey();
   const anthropicBefore = anthropicKeys.length;
   const readerShow = await tool(readerToken, "show_connections_setup", {});
-  const readerSave = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey } });
-  const readerOff = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_off", arguments: {} });
+  const readerPass = await connections.issuePass(reader);
+  const readerSave = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey, pass: readerPass } });
+  const readerOff = await tool(readerToken, "card_call", { card: "connections-setup", name: "connections_off", arguments: { pass: readerPass } });
   conn.readerCalls = readerCalls.slice(-3);
   conn.readerReachedAnthropic = anthropicKeys.length !== anthropicBefore;
   conn.afterReader = await vaultKey();
@@ -1497,7 +1500,20 @@ try {
   await until(() => readerCard.text().includes("Only an administrator"), "the reader's card refused", readerCard);
   conn.readerCard = readerCard.text();
   await readerCard.close();
-  const connCross = await tool(ownerToken, "card_call", { card: "records", name: "connections_setup_save", arguments: { key: ANTHROPIC_KEY } });
+  const connCross = await tool(ownerToken, "card_call", { card: "records", name: "connections_setup_save", arguments: { key: ANTHROPIC_KEY, pass: ownerPass } });
+  // The model calls Save and Turn off as the owner, as card_call lets it, with no pass, the reader's pass, a pass out of
+  // time and a pass whose person is changed. Each is refused before graph-reader is called, and the key stays.
+  const passCalls = readerCalls.length;
+  const [pBody, pSig] = String(ownerPass).split(".");
+  const swapped = btoa(JSON.stringify({ ...JSON.parse(atob(pBody.replace(/-/g, "+").replace(/_/g, "/"))), p: reader })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const badPasses = [undefined, readerPass, await connections.issuePass(owner, Date.now() - connections.PASS_LIFE_MS - 1000), `${swapped}.${pSig}`];
+  const noPass = [];
+  for (const pass of badPasses) {
+    noPass.push(await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey, ...(pass ? { pass } : {}) } }));
+    noPass.push(await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_off", arguments: { ...(pass ? { pass } : {}) } }));
+  }
+  conn.noPassCalls = readerCalls.slice(passCalls);
+  conn.afterNoPass = await vaultKey();
   const offCalls = readerCalls.length;
   connCard.press(connCard.doc.getElementById("cs-off"));
   await until(() => connCard.doc.getElementById("cs-state")?.textContent === "Connections are off.", "connections turned off", connCard);
@@ -1518,7 +1534,8 @@ try {
   check("show_connections_setup then says connections are on, from graph-reader's check",
     v(onAgain)?.state === "on" && onAgain?.content?.[0]?.text.includes("Connections are on.") === true, onAgain);
   check("with Anthropic down, the connections card still opens, says fabrik couldn't ask Anthropic and why, and offers Save a new key and Turn off",
-    (conn.down as any)?.result === "unknown" && String((conn.down as any)?.state).includes("Anthropic did not answer") && (conn.down as any)?.offHidden === false
+    (conn.down as any)?.result === "unknown" && (conn.down as any)?.state === "fabrik couldn't ask Anthropic whether the key works. Anthropic didn't answer. Try again in a minute."
+      && (conn.down as any)?.offHidden === false
       && (conn.down as any)?.save === "Save a new key", conn.down);
   check("an administrator without their second factor is told to sign in with a code, and a sign-in Auth can't confirm is told to sign in again",
     said(noFactor) === "Sign in with a code from your authenticator app, then try again." && said(unknownUser) === "fabrik couldn't confirm your sign-in. Sign in again, then try again.",
@@ -1532,6 +1549,12 @@ try {
       && conn.readerReachedAnthropic === false && conn.afterReader === ANTHROPIC_KEY && String(conn.readerCard).includes("Only an administrator turns connections on or off."),
     { readerShow, readerSave, readerOff, calls: conn.readerCalls, reached: conn.readerReachedAnthropic, card: conn.readerCard });
   check("card_call keeps connections_setup_save to the connections card", said(connCross) === "connections_setup_save is not a tool the records card calls.", connCross);
+  check("show_connections_setup gives the card its pass in the result's _meta alone, never in the text or data the model reads",
+    typeof ownerPass === "string" && ownerPass.length > 40 && !JSON.stringify(connCard.result?.content).includes(ownerPass)
+      && !JSON.stringify(connCard.result?.structuredContent).includes(ownerPass), connCard.result);
+  check("Save and Turn off called without the card's pass, with another person's, one out of time or one with its person changed are refused before graph-reader is called, and the key stays",
+    noPass.length === 8 && noPass.every((r) => said(r) === connections.CARD_ONLY) && (conn.noPassCalls as unknown[]).length === 0 && conn.afterNoPass === ANTHROPIC_KEY,
+    { noPass: noPass.map(said), calls: conn.noPassCalls, vault: conn.afterNoPass });
   check("the card's Turn off calls graph-reader's remove_key as the owner, which takes the key out of the Vault, and the card says connections are off",
     (conn.off as any).said === "Connections are off. The connections fabrik already keeps stay." && JSON.stringify((conn.off as any).calls) === JSON.stringify([{ action: "remove_key", user: owner }])
       && (conn.off as any).vault === null, conn.off);
@@ -1542,13 +1565,17 @@ try {
   check("connections_setup_save and connections_off are app-only, and show_connections_setup names the card",
     connListed.length === 3 && connListed.every((t: any) => t.name === "show_connections_setup" ? t._meta?.ui?.resourceUri === "ui://fabrik-apps/connections-setup.html"
       : JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), connListed.map((t: any) => [t.name, t._meta]));
-  // graph-reader takes the keys it holds out of its own replies. The connections tools take out any other key too, on
-  // every path, as a reply naming one would read.
-  const { reason: connectionsReason } = await import(new URL("../../setup/functions/fabrik-apps/connections.ts", import.meta.url).href);
+  // An answer from graph-reader the connections tools don't name, such as a failed run, reaches the person as a fixed
+  // reason, never in graph-reader's words, so neither a key nor what failed inside it is passed on.
   const strayKey = "sk-ant-standin-stray-key-0123456789abcdef";
-  const scrubbed = connectionsReason({ status: 502, body: { problem: `Anthropic did not answer: ${strayKey} was refused` } });
-  check("a reply from graph-reader that names an Anthropic key reaches the person with the key taken out, on the check and Turn off paths too",
-    scrubbed === "Anthropic did not answer: [key] was refused", scrubbed);
+  const inside = { ok: false, problem: `The run failed: connection to postgres://admin:hunter2@db.internal refused with ${strayKey}` };
+  const unnamed = [500, 405, 418].map((status) => connections.reason({ status, body: inside }));
+  const silent = [connections.reason({ status: 502, body: inside }), connections.reason({ status: 502, body: inside }, "sk-ant-x")];
+  const offBadAction = connections.reason({ status: 400, body: inside });
+  check("an answer from graph-reader the connections tools don't name reaches the person as one fixed reason, never in graph-reader's words",
+    unnamed.every((r: string) => r === connections.FAILED) && offBadAction === connections.FAILED
+      && silent[0] === "Anthropic didn't answer. Try again in a minute." && silent[1] === "Anthropic didn't answer. Try again in a minute. Nothing was kept.",
+    { unnamed, silent, offBadAction });
   check("the key is in no answer the connector gave, the cards' calls included", !answersSeen.some((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)), answersSeen.filter((t) => t.includes(ANTHROPIC_KEY) || t.includes(wrongKey)).map((t) => t.slice(0, 300)));
   check("the connections card's page and its tools' descriptions say connections, and never graph",
     ok(connPage) && !/graph/i.test(v(connPage)?.body ?? "graph") && connListed.every((t: any) => !/graph/i.test(t.description)),
