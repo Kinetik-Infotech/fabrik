@@ -1,9 +1,9 @@
 // Each tool's title, and what it does to fabrik, for the annotations Claude reads to decide when to ask before a call.
 // read: changes nothing. save: adds to fabrik, as a new record or a new version of one, so earlier versions stay.
 // replace: writes over what was there, keeping no earlier version. remove: deletes a record or takes a link, a step or a
-// group member or the business's Anthropic API key away. send: sends an email, which cannot be taken back. replace,
-// remove and send are destructive. A mailbox tool, and a connections tool that checks the key with Anthropic, reaches a
-// server outside fabrik, which openWorldHint names.
+// group member or an Anthropic API key away. send: sends an email, which cannot be taken back. replace,
+// remove and send are destructive. A mailbox tool, and a connections or public agent tool that checks a key with
+// Anthropic or Cloudflare, reaches a server outside fabrik, which openWorldHint names.
 export type Effect = "read" | "save" | "replace" | "remove" | "send";
 
 export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: true }> = {
@@ -39,6 +39,8 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   show_graph: { title: "Show a graph", effect: "read" },
   show_mail_setup: { title: "Show mailbox setup", effect: "read" },
   show_connections_setup: { title: "Show connections setup", effect: "read", outside: true },
+  show_public_agent_setup: { title: "Show public agent setup", effect: "read", outside: true },
+  public_knowledge_get: { title: "Read the public agent's knowledge", effect: "read" },
   card_page: { title: "Draw a card", effect: "read" },
   card_find_records: { title: "Find records for a card", effect: "read" },
   card_record: { title: "Read a record for a card", effect: "read" },
@@ -71,6 +73,9 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   voice_record_feedback: { title: "Record voice feedback", effect: "save" },
   mail_setup_save: { title: "Save a mailbox", effect: "replace", outside: true },
   connections_setup_save: { title: "Turn connections on", effect: "replace", outside: true },
+  public_agent_setup_save: { title: "Save the public agent's keys", effect: "replace", outside: true },
+  public_knowledge_save: { title: "Replace the public agent's knowledge", effect: "replace" },
+  public_agent_settings: { title: "Read or change the public agent's settings", effect: "replace", outside: true },
   mail_signature_set: { title: "Set a mailbox's signature", effect: "replace" },
   mail_save_attachment: { title: "Save an email attachment", effect: "save", outside: true },
   mail_draft: { title: "Save an email draft", effect: "save", outside: true },
@@ -80,6 +85,7 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   mail_reply: { title: "Reply to an email", effect: "send", outside: true },
   mail_delete: { title: "Move email to Trash", effect: "remove", outside: true },
   connections_off: { title: "Turn connections off", effect: "remove" },
+  public_agent_off: { title: "Turn the public agent off", effect: "remove" },
   unlink_records: { title: "Unlink records", effect: "remove" },
   delete_record: { title: "Delete a record", effect: "remove" },
   workflow_delete: { title: "Delete a workflow", effect: "remove" },

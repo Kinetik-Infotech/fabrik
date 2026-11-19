@@ -23,7 +23,7 @@ SEARCH=$SETUP
 # The fabrik plugin's skills, whose graph and board scripts draw what the database returns.
 DRAWING=${DRAWING:-$HERE/../../plugins/fabrik/skills}
 
-STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times drawings file-search upgrades setup-flow maxy-import fabrik-apps routines mail"
+STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times drawings file-search upgrades setup-flow maxy-import fabrik-apps routines mail public-agent"
 if [ "${1:-}" = --list ]; then printf '%s\n' $STEPS; exit 0; fi
 for name in "$@"; do
   case " $STEPS " in *" $name "*) ;; *) echo "FAIL $name is not a step. sh run.sh --list names them."; exit 2 ;; esac
@@ -523,6 +523,14 @@ step_mail() {
   done
   DENO_CERT="$certs/ca.pem" STAND_IN_CERTS="$certs" STAND_IN_DB="postgres://postgres@127.0.0.1:$PORT/$DB" "$DENO" run --quiet --no-lock \
     --allow-net --allow-env --allow-read --allow-sys --allow-import "$HERE/mail.ts" || exit 1
+}
+
+# The public agent answers a visitor only from KNOWLEDGE.md, after Cloudflare's Turnstile check, within the daily cap in
+# tokens, and keeps no question. Anthropic, Cloudflare and Storage are answered by the test.
+step_public_agent() {
+  echo "== public-agent"
+  STAND_IN_DB="postgres://postgres@127.0.0.1:$PORT/$DB" "$DENO" run --quiet --no-lock \
+    --allow-net --allow-env --allow-read --allow-sys --allow-import "$HERE/public-agent.ts" || exit 1
 }
 
 psql -U supabase_admin -q -f "$HERE/supabase.sql" || exit 1
