@@ -21,18 +21,19 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); btn.focus(); } });
 })();
 
-/* The tape measure: one wavy path down the left edge, as tall as the window, with a tick at every tenth of its length.
+/* The tape measure: one wavy path down the left edge, from below the header to the foot of the window, with a tick at every tenth of its length.
    From 900 pixels wide it is drawn as far as the page has been scrolled. Narrower, or with reduced motion, it is drawn in
    full and stays still. The path is rebuilt in window pixels on every resize, so the strokes never stretch. */
 (function () {
-  var tape = document.querySelector('.tape');
+  var tape = document.querySelector('.tape'), bar = document.querySelector('.topbar');
   if (!tape) return;
   var svg = tape.querySelector('svg'), paths = tape.querySelectorAll('.edge, .band'), ticks = tape.querySelector('.ticks');
   var still = window.matchMedia('(prefers-reduced-motion: reduce)'), wide = window.matchMedia('(min-width: 900px)');
   var NS = 'http://www.w3.org/2000/svg', marks = [];
 
   function build() {
-    var w = tape.clientWidth, h = tape.clientHeight, x = w / 2, a = w * 0.17, top = wide.matches ? 40 : 0;
+    tape.style.top = (bar ? Math.round(bar.getBoundingClientRect().height) + 6 : 0) + 'px';
+    var w = tape.clientWidth, h = tape.clientHeight, x = w / 2, a = w * 0.17, top = wide.matches ? 40 : 4;
     svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
     var d = 'M' + x + ' ' + top +
       ' C' + (x + a) + ' ' + (h * 0.18) + ' ' + (x - a) + ' ' + (h * 0.32) + ' ' + x + ' ' + (h * 0.5) +
