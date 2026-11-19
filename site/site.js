@@ -65,3 +65,34 @@
   wide.addEventListener('change', build);
   build();
 })();
+
+/* Search: pressing a way's line or its result picks that way in both. When the section first scrolls into view,
+   the three ways are picked in turn, ending on Graph. A press stops the turns. With reduced motion nothing turns. */
+(function () {
+  var box = document.querySelector('#search .find');
+  if (!box) return;
+  var picks = box.querySelectorAll('[data-way]'), still = window.matchMedia('(prefers-reduced-motion: reduce)'), timer = null;
+  function pick(way) {
+    picks.forEach(function (el) {
+      var on = el.getAttribute('data-way') === way;
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      el.classList.remove('said');
+      if (on && !still.matches) { void el.offsetWidth; el.classList.add('said'); }
+    });
+  }
+  box.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-way]');
+    if (!el) return;
+    clearTimeout(timer); timer = null;
+    pick(el.getAttribute('data-way'));
+  });
+  if (still.matches || !('IntersectionObserver' in window)) return;
+  var seen = new IntersectionObserver(function (entries) {
+    if (!entries[0].isIntersecting) return;
+    seen.disconnect();
+    var order = ['keyword', 'semantic', 'graph'], i = 0;
+    (function next() { pick(order[i]); if (++i < order.length) timer = setTimeout(next, 1400); })();
+  }, { threshold: 0.5 });
+  seen.observe(box);
+})();
