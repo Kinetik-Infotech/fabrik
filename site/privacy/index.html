@@ -4,23 +4,42 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fabrik · Privacy</title>
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
-<link rel="icon" href="../brand/icon.svg" type="image/svg+xml">
+<link rel="icon" href="../brand/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-icon.png">
 <meta name="description" content="What this website collects about you: nothing.">
-<link rel="stylesheet" href="../styles.css?v=9">
-<link rel="stylesheet" href="../fabrik.css?v=7">
+<link rel="preload" href="../fonts/Inter-300-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/Fraunces-400-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../styles.css?v=14">
+<link rel="stylesheet" href="../fabrik.css?v=10">
 </head>
 <body>
+
+<div class="tape" aria-hidden="true"><svg><path class="edge" pathLength="1"/><path class="band" pathLength="1"/><g class="ticks"></g><rect class="case" x="2" y="4" width="32" height="32" rx="9"/><circle class="hub" cx="18" cy="20" r="6"/></svg></div>
 
 <div class="topbar">
   <nav class="nav" aria-label="Primary">
     <a class="brand" href="../" aria-label="fabrik, home"><img src="../brand/icon.svg" alt=""><span class="wm">fabrik</span></a>
+    <div class="navlinks" id="navlinks">
+      <div class="nav-menu">
+        <a href="../#day">A day with fabrik</a>
+        <a href="../#does">What it does</a>
+        <a href="../#how">How it works</a>
+        <a href="../#private">Private by design</a>
+        <a href="../#free">Open source</a>
+      </div>
+      <a class="pill" href="../#start">Get started</a>
+    </div>
+    <button class="navburger" type="button" aria-expanded="false" aria-controls="navlinks" aria-label="Open the menu">
+      <span class="navburger-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
   </nav>
 </div>
 
 <main>
-  <section class="s-page">
+  <section class="privacy">
     <div class="wrap">
       <h1 class="title">Privacy</h1>
       <p class="lede">This website has no forms, no cookies and no analytics. It doesn't ask for or keep anything about you.</p>
@@ -32,11 +51,38 @@
 
 <footer>
   <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="../" aria-label="fabrik, home"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26.56 41.7Q26.56 42.29 26.82 42.64Q27.07 42.99 27.64 43.07L30.73 43.45Q31.18 43.49 31.39 43.71Q31.6 43.92 31.6 44.25Q31.6 45 30.64 45H16.34Q15.93 45 15.68 44.81Q15.43 44.62 15.43 44.29Q15.43 43.97 15.63 43.77Q15.82 43.57 16.24 43.47L17.91 43.13Q18.5 42.97 18.76 42.65Q19.03 42.34 19.03 41.81V22.19Q19.03 21.79 18.83 21.5Q18.63 21.22 18.09 21.04L15.81 20.47Q15.23 20.25 15.02 20.04Q14.81 19.83 14.81 19.55Q14.81 19.24 15.04 19.05Q15.26 18.86 15.71 18.86H20.18L19.07 19.52V18.84Q19.07 17.99 18.64 17.17Q18.21 16.34 17.64 15.43Q17.07 14.52 16.64 13.39Q16.21 12.25 16.21 10.79Q16.21 7.23 18.59 5.11Q20.98 3 25.12 3Q27.77 3 29.57 3.86Q31.37 4.72 32.28 6.14Q33.19 7.56 33.19 9.24Q33.19 11.03 32.28 11.93Q31.37 12.84 29.91 12.84Q28.37 12.84 27.39 11.85Q26.42 10.85 26.42 9.17V6.93Q26.42 5.68 25.8 5.06Q25.17 4.43 23.99 4.43Q22.41 4.44 21.54 5.45Q20.67 6.47 20.67 8.33Q20.67 9.78 21.23 10.99Q21.79 12.2 22.62 13.24Q23.45 14.28 24.28 15.22Q25.11 16.16 25.66 17.08Q26.22 18 26.22 18.96V19.85L25.54 18.86H31.48Q31.93 18.86 32.18 19.03Q32.42 19.2 32.42 19.54Q32.42 20.04 31.91 20.37Q31.41 20.7 30.34 20.7H26.56Z" fill="#F6F1E7"/></svg><span class="wm">fabrik</span></a>
+        <p>We mean business.</p>
+      </div>
+      <div>
+        <h4>fabrik</h4>
+        <div class="foot-links">
+          <a href="../#day">A day with fabrik</a>
+          <a href="../#does">What it does</a>
+          <a href="../#how">How it works</a>
+          <a href="../#private">Private by design</a>
+        </div>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <div class="foot-links">
+          <a href="https://kinetik.it.com">Kinetik</a>
+          <a href="./">Privacy</a>
+        </div>
+      </div>
+    </div>
     <div class="foot-base">
       <span>&copy; 2026 Kinetik Infotech Ltd</span>
-      <a href="../">Back to fabrik</a>
+      <span>United Kingdom</span>
     </div>
   </div>
 </footer>
+
+<button class="to-top" type="button" aria-label="Back to top">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 14.5 12 8.5l6 6"/></svg>
+</button>
+<script src="../site.js?v=3"></script>
 </body>
 </html>
