@@ -367,8 +367,8 @@ try {
   // Each hosted function, as setup deploys it: a name, an entrypoint, verify_jwt and its files.
   let ran = await run([BUILD, "functions"]);
   const listed = JSON.parse(ran.out) as { name: string; verify_jwt: boolean; entrypoint_path: string; files: { name: string; path: string }[] }[];
-  check("build.mjs functions lists fabrik-setup, file search's three functions, fabrik-upgrade, graph-reader and fabrik-apps, in the order setup deploys them",
-    listed.map(f => f.name).join(",") === "fabrik-setup,file-search-worker,file-search,file-search-purge,fabrik-upgrade,graph-reader,fabrik-apps", listed.map(f => f.name));
+  check("build.mjs functions lists fabrik-setup, file search's three functions, fabrik-upgrade, graph-reader, public-agent and fabrik-apps, in the order setup deploys them",
+    listed.map(f => f.name).join(",") === "fabrik-setup,file-search-worker,file-search,file-search-purge,fabrik-upgrade,graph-reader,public-agent,fabrik-apps", listed.map(f => f.name));
   for (const f of listed) {
     const files = new Set(f.files.map(x => x.name));
     const imports: string[] = [];
@@ -624,7 +624,8 @@ insert into fabrik_private.schema_upgrade(id) values ('${CHECK_ID}') on conflict
   body = await res.json();
   check("fabrik-upgrade given { list: true } answers the administrator each series' ledger, and refuses anyone else",
     ledgersAnswer.ok === true && JSON.stringify(ledgersAnswer.ledgers?.fabrik) === JSON.stringify(await applied())
-      && ledgersAnswer.ledgers?.file_search?.length === 5 && res.status === 403 && body.problem === "Only an administrator applies an upgrade.",
+      && JSON.stringify(ledgersAnswer.ledgers?.file_search) === JSON.stringify([...Deno.readDirSync(new URL("../../setup/file-search-upgrades/", import.meta.url))]
+        .map((e) => e.name).filter((n) => n.endsWith(".sql")).map((n) => n.replace(/\.sql$/, "")).sort()) && res.status === 403 && body.problem === "Only an administrator applies an upgrade.",
     { ledgersAnswer, sam: body });
 
   // ---- 5. reset.sql once fabrik holds records ----

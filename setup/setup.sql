@@ -8241,7 +8241,31 @@ revoke all on function fabrik.fabrik_list_mailboxes() from public, anon;
 grant execute on function fabrik.fabrik_list_mailboxes() to authenticated;
 notify pgrst, 'reload schema';
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature');
+-- ===================================================================
+-- The public agent: the chat box on the owner's website, which the public-agent hosted function answers from the
+-- KNOWLEDGE.md file in the private bucket public-agent. The bucket has no rule for a signed-in person, so only the
+-- function reads or writes it, with the project's service key. The settings row holds the Claude model and the daily
+-- cap in tokens. The usage table holds each day's tokens, counted from Claude's answers, and nothing a visitor typed.
+-- Only the function reads or changes either table.
+set role fabrik_owner;
+create table if not exists fabrik_private.public_agent_setting (
+ id boolean primary key default true check (id),
+ model text not null default 'claude-haiku-5-5' check (model ~ '^claude-[a-z0-9.-]{1,60}$'),
+ daily_cap_tokens integer not null default 500000 check (daily_cap_tokens between 1000 and 100000000),
+ updated_at timestamptz not null default now()
+);
+insert into fabrik_private.public_agent_setting(id) values (true) on conflict (id) do nothing;
+create table if not exists fabrik_private.public_agent_usage (
+ day date primary key,
+ tokens bigint not null default 0 check (tokens >= 0)
+);
+alter table fabrik_private.public_agent_setting enable row level security;
+alter table fabrik_private.public_agent_usage enable row level security;
+revoke all on fabrik_private.public_agent_setting, fabrik_private.public_agent_usage from public, anon, authenticated;
+reset role;
+insert into storage.buckets(id, name, public) values ('public-agent', 'public-agent', false) on conflict (id) do nothing;
+
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

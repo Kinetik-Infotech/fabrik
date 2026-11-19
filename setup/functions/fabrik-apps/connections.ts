@@ -73,16 +73,17 @@ async function passKey(): Promise<CryptoKey | null> {
   return await crypto.subtle.importKey("raw", bytes.encode(`fabrik connections card pass\n${secret}`), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
 
-/** A pass for the person's connections card, good until PASS_LIFE_MS from now, or null without a person or a key. */
-export async function issuePass(person: string | undefined, now = Date.now()): Promise<string | null> {
+/** A pass for the person's card, the connections card unless another is named, good until PASS_LIFE_MS from now, or
+ * null without a person or a key. */
+export async function issuePass(person: string | undefined, now = Date.now(), card = PASS_FOR): Promise<string | null> {
   const k = await passKey();
   if (!person || !k) return null;
-  const body = b64(bytes.encode(JSON.stringify({ p: person, c: PASS_FOR, e: now + PASS_LIFE_MS })));
+  const body = b64(bytes.encode(JSON.stringify({ p: person, c: card, e: now + PASS_LIFE_MS })));
   return `${body}.${b64(new Uint8Array(await crypto.subtle.sign("HMAC", k, bytes.encode(body))))}`;
 }
 
-/** Whether a pass is signed by this function, for this person and this card, and still in time. */
-export async function passHolds(pass: unknown, person: string | undefined, now = Date.now()): Promise<boolean> {
+/** Whether a pass is signed by this function, for this person and the card named, and still in time. */
+export async function passHolds(pass: unknown, person: string | undefined, now = Date.now(), card = PASS_FOR): Promise<boolean> {
   const k = await passKey();
   if (!person || !k || typeof pass !== "string" || pass.length > 1000) return false;
   const [body, sig, extra] = pass.split(".");
@@ -90,7 +91,7 @@ export async function passHolds(pass: unknown, person: string | undefined, now =
   try {
     if (!await crypto.subtle.verify("HMAC", k, unb64(sig), bytes.encode(body))) return false;
     const got = JSON.parse(new TextDecoder().decode(unb64(body)));
-    return got?.p === person && got?.c === PASS_FOR && typeof got?.e === "number" && now < got.e;
+    return got?.p === person && got?.c === card && typeof got?.e === "number" && now < got.e;
   } catch {
     return false;
   }

@@ -1,0 +1,68 @@
+<style>
+.pa-form { display: grid; gap: 10px; }
+.pa-form label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.pa-form input { padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg); min-width: 0; font: inherit; }
+.pa-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+<div class="fk">
+  <div class="fk-head"><h2>Public agent</h2></div>
+  <div id="fk-body">
+    <p class="fk-sub">The chat box on your website answers visitors from KNOWLEDGE.md alone. Anthropic charges your business's API key for each answer. Type the keys here, not in the chat.</p>
+    <p id="pa-state"></p>
+    <p id="pa-turnstile"></p>
+    <p id="pa-knowledge"></p>
+    <form class="pa-form" id="pa-form" autocomplete="off">
+      <label>Anthropic API key: in the Claude Console at platform.claude.com, start a new API key and choose Somewhere else. It starts sk-ant-
+        <input id="pa-key" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
+      <label>Turnstile secret key: in the Cloudflare dashboard, open Turnstile, then your website's widget, and copy its secret key
+        <input id="pa-secret" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
+      <div class="pa-buttons">
+        <button class="fk-btn" id="pa-save" type="submit">Save</button>
+        <button class="fk-btn" id="pa-off" type="button" hidden>Turn off</button>
+      </div>
+    </form>
+    <p id="pa-said" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+// The public agent card: it shows whether the chat box has its Anthropic API key, its Turnstile secret key and its
+// KNOWLEDGE.md, from show_public_agent_setup's result. Save calls public_agent_setup_save with whichever keys are typed,
+// each kept only once Anthropic or Cloudflare takes it. Turn off calls public_agent_off, which removes the Anthropic
+// API key. Both send the pass from the result's _meta, which the model never sees.
+var SAID = {}, PASS = "";
+function showState(key, turnstile, knowledge) {
+  $("pa-state").textContent = SAID[key] || "";
+  $("pa-turnstile").textContent = turnstile === "set" ? "The Turnstile secret key is saved." : turnstile === "missing" ? "The Turnstile secret key isn't saved yet." : "";
+  if (knowledge !== undefined) $("pa-knowledge").textContent = knowledge === true ? "KNOWLEDGE.md is saved." : knowledge === false ? "KNOWLEDGE.md isn't saved yet. Ask Claude to write it with you." : "";
+  $("pa-off").hidden = key === "missing";
+}
+function say(text, refused) { var p = $("pa-said"); p.className = refused ? "fk-refused" : ""; p.textContent = text; }
+function busy(on) { $("pa-save").disabled = on; $("pa-off").disabled = on; }
+var KEY = "missing", TURNSTILE = "missing";
+
+$("pa-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  busy(true);
+  say("Checking…", false);
+  card.call("public_agent_setup_save", { key: $("pa-key").value, secret: $("pa-secret").value, pass: PASS }).then(function (r) {
+    if (r && !r.isError) {
+      var kept = (r.structuredContent && r.structuredContent.kept) || [];
+      if (kept.indexOf("key") >= 0) { KEY = "available"; $("pa-key").value = ""; }
+      if (kept.indexOf("turnstile") >= 0) { TURNSTILE = "set"; $("pa-secret").value = ""; }
+      showState(KEY, TURNSTILE);
+      say("Saved. Tell Claude the keys are saved.", false);
+    } else say("Not kept: " + (textOf(r) || "fabrik gave nothing back."), true);
+  }, function (e) { say("Not kept: " + (e && e.message || e), true); }).then(function () { busy(false); });
+});
+$("pa-off").addEventListener("click", function () {
+  busy(true);
+  card.call("public_agent_off", { pass: PASS }).then(function (r) {
+    if (r && !r.isError) { KEY = "missing"; showState(KEY, TURNSTILE); say("The chat box is off. KNOWLEDGE.md and the Turnstile secret key stay.", false); }
+    else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
+  }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
+});
+onResult(function (given, meta) {
+  SAID = given.said || {}; PASS = meta.pass || ""; KEY = given.key; TURNSTILE = given.turnstile;
+  showState(given.key, given.turnstile, given.knowledge);
+});
+</script>
