@@ -20,7 +20,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/Inter-300-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/Fraunces-400-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=14">
 <link rel="stylesheet" href="fabrik.css?v=10">
 </head>
 <body>
@@ -263,40 +263,46 @@
   <section class="s-line" id="how">
     <div class="wrap">
       <h2 class="title">How it works</h2>
-      <div class="tiles tiles-3 tiles-pairs">
-        <div class="tile">
-          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)"><g transform="rotate(40 24 24)">
+      <div class="how-row">
+        <article class="how-card">
+          <span class="how-art" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)"><g transform="rotate(40 24 24)">
             <path class="g" d="M27.5 2.7L27.5 10A3.5 3.5 0 0 1 20.5 10L20.5 2.7A9 9 0 1 0 27.5 2.7Z" transform="translate(.8 .6)"/>
             <path d="M27.5 2.7L27.5 10A3.5 3.5 0 0 1 20.5 10L20.5 2.7A9 9 0 1 0 27.5 2.7Z"/>
             <path d="M21 19.5Q20.6 28 21.3 36.5M27 19.5Q27.4 28 26.7 36.5"/>
             <circle cx="24" cy="41" r="5.5"/><circle cx="24" cy="41" r="2.4"/>
           </g></g></svg></span>
-          <h3 class="tile-label">AI</h3>
-          <p class="tile-text">Claude helps you think, create and get things done. It works in every app you connect, using the data fabrik stores.</p>
-        </div>
-        <div class="tile">
-          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+          <p class="how-tag"><span>01</span> AI</p>
+          <h3>Claude does the work, from what fabrik stores.</h3>
+          <p class="how-text">Claude helps you think, create and get things done. It works in every app you connect, using the data fabrik stores.</p>
+          <p class="how-chips"><span>Claude</span><span>Connectors</span><span>Plugins</span></p>
+        </article>
+        <article class="how-card">
+          <span class="how-art" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
             <path class="g" d="M4 21H45V25.5H4Z"/>
             <path d="M3 20Q24 19.3 45 20V25Q24 25.6 3 25Z"/><path d="M7 25V44M41 25V44M7 37Q24 36.4 41 37"/>
             <path d="M5 20V14.5H13V20M9 14.5V11"/>
             <rect x="21" y="8" width="17" height="12" rx="1.5"/><path d="M24 12H34M24 15.5H30"/>
           </g></svg></span>
-          <h3 class="tile-label">Interface</h3>
-          <p class="tile-text">Claude shows your records, lists and boards as cards you can use. Each decision takes one click, like the apps you know.</p>
-        </div>
-        <div class="tile">
-          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+          <p class="how-tag"><span>02</span> Interface</p>
+          <h3>Every decision is one click.</h3>
+          <p class="how-text">Claude shows your records, lists and boards as cards you can use. Each decision takes one click, like the apps you know.</p>
+          <p class="how-chips"><span>Cards</span><span>Boards</span><span>Lists</span></p>
+        </article>
+        <article class="how-card">
+          <span class="how-art" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
             <path d="M4 10Q24 9.3 44 10V38Q24 38.7 4 38Z"/><path d="M2 10H46"/>
             <path d="M17 18H31M18 15.5V18M30 15.5V18"/>
             <path d="M20 28V22.5A4 4 0 0 1 28 22.5V28"/>
             <rect class="g" x="17.5" y="29" width="15" height="12" rx="2"/>
             <rect x="16.5" y="28" width="15" height="12" rx="2"/><circle cx="24" cy="32.6" r="1.5"/><path d="M24 34V36.5"/>
           </g></svg></span>
-          <h3 class="tile-label">Data</h3>
-          <p class="tile-text">You own your data, in your own Supabase project. You decide who sees it, and you can export it or move it whenever you like.</p>
-        </div>
-        <div class="tile">
-          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+          <p class="how-tag"><span>03</span> Data</p>
+          <h3>Your data stays in your own project.</h3>
+          <p class="how-text">You own your data, in your own Supabase project. You decide who sees it, and you can export it or move it whenever you like.</p>
+          <p class="how-chips"><span>Your Supabase</span><span>Access</span><span>Export</span></p>
+        </article>
+        <article class="how-card">
+          <span class="how-art" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
             <rect class="g" x="11.5" y="19.5" width="25" height="8" rx="1"/>
             <path d="M8.5 3.5Q24 2.9 39.5 3.5V44.5Q24 45.1 8.5 44.5Z"/><path d="M11 44.5V47M37 44.5V47"/>
             <rect x="11" y="7" width="26" height="9" rx="1.5"/><rect x="11" y="19" width="26" height="9" rx="1.5"/><rect x="11" y="31" width="26" height="9" rx="1.5"/>
@@ -304,9 +310,11 @@
             <circle class="g" cx="32.5" cy="11.5" r="1.7"/><circle class="g" cx="32.5" cy="35.5" r="1.7"/>
             <circle cx="32.5" cy="11.5" r="1.7"/><circle cx="28" cy="11.5" r="1.2"/><circle cx="32.5" cy="23.5" r="1.7" style="fill:var(--page)"/><circle cx="28" cy="23.5" r="1.2"/><circle cx="32.5" cy="35.5" r="1.7"/><circle cx="28" cy="35.5" r="1.2"/>
           </g></svg></span>
-          <h3 class="tile-label">Server</h3>
-          <p class="tile-text">Claude puts your websites, forms and apps live on your own Cloudflare account, under your own web address.</p>
-        </div>
+          <p class="how-tag"><span>04</span> Server</p>
+          <h3>Your sites go live on your own account.</h3>
+          <p class="how-text">Claude puts your websites, forms and apps live on your own Cloudflare account, under your own web address.</p>
+          <p class="how-chips"><span>Cloudflare</span><span>Your web address</span></p>
+        </article>
       </div>
     </div>
   </section>
