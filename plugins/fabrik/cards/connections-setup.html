@@ -1,0 +1,54 @@
+<style>
+.cs-form { display: grid; gap: 10px; }
+.cs-form label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.cs-form input { padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg); min-width: 0; font: inherit; }
+.cs-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+<div class="fk">
+  <div class="fk-head"><h2>Connections</h2></div>
+  <div id="fk-body">
+    <p class="fk-sub">fabrik reads who and what your files name, and how they're linked, so a search can follow those links. Anthropic charges your business's API key for each part it reads. Type the key here, not in the chat.</p>
+    <p id="cs-state"></p>
+    <form class="cs-form" id="cs-form" autocomplete="off">
+      <label>Anthropic API key: make one in the Anthropic Console, under API keys. It starts sk-ant-
+        <input id="cs-key" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" required></label>
+      <div class="cs-buttons">
+        <button class="fk-btn" id="cs-save" type="submit">Save</button>
+        <button class="fk-btn" id="cs-off" type="button" hidden>Turn off</button>
+      </div>
+    </form>
+    <p id="cs-said" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+// The connections card: it shows whether connections are on, in the words show_connections_setup's result gives. Save
+// calls connections_setup_save with the key typed here, which fabrik keeps only once Anthropic takes it, and the card then
+// shows connected or the reason. Turn off calls connections_off, which removes the key. When Anthropic didn't answer, the
+// card says why and offers both.
+var SAID = {};
+function showState(state, problem) {
+  $("cs-state").textContent = (SAID[state] || "") + (problem ? " " + problem : "");
+  $("cs-off").hidden = state === "off";
+  $("cs-save").textContent = state === "off" ? "Save" : "Save a new key";
+}
+function say(text, refused) { var p = $("cs-said"); p.className = refused ? "fk-refused" : ""; p.textContent = text; }
+function busy(on) { $("cs-save").disabled = on; $("cs-off").disabled = on; }
+
+$("cs-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  busy(true);
+  say("Checking the key with Anthropic…", false);
+  card.call("connections_setup_save", { key: $("cs-key").value }).then(function (r) {
+    if (r && !r.isError) { $("cs-key").value = ""; showState("on"); say("Connected. Tell Claude connections are on.", false); }
+    else say("Not kept: " + (textOf(r) || "fabrik gave nothing back."), true);
+  }, function (e) { say("Not kept: " + (e && e.message || e), true); }).then(function () { busy(false); });
+});
+$("cs-off").addEventListener("click", function () {
+  busy(true);
+  card.call("connections_off", {}).then(function (r) {
+    if (r && !r.isError) { showState("off"); say("Connections are off. The connections fabrik already keeps stay.", false); }
+    else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
+  }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
+});
+onResult(function (given) { SAID = given.said || {}; showState(given.state, given.problem); });
+</script>

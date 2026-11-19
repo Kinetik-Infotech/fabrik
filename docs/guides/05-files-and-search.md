@@ -21,7 +21,15 @@ Search covers only what you may read, in every scope or in the one you name.
 
 ## Connections in your files
 
-You can add your own Anthropic API key to fabrik. fabrik then reads the people, companies and things your files name, and how they relate, so search can follow them. Anthropic charges your key for that reading. Without a key, search still matches words and meaning.
+Connections are the links between the people, companies, orders and other things your files name. With connections on, fabrik reads who and what each new file mentions, and how they're linked. Each kind of thing comes from a list in your glossary, such as customer, supplier or order.
+
+A search then follows those links. Ask about a customer, and search also finds the invoice that names the customer's director, though the invoice never names the customer.
+
+Connections need your business's own Anthropic API key, and Anthropic charges that key for each part of a file it reads. Claude tells you how many parts are waiting before you turn connections on. See anthropic.com/pricing for the rates.
+
+Connections are worth it when many of your files are about the same customers, suppliers, people or orders. For a handful of files, or a one-off lookup, words and meaning are enough. Without connections, search still finds files by their words and their meaning.
+
+To turn connections on, ask Claude. Claude suggests the kinds of things for your glossary from your business profile, and saves each one you approve. Then it shows a card where an administrator types the key. The key goes from the card into your project's Vault, and never into the chat. The same card turns connections off.
 
 ## Saving a file to your computer
 

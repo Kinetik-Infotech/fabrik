@@ -1,8 +1,9 @@
 // Each tool's title, and what it does to fabrik, for the annotations Claude reads to decide when to ask before a call.
 // read: changes nothing. save: adds to fabrik, as a new record or a new version of one, so earlier versions stay.
 // replace: writes over what was there, keeping no earlier version. remove: deletes a record or takes a link, a step or a
-// group member away. send: sends an email, which cannot be taken back. replace, remove and send are destructive. A
-// mailbox tool reaches a server outside fabrik, which openWorldHint names.
+// group member or the business's Anthropic API key away. send: sends an email, which cannot be taken back. replace,
+// remove and send are destructive. A mailbox tool, and a connections tool that checks the key with Anthropic, reaches a
+// server outside fabrik, which openWorldHint names.
 export type Effect = "read" | "save" | "replace" | "remove" | "send";
 
 export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: true }> = {
@@ -37,12 +38,13 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   show_board: { title: "Show a board", effect: "read" },
   show_graph: { title: "Show a graph", effect: "read" },
   show_mail_setup: { title: "Show mailbox setup", effect: "read" },
+  show_connections_setup: { title: "Show connections setup", effect: "read", outside: true },
   card_page: { title: "Draw a card", effect: "read" },
   card_find_records: { title: "Find records for a card", effect: "read" },
   card_record: { title: "Read a record for a card", effect: "read" },
   card_view: { title: "Read a card's view", effect: "read" },
-  // A card's page calls card_call for its reads as well as for the mail setup card's Save, so marking it destructive
-  // would ask before every read a card makes. Its one write is that Save, which the person presses on the card.
+  // A card's page calls card_call for its reads as well as for the mail setup and connections cards' Save, so marking
+  // it destructive would ask before every read a card makes. Its writes are those Saves and Turn off, which the person presses on the card.
   card_call: { title: "Run a card's button", effect: "save", outside: true },
   save_record: { title: "Save a record", effect: "save" },
   update_record: { title: "Update a record", effect: "save" },
@@ -68,6 +70,7 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   voice_distil_profile: { title: "Learn your writing voice", effect: "save" },
   voice_record_feedback: { title: "Record voice feedback", effect: "save" },
   mail_setup_save: { title: "Save a mailbox", effect: "replace", outside: true },
+  connections_setup_save: { title: "Turn connections on", effect: "replace", outside: true },
   mail_signature_set: { title: "Set a mailbox's signature", effect: "replace" },
   mail_save_attachment: { title: "Save an email attachment", effect: "save", outside: true },
   mail_draft: { title: "Save an email draft", effect: "save", outside: true },
@@ -76,6 +79,7 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   mail_send: { title: "Send an email", effect: "send", outside: true },
   mail_reply: { title: "Reply to an email", effect: "send", outside: true },
   mail_delete: { title: "Move email to Trash", effect: "remove", outside: true },
+  connections_off: { title: "Turn connections off", effect: "remove" },
   unlink_records: { title: "Unlink records", effect: "remove" },
   delete_record: { title: "Delete a record", effect: "remove" },
   workflow_delete: { title: "Delete a workflow", effect: "remove" },
