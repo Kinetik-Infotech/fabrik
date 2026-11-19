@@ -28,7 +28,7 @@ When the person asks about connections themselves, explain them as section 2 say
 Explain connections in this order, in plain words, in a few sentences:
 
 1. **What they are.** The links between the people, companies, orders and other things the files name.
-2. **How they work.** fabrik reads each new part of a file with Claude, within a day, and keeps who and what it names and how they're linked. Each kind of thing comes from the glossary's classes.
+2. **How they work.** fabrik reads each new part of a file with Claude, usually within an hour and at most a day. It keeps who and what each part names, and how they're linked. Each kind of thing comes from the glossary's classes.
 3. **What they add.** A search finds a file through those links. Ask about a customer, and search also finds the invoice that names the customer's director, though the invoice never names the customer.
 4. **What they cost.** Anthropic charges the business's own API key for each part fabrik reads. Name how many parts are waiting, from `stages.awaiting_extraction`, and point to anthropic.com/pricing for the rates. Never work out a price. fabrik stops reading for the month once the month's cost reaches a cap. `fabrik_get_graph_reader` gives an administrator the cap as `monthly_cap_usd`, and the cost so far as `month_cost_usd`. Name both.
 5. **When they're worth it.** Say which applies, from the number of files and the kinds of things they name. Connections are worth it when many files are about the same customers, suppliers, people or orders. For a handful of files, or one-off lookups, words and meaning are enough.
@@ -63,7 +63,7 @@ Only an administrator turns connections on or off. When `fabrik_get_actor` gives
    Never ask for the key in the chat, and never accept one that's offered. When the person pastes a key into the chat, tell them to delete it in the Anthropic Console. Then they make a new one for the card.
 3. End the turn. The card checks the key with Anthropic before it keeps it, and shows connected, or the reason Anthropic gave.
 
-Once the person says the card shows connected, tell them fabrik reads the waiting parts within a day. A search after that finds a file through a connection, and `graph` is then among a hit's `found`. Name the link in plain words, as the `fabrik:records` skill's section 6 says.
+Once the person says the card shows connected, tell them fabrik reads the waiting parts usually within an hour, and at most a day. A search after that finds a file through a connection, and `graph` is then among a hit's `found`. Name the link in plain words, as the `fabrik:records` skill's section 6 says.
 
 ## 5. Turning connections off
 
