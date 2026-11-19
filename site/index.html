@@ -3,32 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fabrik · Your own private AI assistant, with Claude</title>
-<meta name="description" content="Everything an AI assistant promises. Nothing it shouldn't keep. fabrik helps you run your life or business just like Grok Bot, Muse, Dots, Instinct or Duet. But all your valuable data remains under your sole control. It's free and open source.">
+<title>fabrik · We mean business</title>
+<meta name="description" content="fabrik does real work, in your business and your life. It drafts your replies, fills in forms, finds the letter you need and puts your website live, through Claude. It's free and open source.">
 <link rel="canonical" href="https://fabrik.tech/">
 <meta property="og:url" content="https://fabrik.tech/">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1C1A17" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="brand/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="fabrik">
 <meta property="og:locale" content="en_GB">
-<meta property="og:title" content="fabrik · Your own private AI assistant, with Claude">
-<meta property="og:description" content="Everything an AI assistant promises. Nothing it shouldn't keep. fabrik helps you run your life or business just like Grok Bot, Muse, Dots, Instinct or Duet. But all your valuable data remains under your sole control. It's free and open source.">
+<meta property="og:title" content="fabrik · We mean business">
+<meta property="og:description" content="fabrik does real work, in your business and your life. It drafts your replies, fills in forms, finds the letter you need and puts your website live, through Claude. It's free and open source.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/Inter-300-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/IBMPlexMono-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css?v=9">
-<link rel="stylesheet" href="fabrik.css?v=7">
+<link rel="preload" href="fonts/Fraunces-400-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="fabrik.css?v=8">
 </head>
 <body>
+
+<!-- The filter that makes every drawing's ink line slightly uneven, as if drawn by hand. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+</svg>
+
+<div class="tape" aria-hidden="true"><svg><path class="edge" pathLength="1"/><path class="band" pathLength="1"/><g class="ticks"></g><rect class="case" x="2" y="4" width="32" height="32" rx="9"/><circle class="hub" cx="18" cy="20" r="6"/></svg></div>
 
 <div class="topbar">
   <nav class="nav" aria-label="Primary">
     <a class="brand" href="./" aria-label="fabrik, home"><img src="brand/icon.svg" alt=""><span class="wm">fabrik</span></a>
     <div class="navlinks" id="navlinks">
       <div class="nav-menu">
+        <a href="#day">A day with fabrik</a>
         <a href="#does">What it does</a>
         <a href="#how">How it works</a>
         <a href="#private">Private by design</a>
@@ -43,112 +52,257 @@
 </div>
 
 <header class="hero">
-  <div class="hero-split">
-    <div class="hero-head">
-      <h1>Everything an AI assistant promises. Nothing it shouldn't keep.</h1>
+  <div class="wrap">
+    <h1>We mean business.</h1>
+    <p class="hero-lede">fabrik does real work, in your business and your life. It drafts your replies, fills in forms, finds the letter you need and puts your website live, through Claude. fabrik stores what you tell it in your own Supabase project, and it's free and open source.</p>
+    <div class="cta-row">
+      <a class="btn btn-key" href="#start">Get started</a>
+      <a class="btn btn-ghost" href="#day">A day with fabrik</a>
     </div>
-    <div>
-      <p class="hero-lede">fabrik helps you run your life or business just like Grok Bot, Muse, Dots, Instinct or Duet. But all your valuable data remains under your sole control. It's free and open source.</p>
-      <div class="cta-row">
-        <a class="btn btn-key" href="#start">Get started</a>
-        <a class="btn btn-ghost" href="#how">How it works</a>
-      </div>
-      <p class="runs-on"><a href="https://claude.ai" target="_blank" rel="noopener"><img src="logos/claude.svg" alt="" width="20" height="20">Works with Claude, from Anthropic</a></p>
-    </div>
+    <p class="runs-on"><a href="https://claude.ai" target="_blank" rel="noopener"><img src="logos/claude.svg" alt="" width="20" height="20">Works with Claude, from Anthropic</a></p>
   </div>
 </header>
 
 <main>
 
-  <section class="s-page s-line" id="does">
+  <section class="s-line" id="day">
+    <div class="wrap">
+      <h2 class="title">A day with fabrik</h2>
+      <div class="day">
+
+        <div class="moment">
+          <div>
+            <span class="moment-time">8:00</span>
+            <h3>Catch up on LinkedIn</h3>
+            <p>Ask Claude what's new on LinkedIn. fabrik lists each item with its time, and marks the people it already holds.</p>
+          </div>
+          <div class="pic fk" aria-hidden="true">
+            <div class="fk-head"><b>LinkedIn</b><span class="fk-sub">6 new since yesterday</span></div>
+            <div class="fk-list">
+              <div class="fk-item"><b>Tom Reid</b><span class="fk-sub">7:42 · Commented on your post</span><span class="fk-tags"><span class="fk-tag on">In fabrik</span></span></div>
+              <div class="fk-item"><b>Ana Costa</b><span class="fk-sub">Yesterday · Sent you a message</span><span class="fk-tags"><span class="fk-tag on">In fabrik</span><span class="fk-tag">Shop fit-out</span></span></div>
+              <div class="fk-item"><b>Lee Morgan</b><span class="fk-sub">Yesterday · Started at Brightwell Foods</span></div>
+            </div>
+            <div class="fk-row"><span class="fk-btn key">Save 2 items</span><span class="fk-btn">Not now</span></div>
+          </div>
+        </div>
+
+        <div class="moment">
+          <div>
+            <span class="moment-time">11:00</span>
+            <h3>A reply to your accountant</h3>
+            <p>Claude drafts the reply from what fabrik holds. It waits in Drafts until you approve it.</p>
+          </div>
+          <div class="pic fk" aria-hidden="true">
+            <div class="fk-head"><b>Draft reply</b><span class="fk-sub">In Drafts</span></div>
+            <dl class="fk-fields"><dt>To</dt><dd>Priya Shah, Shah &amp; Co</dd><dt>Subject</dt><dd>Re: Year-end accounts</dd></dl>
+            <div class="fk-body">Hi Priya, the March bank statements are attached. The van was bought on 14 February, for £18,400. Thanks, Jo</div>
+            <div class="fk-row"><span class="fk-btn key">Send</span><span class="fk-btn">Change it</span></div>
+          </div>
+        </div>
+
+        <div class="moment">
+          <div>
+            <span class="moment-time">14:00</span>
+            <h3>The letter from HMRC</h3>
+            <p>Ask for the letter from HMRC about your VAT. fabrik finds the file by what it's about, so you don't need its name.</p>
+          </div>
+          <div class="pic fk" aria-hidden="true">
+            <div class="fk-head"><b>Search</b><span class="fk-sub">2 files</span></div>
+            <div class="fk-search">letter from HMRC about VAT</div>
+            <div class="fk-list">
+              <div class="fk-item"><b>Scan 0412.pdf</b><span class="fk-sub">Accounts · page 1 · saved 6 Nov 2026</span><span class="fk-tags"><span class="fk-tag on">Best match</span></span></div>
+              <div class="fk-item"><b>VAT return, July to September.xlsx</b><span class="fk-sub">Accounts · saved 2 Oct 2026</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="moment">
+          <div>
+            <span class="moment-time">17:00</span>
+            <h3>Your new page is live</h3>
+            <p>Claude puts the page live on your own Cloudflare account, at your own web address.</p>
+          </div>
+          <div class="pic fk" aria-hidden="true">
+            <div class="fk-head"><b>Site live</b><span class="fk-sub">Just now</span></div>
+            <dl class="fk-fields"><dt>Address</dt><dd>harbourbakery.co.uk/opening-hours</dd><dt>Hosted by</dt><dd>Your Cloudflare account</dd><dt>Pages</dt><dd>5</dd></dl>
+            <div class="fk-row"><span class="fk-btn key">Open the page</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="s-line" id="does">
     <div class="wrap">
       <h2 class="title">What it does for you</h2>
       <div class="tiles tiles-3">
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <rect class="g" x="11.5" y="27.5" width="26" height="13" rx="1"/>
+            <path d="M9 6.5Q24 5.8 39 6.5V43.5Q24 44.2 9 43.5Z"/><path d="M9 25Q24 24.4 39 25"/>
+            <path d="M19.5 14.5H28.5V18H19.5ZM19.5 32H28.5V35.5H19.5Z"/><path d="M11 43.8V46M37 43.8V46"/>
+          </g></svg></span>
           <h3 class="tile-label">Memory</h3>
           <p class="tile-text">Tell Claude about a person, meeting or decision once, and fabrik stores it. Ask for it months later, in your own words.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21H5V3h9l4 4v4"/><path d="M14 3v4h4"/><circle cx="16" cy="16" r="3"/><path d="m21 21-2.9-2.9"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <circle class="g" cx="21" cy="21" r="9"/>
+            <circle cx="20" cy="20" r="11.5"/><path d="M14.5 16.5Q16 13.2 19.5 12.6"/>
+            <path d="M27.4 30.6L37.4 40.6A2.5 2.5 0 0 0 40.9 37.1L30.9 27.1"/>
+          </g></svg></span>
           <h3 class="tile-label">Search</h3>
           <p class="tile-text">Find any file by a keyword in it, or by what it's about, in your own words.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <circle class="g" cx="15.5" cy="33" r="6.5"/><circle class="g" cx="35.5" cy="33" r="6.5"/>
+            <path d="M8 31V15Q8 11 12 11H17Q20 11 20 15V31"/><path d="M28 31V15Q28 11 31 11H36Q40 11 40 15V31"/>
+            <circle cx="14" cy="32" r="7.5"/><circle cx="34" cy="32" r="7.5"/><path d="M20 21.5Q24 20 28 21.5"/><path d="M12 7H16M32 7H36"/>
+          </g></svg></span>
           <h3 class="tile-label">Updates</h3>
           <p class="tile-text">Ask what's new on LinkedIn or any site you're signed in to, and get the short version, with people you know picked out.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path d="M4.5 13.5Q19 12.8 34 13.5V35.5Q19 36.2 4.5 35.5Z"/><path d="M4.5 14L19.3 25.5L34 14"/>
+            <path class="g" d="M29.9 38.1L44 21.7L40 18.3L25.9 34.8Z"/>
+            <path d="M24 41L29.9 38.1L25.9 34.8Z" style="fill:var(--page)"/>
+            <path d="M24 41L29.9 38.1L44 21.7L40 18.3L25.9 34.8Z"/><path d="M29.9 38.1L25.9 34.8M41.4 24.7L37.4 21.4"/>
+          </g></svg></span>
           <h3 class="tile-label">Email</h3>
           <p class="tile-text">Find that message from your accountant while you're out, and reply to it. fabrik reads your mail, and sends only what you approve.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <g transform="rotate(38 24 24)">
+              <rect class="g" x="18" y="2" width="13" height="18" rx="3"/>
+              <rect x="17" y="1" width="14" height="19" rx="3.5"/><path d="M17 15.5H31"/>
+              <path d="M24 44L16.5 27Q16 24 18 23H30Q32 24 31.5 27Z"/><path d="M24 44V32.5"/><circle cx="24" cy="30.5" r="1.6"/>
+            </g>
+            <path d="M3 44.5Q6 42 9 44.5T15 44.5"/>
+          </g></svg></span>
           <h3 class="tile-label">Content</h3>
           <p class="tile-text">Posts, proposals and replies that sound like you, because they're drafted from what you've already written.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h10M4 12h10M4 18h10"/><path d="m16 15 2 2 3-4"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path d="M10.5 8Q24 7.4 37.5 8Q38.5 26 37.5 44Q24 44.6 10.5 44Q9.6 26 10.5 8Z"/>
+            <rect class="g" x="18.5" y="4.5" width="12" height="7" rx="2"/>
+            <rect x="17.5" y="3.5" width="13" height="8" rx="2"/>
+            <path d="M15.5 21L18 23.5L22.5 18.5M25.5 21.5H33M15.5 31L18 33.5L22.5 28.5M25.5 31.5H33M16 39.5H33"/>
+          </g></svg></span>
           <h3 class="tile-label">Planning</h3>
           <p class="tile-text">Tell Claude what you're working on and what's holding things up, and Claude lists what you can get on with next.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 19c.5-3 2.7-4.5 5.5-4.5s5 1.5 5.5 4.5M15 14.5c3 0 5 1.5 5.5 4"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path class="g" d="M3 17.5L9.5 16.5L10.5 30.5L4 31.5Z"/>
+            <path d="M2 17L9 16L10 30L3 31"/><path d="M46 17L39 16L38 30L45 31"/>
+            <path d="M9.5 18Q14 17 18.5 14Q22 12 25.5 13.5L31 16L39 17"/>
+            <path d="M31 16L22.5 23.5Q20.5 25.5 22.5 27Q24.5 28 26.5 26L30 23"/>
+            <path d="M10 29Q14 31 17 34Q19 36.5 21.5 35Q23.5 37.5 26 35.5Q28.5 37 30.5 34.5Q32.5 35 33.5 32.5L38.5 28.5"/>
+            <path d="M21.5 35L17.5 31M26 35.5L21.5 31M30.5 34.5L26 30M33.5 32.5L29.5 28.5"/>
+          </g></svg></span>
           <h3 class="tile-label">Networking</h3>
           <p class="tile-text">Before a call, ask who someone is and get everything you've noted about them.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path d="M24 42Q14 38 4.5 40.5V24Q14 21.5 24 26Z"/><path d="M24 42Q34 38 43.5 40.5V24Q34 21.5 24 26Z"/>
+            <path d="M8.5 28.5Q13 27.5 19 29.5M8.5 33.5Q13 32.5 19 34.5"/>
+            <circle class="g" cx="29" cy="17" r="7"/>
+            <circle cx="28" cy="16" r="8"/><path d="M33.8 10.2L41 3"/>
+          </g></svg></span>
           <h3 class="tile-label">Research</h3>
           <p class="tile-text">Claude reads the sources for you, and fabrik stores the ones the answer came from.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12h7M9 16h7"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <circle class="g" cx="25" cy="9.5" r="5"/>
+            <circle cx="24" cy="9" r="5.5"/><path d="M21 14.5V21.5M27 14.5V21.5"/>
+            <path d="M12 21.5Q24 20.8 36 21.5Q38.5 22 38.5 24.5V30.5H9.5V24.5Q9.5 22 12 21.5Z"/><path d="M8 34.5Q24 33.6 40 34.5"/>
+            <path d="M12.5 41.5Q18 40.4 23 41.5T35.5 41.5"/>
+          </g></svg></span>
           <h3 class="tile-label">Admin</h3>
           <p class="tile-text">Forms filled in from what you've already told Claude. You see the form before anything is sent.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 16v-4M12 16V8M17 16V5"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path class="g" fill-rule="evenodd" d="M9 42.5V8.5L42.5 42.5ZM15 37V22.5L29.5 37Z"/>
+            <path d="M8 42Q8.6 25 8 7.5L42 42Q25 42.6 8 42Z"/><path d="M14 36V21.5L28.5 36Z"/>
+            <path d="M14 42V39M20 42V39M26 42V38M32 42V39M38 42V39"/>
+          </g></svg></span>
           <h3 class="tile-label">Analysis</h3>
           <p class="tile-text">Prices, products or options weighed up across sites, with evidence.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <rect class="g" x="6" y="10" width="28" height="12" rx="6"/><path class="g" d="M5 28.5Q16 27.6 27 28.5V32Q16 31.2 5 32Z"/>
+            <rect x="5" y="9" width="28" height="12" rx="6"/><path d="M33 15H39V26L32.5 31.5"/>
+            <path d="M32.5 31.5L24.5 43.5M35.5 33.5L27.5 45"/><path d="M24.5 43.5L27.5 45"/>
+          </g></svg></span>
           <h3 class="tile-label">Publishing</h3>
           <p class="tile-text">Websites of any size, put live on your own Cloudflare account under your own web address.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="7.5" width="18" height="12.5"/><path d="M9 7.5V4.5h6v3M3 13h18"/></svg></span>
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path class="g" d="M7 21H43V28.5H7Z"/>
+            <path d="M6 20Q24 19.2 42 20V42Q24 42.8 6 42Z"/><path d="M6 28Q24 27.4 42 28"/>
+            <path d="M17 20V14Q17 12 19 12H29Q31 12 31 14V20"/><rect x="21" y="25.5" width="6" height="6" rx="1"/>
+          </g></svg></span>
           <h3 class="tile-label">Work</h3>
-          <p class="tile-text">In any application with a connector or plugin, Claude can do the work for you, better than you can.</p>
+          <p class="tile-text">In any app Claude has a connector or plugin for, Claude can do the work for you.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="s-page s-line" id="how">
+  <section class="s-line" id="how">
     <div class="wrap">
       <h2 class="title">How it works</h2>
       <div class="tiles tiles-3 tiles-pairs">
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4.5M9 13.5v1.5M15 13.5v1.5M2 13v3M22 13v3"/><circle cx="12" cy="3.5" r="1"/></svg></span>
+          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)"><g transform="rotate(40 24 24)">
+            <path class="g" d="M27.5 2.7L27.5 10A3.5 3.5 0 0 1 20.5 10L20.5 2.7A9 9 0 1 0 27.5 2.7Z" transform="translate(.8 .6)"/>
+            <path d="M27.5 2.7L27.5 10A3.5 3.5 0 0 1 20.5 10L20.5 2.7A9 9 0 1 0 27.5 2.7Z"/>
+            <path d="M21 19.5Q20.6 28 21.3 36.5M27 19.5Q27.4 28 26.7 36.5"/>
+            <circle cx="24" cy="41" r="5.5"/><circle cx="24" cy="41" r="2.4"/>
+          </g></g></svg></span>
           <h3 class="tile-label">AI</h3>
           <p class="tile-text">Claude helps you think, create and get things done. It works in every app you connect, using the data fabrik stores.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><rect x="6" y="13" width="5" height="4" rx="1"/><rect x="13" y="13" width="5" height="4" rx="1"/></svg></span>
+          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path class="g" d="M4 21H45V25.5H4Z"/>
+            <path d="M3 20Q24 19.3 45 20V25Q24 25.6 3 25Z"/><path d="M7 25V44M41 25V44M7 37Q24 36.4 41 37"/>
+            <path d="M5 20V14.5H13V20M9 14.5V11"/>
+            <rect x="21" y="8" width="17" height="12" rx="1.5"/><path d="M24 12H34M24 15.5H30"/>
+          </g></svg></span>
           <h3 class="tile-label">Interface</h3>
           <p class="tile-text">Claude shows your records, lists and boards as cards you can use. Each decision takes one click, like the apps you know.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <path d="M4 10Q24 9.3 44 10V38Q24 38.7 4 38Z"/><path d="M2 10H46"/>
+            <path d="M17 18H31M18 15.5V18M30 15.5V18"/>
+            <path d="M20 28V22.5A4 4 0 0 1 28 22.5V28"/>
+            <rect class="g" x="17.5" y="29" width="15" height="12" rx="2"/>
+            <rect x="16.5" y="28" width="15" height="12" rx="2"/><circle cx="24" cy="32.6" r="1.5"/><path d="M24 34V36.5"/>
+          </g></svg></span>
           <h3 class="tile-label">Data</h3>
           <p class="tile-text">You own your data, in your own Supabase project. You decide who sees it, and you can export it or move it whenever you like.</p>
         </div>
         <div class="tile">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.6 4.5 4.5 0 0 0 7 18.5z"/></svg></span>
+          <span class="ic ic-lg" aria-hidden="true"><svg viewBox="0 0 48 48"><g filter="url(#rough)">
+            <circle class="g" cx="36.5" cy="6.5" r="3.6"/><circle class="g" cx="42" cy="3.5" r="2.6"/><circle class="g" cx="31.5" cy="3.8" r="2.2"/>
+            <path d="M2 44H46"/>
+            <path d="M4 44V28L12 23V28L20 23V28L28 23V44"/>
+            <path d="M30 44V11H38V44"/><path d="M30 16H38"/>
+            <path d="M8 33H11V36H8ZM15.5 33H18.5V36H15.5ZM23 33H26V36H23Z"/>
+          </g></svg></span>
           <h3 class="tile-label">Server</h3>
           <p class="tile-text">Claude puts your websites, forms and apps live on your own Cloudflare account, under your own web address.</p>
         </div>
@@ -156,14 +310,14 @@
     </div>
   </section>
 
-  <section class="s-plate" id="private">
+  <section class="s-line" id="private">
     <div class="wrap">
       <h2 class="title">Private by design</h2>
       <p class="lede">Most assistants keep your data on their makers' servers, for those companies to use and profit from. With fabrik you own it, control it and can take it anywhere.</p>
       <div class="table-wrap">
         <table class="compare">
           <thead>
-            <tr><th scope="col"><span class="sr">Question</span></th><th scope="col" class="us">fabrik</th><th scope="col">Instinct</th><th scope="col">Muse</th><th scope="col">Dots</th><th scope="col">Claude Duet</th></tr>
+            <tr><th scope="col"><span class="sr">Question</span></th><th scope="col" class="us"><span>fabrik</span></th><th scope="col">Instinct</th><th scope="col">Muse</th><th scope="col">Dots</th><th scope="col">Claude Duet</th></tr>
           </thead>
           <tbody>
             <tr><th scope="row">Where your data is kept</th><td class="us">Your own Supabase project</td><td>Instinct's servers</td><td>Meta's servers</td><td>OpenAI's servers</td><td>Anthropic's servers</td></tr>
@@ -179,7 +333,7 @@
     </div>
   </section>
 
-  <section class="s-page s-line" id="free">
+  <section class="s-line" id="free">
     <div class="wrap split">
       <div class="split-text">
         <h2 class="title">Open source and free</h2>
@@ -191,7 +345,7 @@
     </div>
   </section>
 
-  <section class="s-plate" id="why">
+  <section class="s-line" id="why">
     <div class="wrap split">
       <div class="split-text">
         <h2 class="title">Why fabrik exists</h2>
@@ -211,7 +365,7 @@
         <p class="lede">You'll need a Claude plan, the Claude desktop app, and free Supabase and Cloudflare accounts.</p>
       </div>
       <div class="cta-row">
-        <a class="btn btn-solid btn-ic" href="https://github.com/Kinetik-Infotech/fabrik"><svg class="fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>fabrik on GitHub</a>
+        <a class="btn btn-solid btn-ic" href="https://github.com/Kinetik-Infotech/fabrik"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>fabrik on GitHub</a>
       </div>
     </div>
   </section>
@@ -222,12 +376,13 @@
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a class="brand" href="./" aria-label="fabrik, home"><img src="brand/icon.svg" alt=""><span class="wm">fabrik</span></a>
-        <p>Your own private AI assistant, with Claude.</p>
+        <a class="brand" href="./" aria-label="fabrik, home"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#F6F1E7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 44V24.5Q17 18 24.5 17.5"/><path d="M9.5 27.5H27"/></g><path d="M42.1 7.85L37.6 12.36A3.5 3.5 0 0 1 32.65 7.4L37.15 2.9A10 10 0 1 0 42.1 7.85Z" transform="translate(-1 2)" fill="#2FE28A" stroke="#F6F1E7" stroke-width="3" stroke-linejoin="round"/></svg><span class="wm">fabrik</span></a>
+        <p>We mean business.</p>
       </div>
       <div>
         <h4>fabrik</h4>
         <div class="foot-links">
+          <a href="#day">A day with fabrik</a>
           <a href="#does">What it does</a>
           <a href="#how">How it works</a>
           <a href="#private">Private by design</a>
@@ -251,27 +406,6 @@
 <button class="to-top" type="button" aria-label="Back to top">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 14.5 12 8.5l6 6"/></svg>
 </button>
-<script>
-/* Back to top: shown once the page is nearly a screen past the top. */
-(function () {
-  var btn = document.querySelector('.to-top'), still = window.matchMedia('(prefers-reduced-motion: reduce)');
-  function update() { btn.classList.toggle('is-shown', window.scrollY > window.innerHeight * 0.9); }
-  window.addEventListener('scroll', update, { passive: true }); update();
-  btn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: still.matches ? 'auto' : 'smooth' }); });
-})();
-
-/* Burger: below 1100px the section links sit in a panel this button opens. Tapping a link closes it, and so does Escape. */
-(function () {
-  var nav = document.querySelector('.nav'), btn = nav.querySelector('.navburger'), links = nav.querySelector('.navlinks');
-  function setOpen(open) {
-    nav.classList.toggle('is-open', open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.setAttribute('aria-label', open ? 'Close the menu' : 'Open the menu');
-  }
-  btn.addEventListener('click', function () { setOpen(btn.getAttribute('aria-expanded') !== 'true'); });
-  links.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); btn.focus(); } });
-})();
-</script>
+<script src="site.js?v=1"></script>
 </body>
 </html>
