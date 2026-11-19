@@ -1,0 +1,18 @@
+{
+  "name": "humanizer",
+  "description": "Writing rules for anything a person will read. It catalogues the markers that make prose read as machine-written, with a checkable subset and tests. Skills apply them to an explanation, a recap and a definition.",
+  "version": "0.3.2",
+  "author": {
+    "name": "Joel Smalley"
+  },
+  "keywords": [
+    "doctrine",
+    "register",
+    "plain-english",
+    "writing",
+    "ai-tells",
+    "house-style",
+    "review"
+  ],
+  "license": "MIT"
+}

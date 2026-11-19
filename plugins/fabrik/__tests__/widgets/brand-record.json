@@ -1,0 +1,46 @@
+{
+  "record_id": "5a7e1c2d-0000-4000-8000-00000000b001",
+  "scope_id": "0b6c1f5e-0000-4000-8000-0000000000aa",
+  "scope_name": "General",
+  "kind": "model",
+  "title": "Brand",
+  "version_id": "5a7e1c2d-0000-4000-8000-00000000b101",
+  "version_number": 1,
+  "saved_at": "2026-11-18T10:00:00Z",
+  "reason": "The brand from the website",
+  "payload": {
+    "model_kind": "observed_current",
+    "source_version": "https://smith-joinery.example",
+    "source_status": "approved by Sam Smith",
+    "description": "Smith Joinery's brand: its logo, colours and fonts, read from its website.",
+    "type": "brand",
+    "graph": {
+      "format_version": 1,
+      "nodes": [
+        {
+          "id": "brand",
+          "type": "brand",
+          "label": "Smith Joinery",
+          "attributes": {
+            "palette": {
+              "light": { "ink": "#1d2a22", "paper": "#fbfaf6", "muted": "#5b6660", "rule": "#d9d6cc", "accent": "#3fa66b", "accent_text": "#1f6b41" },
+              "dark": { "ink": "#eef2ee", "paper": "#121a15", "muted": "#a6b0aa", "rule": "#2f3a33", "accent": "#5cc78a", "accent_text": "#7fd8a3" }
+            },
+            "fonts": {
+              "heading": { "family": "Fraunces", "source": "google", "fallback": "Georgia, serif" },
+              "body": { "family": "Inter", "source": "google", "fallback": "Helvetica Neue, Arial, sans-serif" }
+            },
+            "logo": {
+              "bucket": "general",
+              "path": "brand/logo.png",
+              "alt": "Smith Joinery",
+              "data_address": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+            }
+          }
+        }
+      ],
+      "edges": []
+    }
+  },
+  "links": []
+}

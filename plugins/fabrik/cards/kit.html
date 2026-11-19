@@ -1,0 +1,253 @@
+<style>
+:root {
+  color-scheme: light dark;
+  --fg: var(--color-text-primary, CanvasText);
+  --muted: var(--color-text-secondary, GrayText);
+  --line: var(--color-border-primary, rgba(128, 128, 128, .4));
+  --soft: var(--color-background-secondary, rgba(128, 128, 128, .1));
+  --radius: var(--border-radius-md, 8px);
+  --danger: var(--color-text-danger, #c0392b);
+  --late: #c0392b;
+  --due: #b9770e;
+  --done: #2e8b57;
+  /* What the business's brand changes, after this style: the accent on buttons, links and the header's rule, the
+   * fonts, and the rule's width. The text and background stay the host's, so the card reads in light and dark mode. */
+  --fk-accent: var(--line);
+  --fk-accent-text: var(--fg);
+  --fk-body-font: var(--font-sans, system-ui, sans-serif);
+  --fk-heading-font: var(--fk-body-font);
+  --fk-head-rule: 0;
+  --fk-head-gap: 0;
+}
+body { margin: 0; padding: 0 4px; font: 14px/1.45 var(--fk-body-font); color: var(--fg); background: transparent; }
+button, select, input { font: inherit; color: inherit; }
+.fk { display: grid; gap: 12px; padding: 6px 0 12px; }
+.fk-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.fk > .fk-head { border-bottom: var(--fk-head-rule) solid var(--fk-accent); padding-bottom: var(--fk-head-gap); }
+.fk-head h2 { margin: 0; font-size: 16px; font-family: var(--fk-heading-font); flex: 1 1 240px; overflow-wrap: anywhere; }
+.fk-logo { height: 24px; width: auto; max-width: 160px; object-fit: contain; align-self: center; }
+.fk-sub { color: var(--muted); font-size: 13px; }
+.fk-refused { color: var(--danger); overflow-wrap: anywhere; }
+.fk-btn { padding: 3px 12px; border: 1px solid var(--fk-accent); border-radius: var(--radius); background: transparent; color: var(--fk-accent-text); cursor: pointer; }
+.fk-btn:hover, .fk-item:hover { background: var(--soft); }
+.fk-btn:disabled { opacity: .5; cursor: default; }
+.fk-item { display: grid; gap: 2px; width: 100%; text-align: left; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 10px; background: transparent; cursor: pointer; min-width: 0; }
+.fk-item b { font-weight: 600; overflow-wrap: anywhere; }
+.fk-item.gap { border-style: dashed; }
+.fk-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.fk-badge { font-size: 12px; padding: 0 6px; border-radius: 999px; border: 1px solid currentColor; }
+.fk-badge.late { color: var(--late); }
+.fk-badge.due { color: var(--due); }
+.fk-badge.blocked { color: var(--late); }
+.fk-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--soft); display: grid; gap: 6px; }
+.fk-panel[hidden] { display: none; }
+.fk-panel h3 { margin: 0; font-size: 15px; font-family: var(--fk-heading-font); overflow-wrap: anywhere; }
+.fk-panel p { margin: 0; }
+.fk-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.fk-table th, .fk-table td { text-align: left; vertical-align: top; padding: 3px 6px; border-top: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+.fk-table th { width: 32%; font-weight: 500; color: var(--muted); }
+.fk-links { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.fk-link { background: none; border: 0; padding: 0; color: var(--fk-accent-text); text-decoration: underline; cursor: pointer; text-align: left; }
+@media (max-width: 560px) { .fk-table th { width: 40%; } }
+</style>
+<script>
+// fabrik's card kit: the helpers every card's code uses. card is the shell's: card.call runs one of the card's tools, and
+// card.on takes Claude's notifications.
+
+/** A value as text that can go in HTML. */
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+}
+
+/** Keeps text in the brand's accent legible on the chat's own background, which the brand's accent_text was not worked
+ * out against. Where the custom property prop, set on el, gives text under 4.5 to 1 against the chat's background, prop
+ * takes fallback, the chat's own text colour. It checks again when the chat changes between light and dark. */
+function legibleAccent(el, prop, fallback) {
+  function rgb(c) {
+    var m = /^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)$/.exec(c);
+    return m && (m[4] === undefined || +m[4] === 1) ? [+m[1], +m[2], +m[3]] : null;
+  }
+  function luminance(c) {
+    var w = [0.2126, 0.7152, 0.0722];
+    return c.reduce(function (sum, v, i) { v /= 255; return sum + w[i] * (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); }, 0);
+  }
+  function check() {
+    el.style.removeProperty(prop);
+    var probe = document.createElement("span");
+    probe.style.cssText = "position: absolute; visibility: hidden; color: var(" + prop + "); background: var(--color-background-primary, Canvas);";
+    (el === document.documentElement ? document.body : el).appendChild(probe);
+    var seen = getComputedStyle(probe), text = rgb(seen.color), ground = rgb(seen.backgroundColor);
+    probe.remove();
+    if (!text || !ground) return;
+    var a = luminance(text) + 0.05, b = luminance(ground) + 0.05;
+    if (Math.max(a, b) / Math.min(a, b) < 4.5) el.style.setProperty(prop, fallback);
+  }
+  check();
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", check);
+}
+function $(id) { return document.getElementById(id); }
+/** A tool result's text. */
+function textOf(r) { return ((r && r.content) || []).map(function (c) { return c.text || ""; }).join(" "); }
+/** Runs one of the card's tools, and gives its data, or throws its refusal. */
+function read(name, args) {
+  return card.call(name, args).then(function (r) {
+    if (!r || r.isError) throw new Error(textOf(r) || "fabrik gave nothing back.");
+    return r.structuredContent || {};
+  });
+}
+/** Shows a refusal or an error in place of the element's content. */
+function failed(el, e) { el.innerHTML = '<p class="fk-refused">' + esc(e && e.message || e) + "</p>"; }
+
+// Every date and time a card shows is in UK time, as fabrik shows them, wherever the card is open.
+function day(iso) { return iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }) : ""; }
+function full(iso) {
+  return iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "";
+}
+var KINDS = { activity: "Activity", decision: "Decision", evidence: "Evidence", model: "Model" };
+var STATES = [["pending", "Pending"], ["in_progress", "In progress"], ["paused", "Paused"], ["completed", "Completed"], ["cancelled", "Cancelled"]];
+function stateName(s) { var f = STATES.filter(function (x) { return x[0] === s; })[0]; return f ? f[1] : s || ""; }
+/** A count and its noun: 1 link, 2 links. */
+function counted(n, noun) { return n + " " + noun + (n === 1 ? "" : "s"); }
+/** A field's name as words: forecast_start_at as Forecast start at. */
+function words(k) { var t = String(k).replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); }
+
+/** A field's value as text a person reads: a time in UK time, a list one item a line, an object as JSON. */
+function shown(k, v) {
+  if (v == null || v === "") return "";
+  if (typeof v === "object" && Object.keys(v).length === 0) return "";
+  if (k === "state") return stateName(OLD_STATES[v] || v);
+  if (typeof v === "string" && /_at$/.test(k) && !isNaN(Date.parse(v))) return full(v);
+  if (Array.isArray(v) && v.every(function (x) { return typeof x !== "object" || x === null; })) return v.join("\n");
+  if (typeof v === "object") return JSON.stringify(v, null, 1);
+  return String(v);
+}
+/** A table of fields, each named in words, with the empty left out: no value, empty text, an empty list or an empty object. */
+function fieldsTable(fields) {
+  var rows = Object.keys(fields || {}).filter(function (k) { return shown(k, fields[k]) !== ""; });
+  if (!rows.length) return '<p class="fk-sub">No fields are filled in.</p>';
+  return '<table class="fk-table"><tbody>' + rows.map(function (k) {
+    return "<tr><th>" + esc(words(k)) + "</th><td>" + esc(shown(k, fields[k])) + "</td></tr>";
+  }).join("") + "</tbody></table>";
+}
+
+/** A record as fabrik_show_record gives it: its title, kind, scope and version, its reason, its fields and its links. A
+ * model's graph is counted, not listed. Each link opens the record it goes to. */
+function recordHtml(r) {
+  var payload = Object.assign({}, r.payload || {});
+  var graph = payload.graph;
+  delete payload.graph;
+  var links = r.links || [];
+  return '<div class="fk-head"><h3 id="fk-record-title">' + esc(r.title) + '</h3><button class="fk-btn" data-close>Close</button></div>' +
+    '<p class="fk-sub">' + esc([KINDS[r.kind] || r.kind, r.scope_name, "version " + r.version_number, "saved " + full(r.saved_at)].filter(Boolean).join(" · ")) + "</p>" +
+    (r.reason ? "<p>" + esc(r.reason) + "</p>" : "") +
+    fieldsTable(payload) +
+    (graph ? '<p class="fk-sub">Its graph has ' + counted((graph.nodes || []).length, "node") + " and " + counted((graph.edges || []).length, "link") + ".</p>" : "") +
+    (links.length ? '<p class="fk-sub">Links</p><ul class="fk-links">' + links.map(function (l) {
+      return "<li>" + esc(words(l.relation)) + ' <button class="fk-link" data-open="' + esc(l.target_record_id) + '">' +
+        esc((l.target_index ? l.target_index + " " : "") + l.target_title) + "</button>" + (l.target_deleted ? " (deleted)" : "") + "</li>";
+    }).join("") + "</ul>" : '<p class="fk-sub">No links.</p>');
+}
+
+/** Opens a record in the panel: its fields and links, read now through card_record. Close hides the panel. */
+function openRecord(panel, id) {
+  panel.hidden = false;
+  panel.innerHTML = '<p class="fk-sub">Opening the record…</p>';
+  return read("card_record", { record: id }).then(function (r) { panel.innerHTML = recordHtml(r); }, function (e) { failed(panel, e); });
+}
+/** Wires a container's buttons: one with data-open opens its record in the panel, and Close closes the panel. */
+function wireRecords(container, panel) {
+  container.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest ? e.target.closest("[data-open],[data-close]") : null;
+    if (!t) return;
+    if (t.hasAttribute("data-close")) { panel.hidden = true; panel.innerHTML = ""; return; }
+    openRecord(panel, t.getAttribute("data-open"));
+  });
+}
+
+/** Starts the card once Claude gives the tool's result: draws a refusal, or calls begin with the result's data. */
+function onResult(begin) {
+  var begun = false;
+  card.on("ui/notifications/tool-result", function (p) {
+    if (begun) return;
+    begun = true;
+    if (p.isError) { failed($("fk-body"), new Error(textOf(p))); return; }
+    begin(p.structuredContent || {});
+  });
+}
+
+// ---- A plan, as the board and graph skills' plan model has it ----
+
+function indexOf(item) { return String((item.payload || {}).index || "").split(/\s+/).filter(Boolean).join(" "); }
+/** 2.10 after 2.9, and 2.2 before 2.2a: digits as numbers, the rest without case. */
+function indexRuns(index) { return (index.match(/\d+|\D+/g) || []).map(function (r) { return /^\d/.test(r) ? [0, +r, ""] : [1, 0, r.toLowerCase()]; }); }
+function compareRuns(a, b) {
+  for (var i = 0; i < Math.min(a.length, b.length); i++) {
+    for (var j = 0; j < 3; j++) if (a[i][j] !== b[i][j]) return a[i][j] < b[i][j] ? -1 : 1;
+  }
+  return a.length - b.length;
+}
+function effective(p, end) { return p["forecast_" + end + "_at"] || p["baseline_" + end + "_at"] || null; }
+/** An activity with an index comes first, in index order; one with none after, by start then title. */
+function byIndex(a, b) {
+  var ia = indexOf(a), ib = indexOf(b);
+  if (ia && ib) return compareRuns(indexRuns(ia), indexRuns(ib)) || a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+  if (ia || ib) return ia ? -1 : 1;
+  var sa = effective(a.payload || {}, "start") || "9999", sb = effective(b.payload || {}, "start") || "9999";
+  return sa < sb ? -1 : sa > sb ? 1 : a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+}
+var OLD_STATES = { planned: "pending", active: "in_progress", on_hold: "paused" };
+
+/** The plan model from card_view's plan answer: the plan, every activity under it in index order, and its parts, each
+ * a direct child of the plan with the activities it holds. */
+function planModel(v) {
+  var items = {}, children = {}, observed = v.observed_at ? new Date(v.observed_at) : null;
+  v.items.forEach(function (i) { items[i.record_id] = i; });
+  v.items.forEach(function (i) {
+    var p = i.parent && i.parent.record_id;
+    if (p) (children[p] = children[p] || []).push(i);
+  });
+  function under(id, seen) {
+    var out = [];
+    (children[id] || []).slice().sort(byIndex).forEach(function (c) {
+      if (seen[c.record_id]) return;
+      seen[c.record_id] = true;
+      out.push(c);
+      out = out.concat(under(c.record_id, seen));
+    });
+    return out;
+  }
+  function activity(i) {
+    var p = i.payload || {}, state = OLD_STATES[i.state || p.state] || i.state || p.state, start = effective(p, "start");
+    var kind = p.activity_kind, type = ["work", "deliverable", "blocker"].indexOf(p.task_type) >= 0 ? p.task_type : kind === "task" ? "work" : null;
+    return {
+      id: i.record_id, index: indexOf(i), title: i.title, kind: kind, task_type: type, state: state, description: p.description || "",
+      start: start, finish: effective(p, "finish"), overdue_seconds: i.overdue_seconds || 0,
+      due_to_start: state === "pending" && !!start && !!observed && new Date(start) < observed,
+      blockers: p.blockers || [], parent_id: i.parent ? i.parent.record_id : null,
+      waits_on: (i.dependencies || []).map(function (d) { return d.record_id; }),
+    };
+  }
+  var plan = items[v.plan_id];
+  if (!plan) throw new Error("The plan is not among the activities fabrik gave for its scope.");
+  var seen = {}; seen[plan.record_id] = true;
+  var all = under(plan.record_id, seen).map(activity);
+  var byId = {}; all.forEach(function (a) { byId[a.id] = a; });
+  var rows = (children[plan.record_id] || []).slice().sort(byIndex).map(function (c) {
+    var s = {}; s[plan.record_id] = true; s[c.record_id] = true;
+    var cards = (c.payload || {}).activity_kind === "plan" ? under(c.record_id, s).map(function (x) { return x.record_id; }) : [c.record_id];
+    return { activity: c.record_id, cards: cards };
+  });
+  return { plan: activity(plan), activities: all, byId: byId, rows: rows, observed_at: v.observed_at, cutoff: v.cutoff };
+}
+function named(a) { return (a.index ? a.index + " " : "") + a.title; }
+function span(a) {
+  if (a.start && a.finish) return day(a.start) + " to " + day(a.finish);
+  if (a.finish) return "by " + day(a.finish);
+  if (a.start) return "from " + day(a.start);
+  return "No dates";
+}
+/** An activity's kind as a card shows it: a task as its type, so a deliverable or a blocker reads as one. */
+function kindOf(a) { return a.kind === "task" && a.task_type && a.task_type !== "work" ? words(a.task_type) : words(a.kind || "activity"); }
+
+legibleAccent(document.documentElement, "--fk-accent-text", "var(--fg)");
+</script>

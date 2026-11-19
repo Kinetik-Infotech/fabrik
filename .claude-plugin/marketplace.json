@@ -1,0 +1,27 @@
+{
+  "name": "fabrik",
+  "owner": {
+    "name": "Joel Smalley"
+  },
+  "metadata": {
+    "description": "fabrik: a knowledge base for a single person, kept in their own Supabase project.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "fabrik",
+      "description": "Lets a person work in their own fabrik knowledge base, in their own Supabase project: records, files and their search, boards, graphs and printed PDFs.",
+      "source": "./plugins/fabrik"
+    },
+    {
+      "name": "cloudflare",
+      "description": "Publishes files from your computer to Cloudflare Pages and sets DNS records, from a folder you name, with no token creation.",
+      "source": "./plugins/cloudflare"
+    },
+    {
+      "name": "humanizer",
+      "description": "Writing rules and checks so what you send reads as a person wrote it, not a machine.",
+      "source": "./plugins/humanizer"
+    }
+  ]
+}

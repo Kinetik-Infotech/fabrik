@@ -1,0 +1,755 @@
+{
+  "labels": {
+    "AEOAudit": {
+      "type": "AEOAudit",
+      "kind": "evidence"
+    },
+    "AdminConversation": {
+      "type": "AdminConversation",
+      "kind": "evidence"
+    },
+    "Agent": {
+      "type": "Agent",
+      "kind": "evidence"
+    },
+    "AnonVisitor": {
+      "type": "AnonVisitor",
+      "kind": "evidence"
+    },
+    "Asset": {
+      "type": "Asset",
+      "kind": "evidence"
+    },
+    "AssistantMessage": {
+      "type": "AssistantMessage",
+      "kind": "evidence"
+    },
+    "Attachment": {
+      "type": "Attachment",
+      "kind": "evidence"
+    },
+    "Attendance": {
+      "type": "Attendance",
+      "kind": "evidence"
+    },
+    "Audience": {
+      "type": "Audience",
+      "kind": "evidence"
+    },
+    "BrandDeal": {
+      "type": "BrandDeal",
+      "kind": "evidence"
+    },
+    "BusinessFunction": {
+      "type": "BusinessFunction",
+      "kind": "evidence"
+    },
+    "BusinessProcess": {
+      "type": "BusinessProcess",
+      "kind": "evidence"
+    },
+    "BusinessSystem": {
+      "type": "BusinessSystem",
+      "kind": "evidence"
+    },
+    "Campaign": {
+      "type": "Campaign",
+      "kind": "evidence"
+    },
+    "Case": {
+      "type": "Case",
+      "kind": "evidence"
+    },
+    "CashEntry": {
+      "type": "CashEntry",
+      "kind": "evidence"
+    },
+    "Chain": {
+      "type": "Chain",
+      "kind": "evidence"
+    },
+    "ChainLink": {
+      "type": "ChainLink",
+      "kind": "evidence"
+    },
+    "Chunk": {
+      "type": "Chunk",
+      "kind": "evidence"
+    },
+    "Click": {
+      "type": "Click",
+      "kind": "evidence"
+    },
+    "CompiledTruthRevision": {
+      "type": "CompiledTruthRevision",
+      "kind": "evidence"
+    },
+    "Component": {
+      "type": "Component",
+      "kind": "evidence"
+    },
+    "Concept": {
+      "type": "Concept",
+      "kind": "evidence"
+    },
+    "Contact": {
+      "type": "Contact",
+      "kind": "evidence"
+    },
+    "Content": {
+      "type": "Content",
+      "kind": "evidence"
+    },
+    "Conversation": {
+      "type": "Conversation",
+      "kind": "evidence"
+    },
+    "ConversationArchive": {
+      "type": "ConversationArchive",
+      "kind": "evidence"
+    },
+    "CreativeWork": {
+      "type": "CreativeWork",
+      "kind": "evidence"
+    },
+    "Credential": {
+      "type": "Credential",
+      "kind": "evidence"
+    },
+    "Credit": {
+      "type": "Credit",
+      "kind": "evidence"
+    },
+    "Customer": {
+      "type": "Customer",
+      "kind": "evidence"
+    },
+    "Decision": {
+      "type": "Decision",
+      "kind": "decision"
+    },
+    "DefinedTerm": {
+      "type": "DefinedTerm",
+      "kind": "evidence"
+    },
+    "Deliverable": {
+      "type": "Deliverable",
+      "kind": "evidence"
+    },
+    "DemandObservation": {
+      "type": "DemandObservation",
+      "kind": "evidence"
+    },
+    "DigitalDocument": {
+      "type": "DigitalDocument",
+      "kind": "evidence"
+    },
+    "DiningOrder": {
+      "type": "DiningOrder",
+      "kind": "evidence"
+    },
+    "Email": {
+      "type": "Email",
+      "kind": "evidence"
+    },
+    "Engagement": {
+      "type": "Engagement",
+      "kind": "evidence"
+    },
+    "Engineer": {
+      "type": "Engineer",
+      "kind": "evidence"
+    },
+    "Event": {
+      "type": "Event",
+      "kind": "activity"
+    },
+    "ExternalParty": {
+      "type": "ExternalParty",
+      "kind": "evidence"
+    },
+    "FAQPage": {
+      "type": "FAQPage",
+      "kind": "evidence"
+    },
+    "FileArtifact": {
+      "type": "FileArtifact",
+      "kind": "evidence"
+    },
+    "Finding": {
+      "type": "Finding",
+      "kind": "evidence"
+    },
+    "Hypothesis": {
+      "type": "Hypothesis",
+      "kind": "evidence"
+    },
+    "Idea": {
+      "type": "Idea",
+      "kind": "evidence"
+    },
+    "ImageObject": {
+      "type": "ImageObject",
+      "kind": "evidence"
+    },
+    "InboundInvoice": {
+      "type": "InboundInvoice",
+      "kind": "evidence"
+    },
+    "InformationObject": {
+      "type": "InformationObject",
+      "kind": "evidence"
+    },
+    "IntakeDraft": {
+      "type": "IntakeDraft",
+      "kind": "evidence"
+    },
+    "Invoice": {
+      "type": "Invoice",
+      "kind": "evidence"
+    },
+    "InvoiceLine": {
+      "type": "InvoiceLine",
+      "kind": "evidence"
+    },
+    "InvoicePayment": {
+      "type": "InvoicePayment",
+      "kind": "evidence"
+    },
+    "Job": {
+      "type": "Job",
+      "kind": "activity"
+    },
+    "JobCost": {
+      "type": "JobCost",
+      "kind": "evidence"
+    },
+    "KeyResult": {
+      "type": "KeyResult",
+      "kind": "evidence"
+    },
+    "KnowledgeDocument": {
+      "type": "KnowledgeDocument",
+      "kind": "evidence"
+    },
+    "Lead": {
+      "type": "Lead",
+      "kind": "evidence"
+    },
+    "Learning": {
+      "type": "Learning",
+      "kind": "evidence"
+    },
+    "Listing": {
+      "type": "Listing",
+      "kind": "evidence"
+    },
+    "LocalBusiness": {
+      "type": "LocalBusiness",
+      "kind": "evidence"
+    },
+    "Meeting": {
+      "type": "Meeting",
+      "kind": "activity"
+    },
+    "Menu": {
+      "type": "Menu",
+      "kind": "evidence"
+    },
+    "MenuItem": {
+      "type": "MenuItem",
+      "kind": "evidence"
+    },
+    "Message": {
+      "type": "Message",
+      "kind": "evidence"
+    },
+    "Milestone": {
+      "type": "Milestone",
+      "kind": "evidence"
+    },
+    "Note": {
+      "type": "Note",
+      "kind": "evidence"
+    },
+    "Objective": {
+      "type": "Objective",
+      "kind": "evidence"
+    },
+    "Offer": {
+      "type": "Offer",
+      "kind": "evidence"
+    },
+    "OpeningHoursSpecification": {
+      "type": "OpeningHoursSpecification",
+      "kind": "evidence"
+    },
+    "Order": {
+      "type": "Order",
+      "kind": "evidence"
+    },
+    "Organization": {
+      "type": "Organization",
+      "kind": "evidence"
+    },
+    "Page": {
+      "type": "Page",
+      "kind": "evidence"
+    },
+    "PageView": {
+      "type": "PageView",
+      "kind": "evidence"
+    },
+    "Part": {
+      "type": "Part",
+      "kind": "evidence"
+    },
+    "Person": {
+      "type": "Person",
+      "kind": "evidence"
+    },
+    "Position": {
+      "type": "Position",
+      "kind": "evidence"
+    },
+    "PostalAddress": {
+      "type": "PostalAddress",
+      "kind": "evidence"
+    },
+    "PpmContract": {
+      "type": "PpmContract",
+      "kind": "evidence"
+    },
+    "Preference": {
+      "type": "Preference",
+      "kind": "model"
+    },
+    "PriceSpecification": {
+      "type": "PriceSpecification",
+      "kind": "evidence"
+    },
+    "ProcessBoundaryEvent": {
+      "type": "ProcessBoundaryEvent",
+      "kind": "evidence"
+    },
+    "ProcessStep": {
+      "type": "ProcessStep",
+      "kind": "evidence"
+    },
+    "Product": {
+      "type": "Product",
+      "kind": "evidence"
+    },
+    "Project": {
+      "type": "Project",
+      "kind": "activity"
+    },
+    "Property": {
+      "type": "Property",
+      "kind": "evidence"
+    },
+    "PublicConversation": {
+      "type": "PublicConversation",
+      "kind": "evidence"
+    },
+    "PurchaseOrder": {
+      "type": "PurchaseOrder",
+      "kind": "evidence"
+    },
+    "PurchaseOrderLine": {
+      "type": "PurchaseOrderLine",
+      "kind": "evidence"
+    },
+    "Question": {
+      "type": "Question",
+      "kind": "evidence"
+    },
+    "Quote": {
+      "type": "Quote",
+      "kind": "evidence"
+    },
+    "QuoteLine": {
+      "type": "QuoteLine",
+      "kind": "evidence"
+    },
+    "Recommendation": {
+      "type": "Recommendation",
+      "kind": "evidence"
+    },
+    "ReplenishmentPolicy": {
+      "type": "ReplenishmentPolicy",
+      "kind": "evidence"
+    },
+    "Report": {
+      "type": "Report",
+      "kind": "evidence"
+    },
+    "Reservation": {
+      "type": "Reservation",
+      "kind": "evidence"
+    },
+    "Retainer": {
+      "type": "Retainer",
+      "kind": "evidence"
+    },
+    "Review": {
+      "type": "Review",
+      "kind": "evidence"
+    },
+    "Risk": {
+      "type": "Risk",
+      "kind": "evidence"
+    },
+    "Room": {
+      "type": "Room",
+      "kind": "evidence"
+    },
+    "Route": {
+      "type": "Route",
+      "kind": "evidence"
+    },
+    "RoutineRun": {
+      "type": "RoutineRun",
+      "kind": "evidence"
+    },
+    "Sale": {
+      "type": "Sale",
+      "kind": "evidence"
+    },
+    "ScrollMilestone": {
+      "type": "ScrollMilestone",
+      "kind": "evidence"
+    },
+    "Section": {
+      "type": "Section",
+      "kind": "evidence"
+    },
+    "Service": {
+      "type": "Service",
+      "kind": "evidence"
+    },
+    "Session": {
+      "type": "Session",
+      "kind": "evidence"
+    },
+    "Shipment": {
+      "type": "Shipment",
+      "kind": "evidence"
+    },
+    "Site": {
+      "type": "Site",
+      "kind": "evidence"
+    },
+    "SocialPost": {
+      "type": "SocialPost",
+      "kind": "evidence"
+    },
+    "Source": {
+      "type": "Source",
+      "kind": "evidence"
+    },
+    "StepResult": {
+      "type": "StepResult",
+      "kind": "evidence"
+    },
+    "StockMovement": {
+      "type": "StockMovement",
+      "kind": "evidence"
+    },
+    "StockPosition": {
+      "type": "StockPosition",
+      "kind": "evidence"
+    },
+    "Stop": {
+      "type": "Stop",
+      "kind": "evidence"
+    },
+    "StoreLocation": {
+      "type": "StoreLocation",
+      "kind": "evidence"
+    },
+    "TableReservation": {
+      "type": "TableReservation",
+      "kind": "evidence"
+    },
+    "Task": {
+      "type": "Task",
+      "kind": "activity"
+    },
+    "TimeEntry": {
+      "type": "TimeEntry",
+      "kind": "evidence"
+    },
+    "TimelineEvent": {
+      "type": "TimelineEvent",
+      "kind": "evidence"
+    },
+    "ToolCall": {
+      "type": "ToolCall",
+      "kind": "evidence"
+    },
+    "UserMessage": {
+      "type": "UserMessage",
+      "kind": "evidence"
+    },
+    "UserProfile": {
+      "type": "UserProfile",
+      "kind": "model"
+    },
+    "Valuation": {
+      "type": "Valuation",
+      "kind": "evidence"
+    },
+    "VariationNote": {
+      "type": "VariationNote",
+      "kind": "evidence"
+    },
+    "Vehicle": {
+      "type": "Vehicle",
+      "kind": "evidence"
+    },
+    "Viewing": {
+      "type": "Viewing",
+      "kind": "evidence"
+    },
+    "Visit": {
+      "type": "Visit",
+      "kind": "evidence"
+    },
+    "VoiceEdit": {
+      "type": "VoiceEdit",
+      "kind": "evidence"
+    },
+    "VoiceProfile": {
+      "type": "VoiceProfile",
+      "kind": "model"
+    },
+    "WhatsAppConversation": {
+      "type": "WhatsAppConversation",
+      "kind": "evidence"
+    },
+    "WhatsAppGroup": {
+      "type": "WhatsAppGroup",
+      "kind": "evidence"
+    },
+    "WhatsAppMessage": {
+      "type": "WhatsAppMessage",
+      "kind": "evidence"
+    },
+    "Workflow": {
+      "type": "Workflow",
+      "kind": "model"
+    },
+    "WorkflowRun": {
+      "type": "WorkflowRun",
+      "kind": "activity"
+    },
+    "WorkflowStep": {
+      "type": "WorkflowStep",
+      "kind": "model"
+    }
+  },
+  "skip": {
+    "AccessGrant": "Holds magicToken and sliceToken, live credentials that would open gated public agents; not copied.",
+    "AdminUser": "Device-level admin, not account data; the import leaves it out and reports its relationships as left out.",
+    "CitationProposal": "Dream-cycle triage queue entry, bookkeeping the memory reviewer regenerates.",
+    "CloudflareHostname": "Legacy tunnel hostname projection of the install, no current writer; belongs to the device, not the account.",
+    "CloudflareTunnel": "Legacy tunnel projection of the install, no current writer; belongs to the device, not the account.",
+    "EmailAccount": "Email connection configuration for the install, no user knowledge.",
+    "GraphPreference": "Per-user filter setting for the /graph page, UI metadata with no account content.",
+    "OrphanCandidate": "Dream-cycle triage queue entry, bookkeeping the memory reviewer regenerates.",
+    "Trashed": "A marker label, not a node type; a trashed node keeps its real label and is imported as a deleted record."
+  },
+  "dropProperties": [
+    "embedding",
+    "magicToken",
+    "magicTokenExpiresAt",
+    "sliceToken",
+    "accessHash",
+    "accessToken",
+    "apiKey",
+    "apiToken",
+    "botToken",
+    "password",
+    "refreshToken",
+    "secret"
+  ],
+  "relations": {
+    "ABOUT": {
+      "code": "about",
+      "description": "A review or message is about another record."
+    },
+    "ADMIN_OF": {
+      "code": "admin_of",
+      "description": "An administrator of a business account."
+    },
+    "ADVANCES": {
+      "code": "advances",
+      "description": "A project or task moves an objective or key result forward."
+    },
+    "ADVISES": {
+      "code": "advises",
+      "description": "A person advises an organisation or another person."
+    },
+    "ATTACHED_TO": {
+      "code": "attached_to",
+      "description": "A document or note is attached to a meeting or project."
+    },
+    "ATTENDED": {
+      "code": "attended",
+      "description": "A person attended an event or meeting."
+    },
+    "AUTHORED": {
+      "code": "authored",
+      "description": "A person wrote a post, report, page, note or document."
+    },
+    "AUTHORED_BY": {
+      "code": "authored_by",
+      "description": "A message or source was written by a person."
+    },
+    "BLOCKS": {
+      "code": "blocks",
+      "description": "A task blocks another task."
+    },
+    "CONTAINS": {
+      "code": "contains",
+      "description": "A document contains a text chunk."
+    },
+    "DEPENDS_ON": {
+      "code": "depends_on",
+      "description": "A task cannot finish before another task."
+    },
+    "FOUNDED": {
+      "code": "founded",
+      "description": "A person founded an organisation or local business."
+    },
+    "HANDLED_BY": {
+      "code": "handled_by",
+      "description": "A conversation is handled by an agent."
+    },
+    "HAS_ACCESS": {
+      "code": "has_access",
+      "description": "A person has an access grant."
+    },
+    "HAS_BRAND_ASSET": {
+      "code": "has_brand_asset",
+      "description": "A business has a brand document or image."
+    },
+    "HAS_CHUNK": {
+      "code": "has_chunk",
+      "description": "A section or document has a text chunk."
+    },
+    "HAS_ENCLOSURE": {
+      "code": "has_enclosure",
+      "description": "A conversation or document has an enclosed file."
+    },
+    "HAS_FAQ": {
+      "code": "has_faq",
+      "description": "A business has a frequently asked question."
+    },
+    "HAS_HOURS": {
+      "code": "has_hours",
+      "description": "A business has opening hours."
+    },
+    "HAS_IDENTITY": {
+      "code": "has_identity",
+      "description": "An agent has an identity document."
+    },
+    "HAS_KNOWLEDGE": {
+      "code": "has_knowledge",
+      "description": "An agent has a knowledge document."
+    },
+    "HAS_PREFERENCE": {
+      "code": "has_preference",
+      "description": "A person has a preference."
+    },
+    "HAS_PRICING": {
+      "code": "has_pricing",
+      "description": "A service has a price specification."
+    },
+    "HAS_PROFILE": {
+      "code": "has_profile",
+      "description": "An administrator has a user profile."
+    },
+    "HAS_RESULT": {
+      "code": "has_result",
+      "description": "A workflow step or tool call produced a result."
+    },
+    "HAS_SECTION": {
+      "code": "has_section",
+      "description": "A document has a section."
+    },
+    "HAS_SOUL": {
+      "code": "has_soul",
+      "description": "An agent has a soul document."
+    },
+    "HAS_STEP": {
+      "code": "has_step",
+      "description": "A workflow or business process has a step."
+    },
+    "HAS_TASK": {
+      "code": "has_task",
+      "description": "A person or business has a task."
+    },
+    "HAS_TOOL_CALL": {
+      "code": "has_tool_call",
+      "description": "An assistant message made a tool call."
+    },
+    "INVESTED_IN": {
+      "code": "invested_in",
+      "description": "A person or organisation invested in an organisation or local business."
+    },
+    "MENTIONS": {
+      "code": "mentions",
+      "description": "A message, page, note, document or report mentions a person, organisation or event."
+    },
+    "NEXT": {
+      "code": "next",
+      "description": "The next message in a conversation."
+    },
+    "OBSERVED_IN": {
+      "code": "observed_in",
+      "description": "A record was observed in a conversation."
+    },
+    "OFFERS": {
+      "code": "offers",
+      "description": "A business offers a service."
+    },
+    "PART_OF": {
+      "code": "part_of",
+      "description": "A message belongs to a conversation."
+    },
+    "RECEIVED_BY": {
+      "code": "received_by",
+      "description": "An email was received by a person."
+    },
+    "REFERENCES": {
+      "code": "references",
+      "description": "A page, report, message, document or task refers to another record."
+    },
+    "RELATED_TO": {
+      "code": "related_to",
+      "description": "A person or organisation is related to another person or organisation."
+    },
+    "REPLY_TO": {
+      "code": "reply_to",
+      "description": "An email replies to another email."
+    },
+    "REPORTS_TO": {
+      "code": "reports_to",
+      "description": "A person reports to another person."
+    },
+    "RUN_OF": {
+      "code": "run_of",
+      "description": "A run is an execution of a workflow or event."
+    },
+    "USES_KNOWLEDGE": {
+      "code": "uses_knowledge",
+      "description": "An agent uses a knowledge document."
+    },
+    "WORKS_AT": {
+      "code": "works_at",
+      "description": "A person works at an organisation or local business."
+    }
+  }
+}

@@ -1,0 +1,64 @@
+<style>
+.rc-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.rc-filters label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.rc-filters select, .rc-filters input { padding: 3px 6px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; min-width: 0; }
+.rc-filters input { width: min(240px, 100%); }
+.rc-list { display: grid; gap: 6px; }
+</style>
+<div class="fk">
+  <div class="fk-head"><h2>Records</h2><span class="fk-sub" id="rc-count"></span></div>
+  <form class="rc-filters" id="rc-filters">
+    <label>Kind <select id="rc-kind"><option value="">Any</option><option value="activity">Activity</option><option value="decision">Decision</option><option value="evidence">Evidence</option><option value="model">Model</option></select></label>
+    <label>Scope <select id="rc-scope"><option value="">Any</option></select></label>
+    <label>Title <input id="rc-title" type="search" placeholder="Words of the title"></label>
+    <button class="fk-btn" id="rc-find" type="submit">Find</button>
+  </form>
+  <div class="fk-panel" id="fk-panel" hidden></div>
+  <div id="fk-body"><p class="fk-sub">Reading fabrik…</p></div>
+  <button class="fk-btn" id="rc-more" hidden>More</button>
+</div>
+<script>
+// The records card: the records the person may read, newest save first, 25 at a time, found with card_find_records by
+// kind, scope and words of the title. Each opens its fields and links in the panel, through card_record.
+var count = 0, page = null;
+
+function row(r) {
+  return '<button class="fk-item" data-open="' + esc(r.record_id) + '"><b>' + esc(r.title) + '</b><span class="fk-sub">' +
+    esc([KINDS[r.kind] || r.kind, r.scope_name, "version " + r.version_number, "saved " + full(r.saved_at) + (r.saved_by ? " by " + r.saved_by : "")].filter(Boolean).join(" · ")) +
+    "</span></button>";
+}
+function filters() { return { kind: $("rc-kind").value || undefined, scope: $("rc-scope").value || undefined, title: $("rc-title").value.trim() || undefined }; }
+function scopesInto(list, chosen) {
+  var select = $("rc-scope");
+  select.innerHTML = '<option value="">Any</option>' + list.map(function (s) {
+    return '<option value="' + esc(s.scope_id) + '"' + (s.scope_id === chosen ? " selected" : "") + ">" + esc(s.name) + "</option>";
+  }).join("");
+}
+/** Finds the first page for the filters, or, with more, the next page of the last find. */
+function find(more) {
+  var args = filters(), body = $("fk-body");
+  if (more) { args.cursor = page.next_cursor; args.cutoff = page.cutoff; } else body.innerHTML = '<p class="fk-sub">Reading fabrik…</p>';
+  $("rc-find").disabled = true;
+  return read("card_find_records", args).then(function (d) {
+    page = d;
+    scopesInto(d.scopes || [], d.scope_id);
+    if (!more) { body.innerHTML = '<div class="rc-list" id="rc-list"></div>'; count = 0; }
+    $("rc-list").insertAdjacentHTML("beforeend", d.items.map(row).join(""));
+    count += d.items.length;
+    if (!count) body.innerHTML = '<p class="fk-sub" id="rc-list">No record you can read matches.</p>';
+    $("rc-count").textContent = count ? count + (d.next_cursor ? " shown, more to read" : count === 1 ? " record" : " records") : "";
+    $("rc-more").hidden = !d.next_cursor;
+  }, function (e) { failed(body, e); }).then(function () { $("rc-find").disabled = false; });
+}
+
+$("rc-filters").addEventListener("submit", function (e) { e.preventDefault(); find(false); });
+$("rc-more").addEventListener("click", function () { find(true); });
+wireRecords($("fk-body"), $("fk-panel"));
+wireRecords($("fk-panel"), $("fk-panel"));
+onResult(function (given) {
+  if (given.kind) $("rc-kind").value = given.kind;
+  if (given.title) $("rc-title").value = given.title;
+  if (given.scope) $("rc-scope").innerHTML = '<option value="' + esc(given.scope) + '" selected>' + esc(given.scope) + "</option>";
+  find(false);
+});
+</script>
