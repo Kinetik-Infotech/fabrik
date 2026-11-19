@@ -24,8 +24,9 @@
 // The connections card: it shows whether connections are on, in the words show_connections_setup's result gives. Save
 // calls connections_setup_save with the key typed here, which fabrik keeps only once Anthropic takes it, and the card then
 // shows connected or the reason. Turn off calls connections_off, which removes the key. When Anthropic didn't answer, the
-// card says why and offers both.
-var SAID = {};
+// card says why and offers both. Both send the pass show_connections_setup gave the card in its result's _meta, which
+// the model never sees.
+var SAID = {}, PASS = "";
 function showState(state, problem) {
   $("cs-state").textContent = (SAID[state] || "") + (problem ? " " + problem : "");
   $("cs-off").hidden = state === "off";
@@ -38,17 +39,17 @@ $("cs-form").addEventListener("submit", function (e) {
   e.preventDefault();
   busy(true);
   say("Checking the key with Anthropic…", false);
-  card.call("connections_setup_save", { key: $("cs-key").value }).then(function (r) {
+  card.call("connections_setup_save", { key: $("cs-key").value, pass: PASS }).then(function (r) {
     if (r && !r.isError) { $("cs-key").value = ""; showState("on"); say("Connected. Tell Claude connections are on.", false); }
     else say("Not kept: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not kept: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });
 $("cs-off").addEventListener("click", function () {
   busy(true);
-  card.call("connections_off", {}).then(function (r) {
+  card.call("connections_off", { pass: PASS }).then(function (r) {
     if (r && !r.isError) { showState("off"); say("Connections are off. The connections fabrik already keeps stay.", false); }
     else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });
-onResult(function (given) { SAID = given.said || {}; showState(given.state, given.problem); });
+onResult(function (given, meta) { SAID = given.said || {}; PASS = meta.pass || ""; showState(given.state, given.problem); });
 </script>
