@@ -131,7 +131,7 @@ const showConnectionsSetup = tool({
     const pass = await issuePass(ctx.person);
     return {
       content: [{ type: "text", text: `The connections card is shown. ${said} The person types the key on the card. ` +
-        "End the turn here; once they say the card shows connected, fabrik reads the waiting parts within a day." }],
+        "End the turn here; once they say the card shows connected, fabrik reads the waiting parts usually within an hour, and at most a day." }],
       structuredContent: { card: "connections-setup", state: now.state, ...(now.problem ? { problem: now.problem } : {}), said: SAID },
       ...(pass ? { _meta: { pass } } : {}),
     };
