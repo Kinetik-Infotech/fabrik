@@ -15,7 +15,7 @@ export type Project = (path: string, init?: RequestInit) => Promise<Response>;
 /** What each tool's run gets for one request. person is the signed-in account's id, from the request's verified token. */
 export type Ctx = { fabrik: Fabrik; project: Project; person?: string };
 /** A tool's result, as MCP gives it: text for the model, and the data as structuredContent. */
-export type Result = { content: { type: "text"; text: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean };
+export type Result = { content: { type: "text"; text: string }[]; structuredContent?: Record<string, unknown>; _meta?: Record<string, unknown>; isError?: boolean };
 /** One tool of the connector. meta is the tool's _meta, such as the card it shows, or that only a card calls it. */
 // deno-lint-ignore no-explicit-any
 export type Tool<S extends z.ZodObject<any> = z.ZodObject<any>> = {
