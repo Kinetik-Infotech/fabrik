@@ -22,8 +22,8 @@
 })();
 
 /* The tape measure: one wavy path down the left edge, from below the header to the foot of the window, with a tick at every tenth of its length.
-   From 900 pixels wide it is drawn as far as the page has been scrolled. Narrower, or with reduced motion, it is drawn in
-   full and stays still. The path is rebuilt in window pixels on every resize, so the strokes never stretch. */
+   It shows from 900 pixels wide, drawn as far as the page has been scrolled. With reduced motion it is
+   drawn in full and stays still. The path is rebuilt in window pixels on every resize, so the strokes never stretch. */
 (function () {
   var tape = document.querySelector('.tape'), bar = document.querySelector('.topbar');
   if (!tape) return;
@@ -32,6 +32,7 @@
   var NS = 'http://www.w3.org/2000/svg', marks = [];
 
   function build() {
+    if (!wide.matches) return;
     tape.style.top = (bar ? Math.round(bar.getBoundingClientRect().height) + 6 : 0) + 'px';
     var w = tape.clientWidth, h = tape.clientHeight, x = w / 2, a = w * 0.17, top = wide.matches ? 40 : 4;
     svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);

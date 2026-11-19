@@ -185,8 +185,5 @@ footer .brand svg{width:36px;height:36px;display:block}
 .tape .tick.on{opacity:1}
 .tape .case{fill:var(--card);stroke:currentColor;stroke-width:2}
 .tape .hub{fill:var(--key);stroke:currentColor;stroke-width:2}
-@media (max-width:899px){
-  .tape{left:0;width:14px}
-  .tape .band{stroke-width:4}.tape .edge{stroke-width:6}.tape .tick{stroke-width:1}.tape .case,.tape .hub{display:none}
-}
+@media (max-width:899px){.tape{display:none}}
 @media (prefers-reduced-motion:reduce){.tape .tick{transition:none}}
