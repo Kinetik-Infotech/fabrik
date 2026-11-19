@@ -1,0 +1,100 @@
+// Each tool's title, and what it does to fabrik, for the annotations Claude reads to decide when to ask before a call.
+// read: changes nothing. save: adds to fabrik, as a new record or a new version of one, so earlier versions stay.
+// replace: writes over what was there, keeping no earlier version. remove: deletes a record or takes a link, a step or a
+// group member away. send: sends an email, which cannot be taken back. replace, remove and send are destructive. A
+// mailbox tool reaches a server outside fabrik, which openWorldHint names.
+export type Effect = "read" | "save" | "replace" | "remove" | "send";
+
+export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: true }> = {
+  search: { title: "Search records and files", effect: "read" },
+  get_record: { title: "Read a record", effect: "read" },
+  list_records: { title: "List records", effect: "read" },
+  list_scopes: { title: "List scopes", effect: "read" },
+  get_reference: { title: "Read the glossary and data dictionary", effect: "read" },
+  lookup_by_name: { title: "Find a record by name", effect: "read" },
+  read_file: { title: "Read a file", effect: "read" },
+  guide: { title: "Read a fabrik guide", effect: "read" },
+  profile_get: { title: "Read your profile", effect: "read" },
+  project_get: { title: "Read a project", effect: "read" },
+  project_list: { title: "List projects", effect: "read" },
+  task_get: { title: "Read a task", effect: "read" },
+  task_list: { title: "List tasks", effect: "read" },
+  task_ready: { title: "List tasks ready to start", effect: "read" },
+  workflow_get: { title: "Read a workflow", effect: "read" },
+  workflow_list: { title: "List workflows", effect: "read" },
+  contact_list: { title: "List contacts", effect: "read" },
+  contact_lookup: { title: "Find a contact", effect: "read" },
+  contact_export: { title: "Export a contact", effect: "read" },
+  voice_get_conditioning: { title: "Read your writing voice", effect: "read" },
+  mail_list_mailboxes: { title: "List mailboxes", effect: "read" },
+  mail_check: { title: "Check a mailbox can be read", effect: "read", outside: true },
+  mail_read: { title: "Read recent email", effect: "read", outside: true },
+  mail_search: { title: "Search email", effect: "read", outside: true },
+  mail_fetch_body: { title: "Read an email", effect: "read", outside: true },
+  mail_fetch_attachment: { title: "Read an email attachment", effect: "read", outside: true },
+  mail_draft_list: { title: "List email drafts", effect: "read", outside: true },
+  show_records: { title: "Show records", effect: "read" },
+  show_board: { title: "Show a board", effect: "read" },
+  show_graph: { title: "Show a graph", effect: "read" },
+  show_mail_setup: { title: "Show mailbox setup", effect: "read" },
+  card_page: { title: "Draw a card", effect: "read" },
+  card_find_records: { title: "Find records for a card", effect: "read" },
+  card_record: { title: "Read a record for a card", effect: "read" },
+  card_view: { title: "Read a card's view", effect: "read" },
+  // A card's page calls card_call for its reads as well as for the mail setup card's Save, so marking it destructive
+  // would ask before every read a card makes. Its one write is that Save, which the person presses on the card.
+  card_call: { title: "Run a card's button", effect: "save", outside: true },
+  save_record: { title: "Save a record", effect: "save" },
+  update_record: { title: "Update a record", effect: "save" },
+  link_records: { title: "Link records", effect: "save" },
+  remember: { title: "Remember a note", effect: "save" },
+  ingest_document: { title: "Save a document", effect: "save" },
+  upload_file: { title: "Upload a file", effect: "save" },
+  restore_record: { title: "Restore a deleted record", effect: "save" },
+  save_term: { title: "Save a glossary term", effect: "save" },
+  save_relation_type: { title: "Save a relation type", effect: "save" },
+  profile_update: { title: "Update your profile", effect: "save" },
+  project_create: { title: "Create a project", effect: "save" },
+  project_update: { title: "Update a project", effect: "save" },
+  project_complete: { title: "Complete a project", effect: "save" },
+  task_create: { title: "Create a task", effect: "save" },
+  task_update: { title: "Update a task", effect: "save" },
+  task_complete: { title: "Complete a task", effect: "save" },
+  workflow_save: { title: "Save a workflow", effect: "save" },
+  contact_create: { title: "Create a contact", effect: "save" },
+  contact_update: { title: "Update a contact", effect: "save" },
+  group_create: { title: "Create a group", effect: "save" },
+  voice_tag_content: { title: "Mark writing as yours", effect: "save" },
+  voice_distil_profile: { title: "Learn your writing voice", effect: "save" },
+  voice_record_feedback: { title: "Record voice feedback", effect: "save" },
+  mail_setup_save: { title: "Save a mailbox", effect: "replace", outside: true },
+  mail_signature_set: { title: "Set a mailbox's signature", effect: "replace" },
+  mail_save_attachment: { title: "Save an email attachment", effect: "save", outside: true },
+  mail_draft: { title: "Save an email draft", effect: "save", outside: true },
+  mail_draft_edit: { title: "Replace an email draft", effect: "replace", outside: true },
+  mail_draft_send: { title: "Send an email draft", effect: "send", outside: true },
+  mail_send: { title: "Send an email", effect: "send", outside: true },
+  mail_reply: { title: "Reply to an email", effect: "send", outside: true },
+  mail_delete: { title: "Move email to Trash", effect: "remove", outside: true },
+  unlink_records: { title: "Unlink records", effect: "remove" },
+  delete_record: { title: "Delete a record", effect: "remove" },
+  workflow_delete: { title: "Delete a workflow", effect: "remove" },
+  contact_delete: { title: "Delete a contact", effect: "remove" },
+  group_manage: { title: "Add or remove a group's members", effect: "remove" },
+};
+
+/** A tool's title and annotations, or undefined for a tool with no entry, which register() leaves out, so a new tool
+ * cannot reach Claude without them, and the other tools still do. */
+export function annotationsOf(name: string) {
+  const e = EFFECTS[name];
+  if (!e) return undefined;
+  return {
+    title: e.title,
+    annotations: {
+      title: e.title,
+      readOnlyHint: e.effect === "read",
+      ...(e.effect === "read" ? {} : { destructiveHint: e.effect === "replace" || e.effect === "remove" || e.effect === "send" }),
+      openWorldHint: e.outside === true,
+    },
+  };
+}

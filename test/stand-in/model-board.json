@@ -1,0 +1,15 @@
+{"model_kind": "observed_current", "description": "Who works at the high street branch, and who reports to whom.", "source_status": "stated in the interview", "source_version": "Interview with the branch manager",
+ "graph": {"format_version": 1,
+  "nodes": [
+   {"id": "p-mia", "label": "Mia Manager", "type": "person", "attributes": {"side": "Sales", "role": "Branch Manager", "description": "Runs the branch."}},
+   {"id": "p-nat", "label": "Nat Negotiator", "type": "person", "attributes": {"side": "Sales", "role": "Negotiator"}},
+   {"id": "p-lee", "label": "Lee Lettings", "type": "person", "attributes": {"side": "Lettings", "role": "Lettings Lead"}},
+   {"id": "s-high", "label": "High Street office", "type": "site", "attributes": {"side": "Lettings", "description": "The branch's office."}},
+   {"id": "p-pat", "label": "Pat Property", "type": "person", "attributes": {"side": "Lettings", "role": "Property Manager"}},
+   {"id": "g-1", "label": "Weekend viewings", "type": "gap", "attributes": {"side": "Sales", "description": "No one is named for them."}}],
+  "edges": [
+   {"id": "e1", "type": "reports_to", "source": "p-nat", "target": "p-mia", "attributes": {}},
+   {"id": "e2", "type": "reports_to", "source": "p-lee", "target": "p-mia", "attributes": {}},
+   {"id": "e3", "type": "reports_to", "source": "p-pat", "target": "p-lee", "attributes": {}},
+   {"id": "e4", "type": "works_at", "source": "p-lee", "target": "s-high", "attributes": {}},
+   {"id": "e5", "type": "works_at", "source": "p-pat", "target": "s-high", "attributes": {}}]}}

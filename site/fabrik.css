@@ -1,0 +1,26 @@
+/* fabrik's additions to Kinetik's styles.css: the comparison table, inline links and the lede spacing in split sections. */
+
+.table-wrap{margin-top:clamp(32px,4vw,48px);overflow-x:auto;border:1px solid var(--rule);background:var(--card)}
+.compare{width:100%;border-collapse:collapse;font-size:15px;line-height:1.4;min-width:760px}
+.compare th,.compare td{padding:14px 16px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+.compare tbody tr:last-child th,.compare tbody tr:last-child td{border-bottom:0}
+.compare thead th{font:600 13px/1.2 var(--mono);text-transform:uppercase;letter-spacing:.02em;color:var(--muted)}
+.compare tbody th{font-weight:600;color:var(--ink);width:24%}
+.compare .us{background:var(--key-soft);color:var(--ink);font-weight:600}
+.compare thead .us{color:var(--ink)}
+.compare a{color:var(--body);text-decoration:underline;text-decoration-color:var(--rule);text-underline-offset:3px}
+.compare a:hover{text-decoration-color:var(--key-deep)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.split .lede+.lede{margin-top:16px}
+a.inline{color:var(--body);text-decoration:underline;text-decoration-color:var(--key-deep);text-decoration-thickness:3px;text-underline-offset:5px}
+
+@media (prefers-color-scheme:dark){.compare .us{background:transparent;color:var(--key)}}
+.portrait{display:block;width:min(320px,100%);height:auto;margin-top:28px;border:1px solid var(--rule)}
+
+/* Get started: both buttons the same width, each with an icon. The ghost button keeps its outline on hover and turns white, so it never looks like the solid one. */
+#start .cta-row{flex-direction:column;align-items:stretch;width:min(360px,100%)}
+.btn-ic{display:inline-flex;align-items:center;justify-content:center;gap:12px}
+.btn-ic svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.btn-ic svg.fill{fill:currentColor;stroke:none}
+.on-key .btn-ghost:hover{background:#fff;color:#0b0b0b;border-color:#0b0b0b}

@@ -1,0 +1,153 @@
+<style>
+.gr-scroll { overflow: auto; max-height: 640px; border: 1px solid var(--line); border-radius: var(--radius); }
+.gr-scroll svg { display: block; }
+.gr-node { cursor: pointer; }
+.gr-node:focus { outline: none; }
+.gr-node:focus .gr-shape, .gr-node.selected .gr-shape { stroke-width: 3; }
+.gr-shape { stroke: var(--fg); stroke-width: 1; }
+.gr-shape.blocker { stroke: var(--late); stroke-width: 2.5; }
+.gr-ref { font-size: 11px; font-weight: 600; fill: var(--fg); pointer-events: none; }
+.gr-label { font-size: 12px; fill: var(--fg); pointer-events: none; }
+.gr-group { font-size: 12px; font-weight: 600; fill: var(--muted); }
+.gr-edge { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+.gr-key { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.gr-key li { display: flex; gap: 6px; align-items: center; }
+</style>
+<div class="fk">
+  <div class="fk-head">
+    <h2 id="gr-title">Graph</h2>
+    <button class="fk-btn" id="gr-refresh">Refresh</button>
+  </div>
+  <p class="fk-sub" id="gr-meta"></p>
+  <div id="fk-body"><p class="fk-sub">Reading fabrik…</p></div>
+  <ul class="gr-key" id="gr-key"></ul>
+  <div class="fk-panel" id="fk-panel" hidden></div>
+</div>
+<script>
+// The graph card: a model record's nodes and links, or a plan's activities with a Part of link to each one's parent and a
+// Waits on link to each activity it depends on, as the graph skill draws them. Each group is a column: a node type, or a
+// part of the plan after the plan's own. card_view reads what it draws, and Refresh reads it again. Clicking a node shows
+// its attributes and links, and a plan's activity opens its record through card_record.
+var given = {}, graph = null, selected = null;
+var COL = 200, ROW = 84, R = 17, TOP = 46, DASHES = ["", "6 4", "2 3", "9 3 2 3", "1 4"];
+
+function load() {
+  $("gr-refresh").disabled = true;
+  return read("card_view", { record: given.record_id })
+    .then(function (v) {
+      try { graph = v.view === "plan" ? fromPlan(v) : fromModel(v.record); } catch (e) { failed($("fk-body"), e); return; }
+      draw();
+    }, function (e) { failed($("fk-body"), e); })
+    .then(function () { $("gr-refresh").disabled = false; });
+}
+
+/** A plan as a graph, as the graph skill's plan graph has it: the plan's own group, then each part that is a plan. */
+function fromPlan(v) {
+  var m = planModel(v), plan = m.plan, all = [plan].concat(m.activities), by = {};
+  all.forEach(function (a) { by[a.id] = a; });
+  var groupOf = {}; groupOf[plan.id] = plan.id;
+  m.rows.forEach(function (r) {
+    var key = by[r.activity].kind === "plan" ? r.activity : plan.id;
+    [r.activity].concat(r.cards).forEach(function (id) { groupOf[id] = key; });
+  });
+  var keys = [plan.id].concat(m.rows.filter(function (r) { return by[r.activity].kind === "plan"; }).map(function (r) { return r.activity; }));
+  var type = function (a) { return a.kind === "plan" ? "Plan" : a.task_type === "deliverable" ? "Deliverable" : a.task_type === "blocker" ? "Blocker" : "Task"; };
+  var nodes = all.filter(function (a) { return groupOf[a.id]; }).map(function (a) {
+    return { id: a.id, label: a.title, ref: a.index, type: type(a), group: groupOf[a.id], record: true, description: a.description,
+      attributes: { state: stateName(a.state), dates: span(a), blockers: a.blockers.length ? a.blockers.length + " listed" : "" } };
+  });
+  var edges = [];
+  m.activities.forEach(function (a) {
+    if (by[a.parent_id]) edges.push({ source: a.id, target: a.parent_id, type: "part_of", name: "Part of" });
+    a.waits_on.forEach(function (d) { if (by[d]) edges.push({ source: a.id, target: d, type: "depends_on", name: "Waits on" }); });
+  });
+  return { title: plan.title, meta: "Plan · " + (v.scope_name || "") + " · read " + full(v.observed_at) + ", save number " + v.cutoff,
+    groups: keys.map(function (k) { return { key: k, name: by[k].title }; }), nodes: nodes, edges: edges };
+}
+/** A model record as a graph: a group for each node type, in the order the nodes first give them. */
+function fromModel(r) {
+  var g = (r.payload || {}).graph || {}, keys = [];
+  var nodes = (g.nodes || []).map(function (n) {
+    var t = n.type || "node";
+    if (keys.indexOf(t) < 0) keys.push(t);
+    return { id: n.id, label: n.label || n.id, ref: (n.attributes || {}).index || "", type: words(t), group: t, record: false,
+      description: (n.attributes || {}).description || "", attributes: n.attributes || {} };
+  });
+  var edges = (g.edges || []).map(function (e) { return { source: e.source, target: e.target, type: e.type || "link", name: words(e.type || "link") }; });
+  return { title: r.title, meta: "Model · " + (r.scope_name || "") + " · version " + r.version_number,
+    groups: keys.map(function (k) { return { key: k, name: words(k) }; }), nodes: nodes, edges: edges };
+}
+
+function short(t, n) { t = String(t || ""); return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+function draw() {
+  $("gr-title").textContent = graph.title;
+  $("gr-meta").textContent = graph.meta + " · " + counted(graph.nodes.length, "node") + ", " + counted(graph.edges.length, "link");
+  if (!graph.nodes.length) { $("fk-body").innerHTML = '<p class="fk-sub">There is nothing to draw: no nodes.</p>'; $("gr-key").innerHTML = ""; return; }
+  var at = {}, rows = 0;
+  graph.groups.forEach(function (g, gi) {
+    var members = graph.nodes.filter(function (n) { return n.group === g.key; });
+    members.forEach(function (n, i) { at[n.id] = { x: 24 + gi * COL + COL / 2, y: TOP + R + i * ROW, n: n, gi: gi }; });
+    rows = Math.max(rows, members.length);
+  });
+  var width = 48 + graph.groups.length * COL, height = TOP + rows * ROW + 10;
+  var types = [];
+  graph.edges.forEach(function (e) { if (!types.some(function (t) { return t.type === e.type; })) types.push({ type: e.type, name: e.name }); });
+  var dash = function (type) { var i = types.map(function (t) { return t.type; }).indexOf(type); return DASHES[i % DASHES.length]; };
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" id="gr-svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + " " + height + '" role="group" aria-label="' + esc(graph.title) + '">' +
+    '<defs><marker id="gr-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker></defs>';
+  graph.groups.forEach(function (g, gi) {
+    svg += '<text class="gr-group" x="' + (24 + gi * COL + COL / 2) + '" y="20" text-anchor="middle">' + esc(short(g.name, 26)) + "<title>" + esc(g.name) + "</title></text>";
+  });
+  graph.edges.forEach(function (e) {
+    var a = at[e.source], b = at[e.target];
+    if (!a || !b || a === b) return;
+    var dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx * dx + dy * dy), k = (R + 3) / len;
+    svg += '<line class="gr-edge" style="color: var(--muted)" x1="' + (a.x + dx * k) + '" y1="' + (a.y + dy * k) + '" x2="' + (b.x - dx * k) + '" y2="' + (b.y - dy * k) + '"' +
+      (dash(e.type) ? ' stroke-dasharray="' + dash(e.type) + '"' : "") + ' marker-end="url(#gr-arrow)"><title>' + esc(e.name) + "</title></line>";
+  });
+  Object.keys(at).forEach(function (id) {
+    var p = at[id], n = p.n, fill = "hsl(" + (p.gi * 67 % 360) + " 55% 60% / .45)";
+    var shape = n.type === "Plan" ? '<ellipse class="gr-shape" cx="' + p.x + '" cy="' + p.y + '" rx="' + (R + 9) + '" ry="' + R + '" fill="' + fill + '"></ellipse>'
+      : n.type === "Deliverable" ? '<rect class="gr-shape" x="' + (p.x - R) + '" y="' + (p.y - R) + '" width="' + 2 * R + '" height="' + 2 * R + '" rx="3" fill="' + fill + '"></rect>'
+      : '<circle class="gr-shape' + (n.type === "Blocker" ? " blocker" : "") + '" cx="' + p.x + '" cy="' + p.y + '" r="' + R + '" fill="' + fill + '"></circle>';
+    svg += '<g class="gr-node' + (selected === id ? " selected" : "") + '" data-node="' + esc(id) + '" tabindex="0" role="button" aria-label="' + esc(n.type + ": " + (n.ref ? n.ref + " " : "") + n.label) + '">' +
+      shape + (n.ref ? '<text class="gr-ref" x="' + p.x + '" y="' + (p.y + 4) + '" text-anchor="middle">' + esc(short(n.ref, 6)) + "</text>" : "") +
+      '<text class="gr-label" x="' + p.x + '" y="' + (p.y + R + 16) + '" text-anchor="middle">' + esc(short(n.label, 26)) + "</text><title>" + esc(n.label) + "</title></g>";
+  });
+  $("fk-body").innerHTML = '<div class="gr-scroll">' + svg + "</svg></div>";
+  $("gr-key").innerHTML = types.map(function (t) {
+    return '<li><svg width="34" height="10" aria-hidden="true"><line class="gr-edge" x1="1" y1="5" x2="33" y2="5"' + (dash(t.type) ? ' stroke-dasharray="' + dash(t.type) + '"' : "") + "></line></svg>" + esc(t.name) + "</li>";
+  }).join("");
+}
+
+/** A node's panel: what it is, its description, its attributes and its links; a plan's activity can open its record. */
+function nodePanel(id) {
+  var n = graph.nodes.filter(function (x) { return x.id === id; })[0];
+  if (!n) return;
+  selected = id;
+  [].forEach.call(document.querySelectorAll(".gr-node"), function (g) { g.classList.toggle("selected", g.getAttribute("data-node") === id); });
+  var label = {}; graph.nodes.forEach(function (x) { label[x.id] = (x.ref ? x.ref + " " : "") + x.label; });
+  var lines = graph.edges.filter(function (e) { return e.source === id && label[e.target]; }).map(function (e) { return e.name + " " + label[e.target]; })
+    .concat(graph.edges.filter(function (e) { return e.target === id && label[e.source]; }).map(function (e) { return label[e.source] + ": " + e.name.toLowerCase() + " this"; }));
+  var attrs = Object.assign({}, n.attributes);
+  delete attrs.description;
+  var panel = $("fk-panel");
+  panel.hidden = false;
+  panel.innerHTML = '<div class="fk-head"><h3 id="fk-node-title">' + esc((n.ref ? n.ref + " " : "") + n.label) + "</h3>" +
+    (n.record ? '<button class="fk-btn" data-open="' + esc(n.id) + '">Open record</button>' : "") + '<button class="fk-btn" data-close>Close</button></div>' +
+    '<p class="fk-sub">' + esc(n.type) + "</p>" + (n.description ? '<p style="white-space: pre-wrap">' + esc(n.description) + "</p>" : "") + fieldsTable(attrs) +
+    (lines.length ? '<p class="fk-sub">Links</p><ul class="fk-links">' + lines.map(function (l) { return "<li>" + esc(l) + "</li>"; }).join("") + "</ul>" : '<p class="fk-sub">No links.</p>');
+}
+
+$("gr-refresh").addEventListener("click", load);
+$("fk-body").addEventListener("click", function (e) {
+  var t = e.target && e.target.closest ? e.target.closest("[data-node]") : null;
+  if (t) nodePanel(t.getAttribute("data-node"));
+});
+$("fk-body").addEventListener("keydown", function (e) {
+  var t = e.target && e.target.closest ? e.target.closest("[data-node]") : null;
+  if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); nodePanel(t.getAttribute("data-node")); }
+});
+wireRecords($("fk-panel"), $("fk-panel"));
+onResult(function (g) { given = g; load(); });
+</script>

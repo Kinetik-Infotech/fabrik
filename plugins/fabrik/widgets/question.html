@@ -1,0 +1,32 @@
+<script type="application/json" id="widget-data">__WIDGET_DATA__</script>
+<script>
+// The question card shows the rows a question is about: a record in fabrik, a row the person is adding, marked new,
+// or a choice in a list. The agent asks the card's question in the desktop app's next-step box.
+
+/** A field's value as the card shows it: a long one in a block that opens and closes. In a row being added, a value
+ *  still to be given shows as such. */
+function shown(v, adding) {
+  if (v == null || v === "") return '<span class="wk-old">' + (adding ? "To be given" : "empty") + "</span>";
+  var text = typeof v === "string" ? v : JSON.stringify(v, null, 2);
+  if (text.length <= 160 && text.indexOf("\n") < 0) return '<span class="wk-value">' + esc(text) + "</span>";
+  return "<details><summary>" + esc(text.replace(/\s+/g, " ").slice(0, 80)) + " … (" + esc(text.length) + ' characters)</summary><div class="wk-value">' + esc(text) + "</div></details>";
+}
+
+/** One row: its name, its code, New for a row being added, and a table of its fields. */
+function rowHtml(r) {
+  var adding = r["new"] === true;
+  var sub = [r.code ? esc(r.code) : "", adding ? "New" : ""].filter(Boolean).join(" · ");
+  var fields = (r.fields || []).map(function (f) {
+    return "<tr><th>" + esc(f.label) + "</th><td>" + shown(f.value, adding) + "</td></tr>";
+  }).join("");
+  return '<div class="wk-row"><p><strong>' + esc(r.name) + "</strong>" + (sub ? ' <span class="wk-sub">' + sub + "</span>" : "") + "</p>" +
+    (fields ? '<table class="wk-table"><tbody>' + fields + "</tbody></table>" : "") + "</div>";
+}
+
+function draw(data) {
+  return "<section><h2>" + esc(data.title) + "</h2>" +
+    (data.lead ? '<p class="wk-lead">' + esc(data.lead) + "</p>" : "") + data.rows.map(rowHtml).join("") + "</section>";
+}
+
+if (typeof document !== "undefined") start();
+</script>

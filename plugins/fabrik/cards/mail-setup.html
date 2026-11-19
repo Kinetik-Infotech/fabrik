@@ -1,0 +1,109 @@
+<style>
+.ms-form { display: grid; gap: 10px; }
+.ms-form label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.ms-form input, .ms-form textarea { padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg); min-width: 0; font: inherit; }
+.ms-form .fk-btn { justify-self: start; }
+</style>
+<div class="fk">
+  <div class="fk-head"><h2>Mailbox</h2></div>
+  <div id="fk-body">
+    <p class="fk-sub">Claude reads this mailbox. It drafts, sends and moves to Trash only what you approve. Type the password here, not in the chat.</p>
+    <form class="ms-form" id="ms-form" autocomplete="off">
+      <label>Name: a short name for this mailbox, such as work, in lowercase letters, digits, _ and -
+        <input id="ms-name" autocapitalize="off" spellcheck="false" required></label>
+      <label>Username: usually your whole email address
+        <input id="ms-username" autocapitalize="off" spellcheck="false" required></label>
+      <label>From address: the address your email is sent from, when it isn't the username
+        <input id="ms-address" autocapitalize="off" spellcheck="false"></label>
+      <label>IMAP host: your provider's mail server for reading, such as imap.startmail.com or mail.privateemail.com
+        <input id="ms-host" autocapitalize="off" spellcheck="false" required></label>
+      <label>IMAP port: 993 unless your provider gives another
+        <input id="ms-port" inputmode="numeric" value="993" required></label>
+      <label>SMTP host: your provider's mail server for sending, such as smtp.startmail.com. Leave it empty to draft without sending
+        <input id="ms-smtp-host" autocapitalize="off" spellcheck="false"></label>
+      <label>SMTP port: 465, or 587 if your provider gives that
+        <input id="ms-smtp-port" inputmode="numeric" value="465"></label>
+      <label>Signature: put under each email Claude writes
+        <textarea id="ms-signature" rows="3"></textarea></label>
+      <label>Password: an app password, if your provider has them, made in its settings
+        <input id="ms-password" type="password" autocomplete="new-password" required></label>
+      <button class="fk-btn" id="ms-save" type="submit">Save</button>
+    </form>
+    <p id="ms-said" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+// The mail setup card: the person types a mailbox's settings and password, and Save calls mail_setup_save, which signs
+// in to the IMAP server, and to the SMTP server when one is given, and saves the mailbox only if that works. The card
+// shows connected, or what went wrong. For a provider Claude has no connector for, the reading server is filled in from
+// the domain of the address the person types or Claude fills in, and the sending server from the reading server, as
+// long as they have typed no host of their own.
+var READING = {
+  "icloud.com": "imap.mail.me.com", "me.com": "imap.mail.me.com", "mac.com": "imap.mail.me.com", "yahoo.com": "imap.mail.yahoo.com",
+  "aol.com": "imap.aol.com", "gmx.com": "imap.gmx.com", "gmx.net": "imap.gmx.net", "gmx.de": "imap.gmx.net", "mail.com": "imap.mail.com",
+  "web.de": "imap.web.de", "zoho.com": "imap.zoho.com", "zoho.eu": "imap.zoho.eu", "fastmail.com": "imap.fastmail.com",
+  "yandex.com": "imap.yandex.com", "startmail.com": "imap.startmail.com",
+};
+// Each provider's sending server and port, by its reading server. Namecheap's Private Email serves its customers' own
+// domains, so only its reading server names it.
+var SENDING = {
+  "imap.mail.me.com": ["smtp.mail.me.com", 587], "imap.mail.yahoo.com": ["smtp.mail.yahoo.com", 465], "imap.aol.com": ["smtp.aol.com", 465],
+  "imap.gmx.com": ["mail.gmx.com", 587], "imap.gmx.net": ["mail.gmx.net", 587], "imap.mail.com": ["smtp.mail.com", 587],
+  "imap.web.de": ["smtp.web.de", 587], "imap.zoho.com": ["smtp.zoho.com", 465], "imap.zoho.eu": ["smtp.zoho.eu", 465],
+  "imap.fastmail.com": ["smtp.fastmail.com", 465], "imap.yandex.com": ["smtp.yandex.com", 465],
+  "imap.startmail.com": ["smtp.startmail.com", 465], "mail.privateemail.com": ["mail.privateemail.com", 465],
+};
+var typed = { "ms-host": false, "ms-smtp-host": false, "ms-smtp-port": false };
+function fill(id, v) { if (v != null && v !== "") $(id).value = String(v); }
+function say(text, refused) { var p = $("ms-said"); p.className = refused ? "fk-refused" : ""; p.textContent = text; }
+function provide() {
+  var address = ($("ms-address").value.trim() || $("ms-username").value.trim()).toLowerCase();
+  var reading = READING[address.split("@")[1] || ""];
+  if (reading && !typed["ms-host"]) $("ms-host").value = reading;
+  var sending = SENDING[$("ms-host").value.trim().toLowerCase()];
+  if (!sending) return;
+  if (!typed["ms-smtp-host"]) $("ms-smtp-host").value = sending[0];
+  if (!typed["ms-smtp-port"]) $("ms-smtp-port").value = String(sending[1]);
+}
+Object.keys(typed).forEach(function (id) { $(id).addEventListener("input", function () { typed[id] = true; }); });
+$("ms-username").addEventListener("input", provide);
+$("ms-address").addEventListener("input", provide);
+$("ms-host").addEventListener("input", provide);
+
+$("ms-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var port = Number($("ms-port").value.trim());
+  var smtpPort = Number($("ms-smtp-port").value.trim() || "465");
+  var args = {
+    name: $("ms-name").value.trim(), host: $("ms-host").value.trim(), port: isFinite(port) ? port : 0,
+    username: $("ms-username").value.trim(), password: $("ms-password").value,
+    address: $("ms-address").value.trim(), smtp_host: $("ms-smtp-host").value.trim(),
+    smtp_port: isFinite(smtpPort) ? smtpPort : 0, signature: $("ms-signature").value,
+  };
+  $("ms-save").disabled = true;
+  say("Signing in to the mailbox…", false);
+  card.call("mail_setup_save", args).then(function (r) {
+    if (r && !r.isError) { $("ms-password").value = ""; say("Connected. Tell Claude the mailbox is set up.", false); }
+    else say("Not saved: " + (textOf(r) || "fabrik gave nothing back."), true);
+  }, function (e) { say("Not saved: " + (e && e.message || e), true); }).then(function () { $("ms-save").disabled = false; });
+});
+onResult(function (given) {
+  fill("ms-name", given.name);
+  fill("ms-port", given.port);
+  fill("ms-username", given.username);
+  fill("ms-address", given.address);
+  fill("ms-signature", given.signature);
+  // A mailbox already set up: its saved servers, which the connector read from its row, not from the model. The saved
+  // servers stand, and a mailbox that only reads gets its provider's sending server from its reading server.
+  if (given.saved) {
+    fill("ms-host", given.saved.host);
+    typed["ms-host"] = true;
+    if (given.saved.smtp_host) {
+      fill("ms-smtp-host", given.saved.smtp_host);
+      fill("ms-smtp-port", given.saved.smtp_port);
+      typed["ms-smtp-host"] = typed["ms-smtp-port"] = true;
+    }
+  }
+  provide();
+});
+</script>

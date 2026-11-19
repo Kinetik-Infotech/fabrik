@@ -1,0 +1,13 @@
+{
+  "kind": "question",
+  "person": "Test Person",
+  "drawn_at": "18 November 2026, 10:30:12 UK time",
+  "title": "Scope for the Card test note",
+  "lead": "A note belongs to one scope </script><img src=x onerror=alert(1)>.",
+  "question": "Move the Card test note to Clients?",
+  "rows": [
+    { "name": "Clients", "code": "3f9c2a1e", "fields": [{ "label": "Records", "value": "4" }, { "label": "Purpose", "value": null }] },
+    { "name": "General", "code": "0b6c1f5e" },
+    { "name": "Private" }
+  ]
+}

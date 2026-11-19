@@ -1,0 +1,191 @@
+{
+ "hits": [
+  {
+   "bucket": "general",
+   "file": "guides/sales-guide.md",
+   "place": "MoS and Sales Progression Guide",
+   "snippet": "…",
+   "found": [
+    "words",
+    "meaning",
+    "graph"
+   ],
+   "fusion_score": 0.04918,
+   "ranks": {
+    "words": 1,
+    "meaning": 1,
+    "graph": 1
+   },
+   "similarity": 0.8823,
+   "graph_weight": 1.4448,
+   "section": 1,
+   "chunk": {
+    "start": 0,
+    "end": 127
+   },
+   "entities": [
+    {
+     "entity_id": "00000000-0000-4000-8000-0000000000a1",
+     "name": "MoS",
+     "type": "document",
+     "steps": 0,
+     "description": "A memorandum of sale."
+    },
+    {
+     "entity_id": "00000000-0000-4000-8000-0000000000a2",
+     "name": "Loop",
+     "type": "application",
+     "steps": 1,
+     "description": "Where a memorandum of sale is sent from."
+    },
+    {
+     "entity_id": "00000000-0000-4000-8000-0000000000a3",
+     "name": "negotiator",
+     "type": "role",
+     "steps": 2,
+     "description": "Books the viewing."
+    }
+   ],
+   "relations": [],
+   "sentences": [
+    {
+     "start": 0,
+     "end": 31,
+     "similarity": 0.8823
+    },
+    {
+     "start": 32,
+     "end": 72,
+     "similarity": 0.8371
+    },
+    {
+     "start": 73,
+     "end": 106,
+     "similarity": 0.8645
+    },
+    {
+     "start": 107,
+     "end": 127,
+     "similarity": 0.75
+    }
+   ]
+  },
+  {
+   "bucket": "general",
+   "file": "guides/sales-guide.md",
+   "place": "MoS and Sales Progression Guide",
+   "snippet": "…",
+   "found": [
+    "meaning"
+   ],
+   "fusion_score": 0.016129,
+   "ranks": {
+    "words": null,
+    "meaning": 2,
+    "graph": null
+   },
+   "similarity": 0.8102,
+   "graph_weight": null,
+   "section": 1,
+   "chunk": null
+  }
+ ],
+ "reference_hits": [
+  {
+   "bucket": "reference",
+   "file": "guides/sales-terms.csv",
+   "place": "sheet Terms",
+   "snippet": "…",
+   "found": [
+    "words"
+   ],
+   "fusion_score": 0.016393,
+   "ranks": {
+    "words": 1,
+    "meaning": null,
+    "graph": null
+   },
+   "similarity": null,
+   "graph_weight": null,
+   "section": 0,
+   "chunk": {
+    "start": 16,
+    "end": 94
+   }
+  }
+ ],
+ "sections": [
+  {
+   "bucket": "reference",
+   "file": "guides/sales-terms.csv",
+   "place": "sheet Terms",
+   "text": "term,definition\nMoS,A memorandum of sale sent from Loop.\nviewing,A visit the negotiator books.",
+   "truncated": false,
+   "marked": "term,definition\nMoS,A memorandum of sale sent from Loop.\nviewing,A visit the negotiator books."
+  },
+  {
+   "bucket": "general",
+   "file": "guides/sales-guide.md",
+   "place": "MoS and Sales Progression Guide",
+   "text": "MoS and Sales Progression Guide\nEvery agreed sale needs a confirmed MoS. The negotiator books the viewing. Loop holds each MoS.\n\nThe vendor signs the terms.",
+   "truncated": false,
+   "marked": "MoS and Sales Progression Guide\nEvery agreed sale needs a confirmed MoS. The negotiator books the viewing. Loop holds each MoS.\n\nThe vendor signs the terms."
+  }
+ ],
+ "stages": {
+  "words": 2,
+  "meaning": 2,
+  "graph": 1,
+  "fused": 3,
+  "returned": 3,
+  "graph_seeds": [
+   {
+    "entity_id": "00000000-0000-4000-8000-0000000000a1",
+    "name": "MoS",
+    "type": "document",
+    "similarity": 0.8895
+   }
+  ],
+  "graph_walk": [
+   {
+    "from": "00000000-0000-4000-8000-0000000000a1",
+    "from_name": "MoS",
+    "relation": "00000000-0000-4000-8000-0000000000b1",
+    "keywords": [
+     "sent from"
+    ],
+    "to": "00000000-0000-4000-8000-0000000000a2",
+    "to_name": "Loop",
+    "step": 1,
+    "weight": 0.8895
+   },
+   {
+    "from": "00000000-0000-4000-8000-0000000000a2",
+    "from_name": "Loop",
+    "relation": "00000000-0000-4000-8000-0000000000b2",
+    "keywords": [
+     "books"
+    ],
+    "to": "00000000-0000-4000-8000-0000000000a3",
+    "to_name": "negotiator",
+    "step": 2,
+    "weight": 0.4448
+   },
+   {
+    "from": "00000000-0000-4000-8000-0000000000a1",
+    "from_name": "MoS",
+    "relation": "00000000-0000-4000-8000-0000000000b3",
+    "keywords": [
+     "signs"
+    ],
+    "to": "00000000-0000-4000-8000-0000000000a4",
+    "to_name": "vendor",
+    "step": 1,
+    "weight": 0.8895
+   }
+  ],
+  "awaiting_sentence_vector": 0
+ },
+ "degraded": null,
+ "explain_ms": 929
+}

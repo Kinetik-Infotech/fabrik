@@ -1,0 +1,24 @@
+{
+  "name": "humanizer",
+  "version": "0.3.2",
+  "description": "Writing rules for anything a person will read.",
+  "author": {
+    "name": "Joel Smalley"
+  },
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Humanizer",
+    "shortDescription": "Write so it does not read as machine-written.",
+    "longDescription": "The rules every reply answers to, a catalogue of the markers that make writing read as machine-written, and a checkable subset with tests. Applies them to an explanation, a recap and a definition.",
+    "developerName": "Joel Smalley",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Rewrite this so it does not read as machine-written."
+    ],
+    "brandColor": "#3157D5"
+  }
+}
