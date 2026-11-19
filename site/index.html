@@ -20,8 +20,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/Inter-300-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/Fraunces-400-600-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="styles.css?v=10">
-<link rel="stylesheet" href="fabrik.css?v=8">
+<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="fabrik.css?v=9">
 </head>
 <body>
 
@@ -320,12 +320,12 @@
             <tr><th scope="col"><span class="sr">Question</span></th><th scope="col" class="us"><span>fabrik</span></th><th scope="col">Instinct</th><th scope="col">Muse</th><th scope="col">Dots</th><th scope="col">Claude Duet</th></tr>
           </thead>
           <tbody>
-            <tr><th scope="row">Where your data is kept</th><td class="us">Your own Supabase project</td><td>Instinct's servers</td><td>Meta's servers</td><td>OpenAI's servers</td><td>Anthropic's servers</td></tr>
-            <tr><th scope="row">Who holds your logins</th><td class="us">You, in your own Chrome</td><td>Not published</td><td>Meta, unseen by the assistant</td><td>OpenAI's login service</td><td>Anthropic, unseen by the assistant</td></tr>
-            <tr><th scope="row">Acts while you're away</th><td class="us">No</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-            <tr><th scope="row">UK and EU</th><td class="us">Wherever Claude is</td><td>Not published</td><td>US launch</td><td>Not available</td><td>US only, by waitlist</td></tr>
-            <tr><th scope="row">Price</th><td class="us">Free*</td><td>Not published</td><td>Free to $100 a month</td><td>ChatGPT Pro and up</td><td>Claude Pro or Max</td></tr>
-            <tr><th scope="row">Open source</th><td class="us">Yes, MIT licence</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+            <tr><th scope="row">Where your data is kept</th><td class="us" data-label="fabrik">Your own Supabase project</td><td data-label="Instinct">Instinct's servers</td><td data-label="Muse">Meta's servers</td><td data-label="Dots">OpenAI's servers</td><td data-label="Claude Duet">Anthropic's servers</td></tr>
+            <tr><th scope="row">Who holds your logins</th><td class="us" data-label="fabrik">You, in your own Chrome</td><td data-label="Instinct">Not published</td><td data-label="Muse">Meta, unseen by the assistant</td><td data-label="Dots">OpenAI's login service</td><td data-label="Claude Duet">Anthropic, unseen by the assistant</td></tr>
+            <tr><th scope="row">Acts while you're away</th><td class="us" data-label="fabrik">No</td><td data-label="Instinct">Yes</td><td data-label="Muse">Yes</td><td data-label="Dots">Yes</td><td data-label="Claude Duet">Yes</td></tr>
+            <tr><th scope="row">UK and EU</th><td class="us" data-label="fabrik">Wherever Claude is</td><td data-label="Instinct">Not published</td><td data-label="Muse">US launch</td><td data-label="Dots">Not available</td><td data-label="Claude Duet">US only, by waitlist</td></tr>
+            <tr><th scope="row">Price</th><td class="us" data-label="fabrik">Free*</td><td data-label="Instinct">Not published</td><td data-label="Muse">Free to $100 a month</td><td data-label="Dots">ChatGPT Pro and up</td><td data-label="Claude Duet">Claude Pro or Max</td></tr>
+            <tr><th scope="row">Open source</th><td class="us" data-label="fabrik">Yes, MIT licence</td><td data-label="Instinct">No</td><td data-label="Muse">No</td><td data-label="Dots">No</td><td data-label="Claude Duet">No</td></tr>
           </tbody>
         </table>
       </div>
@@ -376,7 +376,7 @@
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a class="brand" href="./" aria-label="fabrik, home"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#F6F1E7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 44V24.5Q17 18 24.5 17.5"/><path d="M9.5 27.5H27"/></g><path d="M42.1 7.85L37.6 12.36A3.5 3.5 0 0 1 32.65 7.4L37.15 2.9A10 10 0 1 0 42.1 7.85Z" transform="translate(-1 2)" fill="#2FE28A" stroke="#F6F1E7" stroke-width="3" stroke-linejoin="round"/></svg><span class="wm">fabrik</span></a>
+        <a class="brand" href="./" aria-label="fabrik, home"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#F6F1E7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 44V24.5Q17 18 24.5 17.5"/><path d="M9.5 27.5H27"/></g><path d="M42.1 7.85L37.6 12.36A3.5 3.5 0 0 1 32.65 7.4L37.15 2.9A10 10 0 1 0 42.1 7.85Z" transform="translate(-1 2)" fill="#D9774F" stroke="#F6F1E7" stroke-width="3" stroke-linejoin="round"/></svg><span class="wm">fabrik</span></a>
         <p>We mean business.</p>
       </div>
       <div>
@@ -406,6 +406,6 @@
 <button class="to-top" type="button" aria-label="Back to top">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 14.5 12 8.5l6 6"/></svg>
 </button>
-<script src="site.js?v=1"></script>
+<script src="site.js?v=2"></script>
 </body>
 </html>
