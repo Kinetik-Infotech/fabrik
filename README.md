@@ -15,6 +15,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Planning.** Tell Claude what you're working on and what's holding things up, and Claude lists what you can get on with next.
 - **Networking.** Before a call, ask who someone is and get everything you've noted about them.
 - **Research.** Claude reads the sources for you, and fabrik stores the ones the answer came from.
+- **Files.** Ask a question, and search finds the answer in your files by their words and meaning. With connections on, it also finds a file through the people and companies it names.
 - **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
 - **Analysis.** Prices, products or options weighed up across sites, with evidence.
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.

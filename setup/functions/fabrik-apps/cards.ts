@@ -1,5 +1,6 @@
-// fabrik's cards: the records card, the board card, the graph card and the mail setup card, each an MCP App that Claude
-// draws in the conversation. show_records, show_board, show_graph and mail.ts's show_mail_setup show them.
+// fabrik's cards: the records card, the board card, the graph card, the mail setup card and the connections card, each an
+// MCP App that Claude draws in the conversation. show_records, show_board, show_graph, mail.ts's show_mail_setup and
+// connections.ts's show_connections_setup show them.
 //
 // Each card's address, ui://fabrik-apps/<card>.html, serves the shell: a small fixed page, the same for every card but
 // for its card's name. The shell speaks the MCP Apps protocol to Claude over postMessage: ui/initialize, the host's
@@ -18,7 +19,9 @@
 // markup.
 //
 // The mail setup card's one tool, mail.ts's mail_setup_save, saves a mailbox and its password; the password goes from
-// the card through card_call, never through the model. The other cards' tools write nothing. They read fabrik through
+// the card through card_call, never through the model. The connections card's two tools, connections.ts's
+// connections_setup_save and connections_off, keep and remove the business's Anthropic API key in the same way. The
+// other cards' tools write nothing. They read fabrik through
 // three app-only tools, which Claude keeps from the model: card_find_records (fabrik_find_records, with the scopes'
 // names from fabrik_get_scopes), card_record (fabrik_show_record) and card_view, which gives a board or graph its data:
 // a plan's activities from fabrik_get_progress, every page of the plan's scope at one save number, as the board and
@@ -35,7 +38,7 @@ export const CARD_TYPE = "text/html;profile=mcp-app";
 /** The shell's version. card_page refuses a shell of another version. */
 export const SHELL_VERSION = 1;
 /** The cards, by the name each shell gives card_page. */
-export const CARD_NAMES = ["records", "board", "graph", "mail-setup"] as const;
+export const CARD_NAMES = ["records", "board", "graph", "mail-setup", "connections-setup"] as const;
 export type Card = typeof CARD_NAMES[number];
 /** A card's address. */
 export const cardUri = (card: Card) => `ui://fabrik-apps/${card}.html`;
