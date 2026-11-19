@@ -227,3 +227,17 @@ footer .brand svg{width:36px;height:36px;display:block}
 :root[data-theme="dark"] .how-card:nth-child(2){--hc-bg:#4A2E1E;--hc-ink:#F6F1E7;--hc-fill:#F0BE4C}
 :root[data-theme="dark"] .how-card:nth-child(3){--hc-bg:#24375C;--hc-ink:#F6F1E7;--hc-fill:#F0BE4C}
 :root[data-theme="dark"] .how-card:nth-child(4){--hc-bg:#1E3350;--hc-ink:#F6F1E7;--hc-fill:#F0BE4C}
+
+/* Search: the three ways fabrik finds a file, beside one search that finds a file each way. The relationship way is gold. */
+#search .find{margin-top:clamp(40px,5vw,64px)}
+.find{background:radial-gradient(120% 90% at 100% 0%,var(--panel-glow),transparent 60%),var(--panel-b)}
+.moment.find .pic{transform:rotate(.7deg)}
+.ways{list-style:none;margin:0;padding:0;display:grid;gap:clamp(20px,2.4vw,28px);font-size:clamp(17px,1.4vw,19px);font-weight:300;line-height:1.5}
+.ways li{display:grid;gap:8px;justify-items:start}
+.way{display:inline-block;padding:3px 12px;border-radius:999px;background:var(--ink);color:var(--page);font:600 13px/1.4 var(--font);letter-spacing:.02em}
+.by-link .way{background:var(--key);color:var(--key-ink)}
+.ways .by-link{font-size:clamp(19px,1.7vw,23px);font-weight:400;color:var(--ink)}
+.fk-tag.way{padding:0 8px;border:0;color:var(--page);font-size:12px;font-weight:600;line-height:1.6}
+.fk-item.by-link{padding:10px 12px;border:2px solid var(--key);background:color-mix(in srgb,var(--key) 12%,var(--card))}
+.fk-item.by-link b{font-size:16px}
+.by-link .fk-tag.way{color:var(--key-ink)}
