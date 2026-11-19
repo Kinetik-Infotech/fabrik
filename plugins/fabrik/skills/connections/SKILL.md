@@ -15,7 +15,8 @@ Offer connections once in a session, in the next-step box, with Tell me more and
 
 - A search answer's `stages.awaiting_extraction` is above 0.
 - `fabrik_get_graph_reader` gives `on` false.
-- The business has 20 or more files. Count them with the fabrik command's `list_files` on each scope `list_scopes` gives, and stop counting at 20.
+- `fabrik_get_actor` gives `authority_class` `administrator`.
+- The business has 20 or more files. Count them with the plugin's `list_files` on each scope's bucket, named by the scope's code from `list_scopes`. An entry with no `id` is a folder: count its files too, with its path as `prefix`. Stop counting at 20.
 - The session has offered neither the update nor getting started.
 
 Say it in one sentence, such as "Your files have 140 parts that fabrik could read for connections, so a search also finds a file through who and what it names." On Not now, save nothing and make no other offer of connections in this session.
@@ -29,7 +30,7 @@ Explain connections in this order, in plain words, in a few sentences:
 1. **What they are.** The links between the people, companies, orders and other things the files name.
 2. **How they work.** fabrik reads each new part of a file with Claude, within a day, and keeps who and what it names and how they're linked. Each kind of thing comes from the glossary's classes.
 3. **What they add.** A search finds a file through those links. Ask about a customer, and search also finds the invoice that names the customer's director, though the invoice never names the customer.
-4. **What they cost.** Anthropic charges the business's own API key for each part fabrik reads. Name how many parts are waiting, from `stages.awaiting_extraction`, and point to anthropic.com/pricing for the rates. Never work out a price.
+4. **What they cost.** Anthropic charges the business's own API key for each part fabrik reads. Name how many parts are waiting, from `stages.awaiting_extraction`, and point to anthropic.com/pricing for the rates. Never work out a price. fabrik stops reading for the month once the month's cost reaches a cap. `fabrik_get_graph_reader` gives an administrator the cap as `monthly_cap_usd`, and the cost so far as `month_cost_usd`. Name both.
 5. **When they're worth it.** Say which applies, from the number of files and the kinds of things they name. Connections are worth it when many files are about the same customers, suppliers, people or orders. For a handful of files, or one-off lookups, words and meaning are enough.
 
 Then say that without connections, search still finds files by their words and their meaning. Ask in the next-step box whether to set connections up, with Set up and Not now.

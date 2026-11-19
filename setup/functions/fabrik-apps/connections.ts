@@ -11,6 +11,8 @@ import { appTool, cardUri } from "./cards.ts";
 
 /** What a person reads when graph-reader refuses their sign-in. */
 export const ADMINISTRATORS_ONLY = "Only an administrator turns connections on or off.";
+/** What a person reads when graph-reader couldn't confirm their sign-in. */
+export const SIGN_IN_AGAIN = "fabrik couldn't confirm your sign-in. Sign in again, then try again.";
 
 type Reply = { status: number; body: Record<string, unknown> | null };
 
@@ -23,28 +25,36 @@ async function reader(ctx: Ctx, args: Record<string, unknown>): Promise<Reply> {
   return { status: res.status, body: body && typeof body === "object" ? body as Record<string, unknown> : null };
 }
 
-/** graph-reader's refusal, in words a person reads: an administrator's refusal in fabrik's own words, and any other
- * reason with the key taken out. */
+/** graph-reader's refusal, in words a person reads: a sign-in it couldn't confirm, a missing second factor and a
+ * person who isn't an administrator in fabrik's own words, and any other reason with the key taken out. */
 export function reason(got: Reply, key?: string): string {
-  if (got.status === 401 || got.status === 403) return ADMINISTRATORS_ONLY;
+  if (got.status === 401) return SIGN_IN_AGAIN;
+  if (got.status === 403) return got.body?.second_factor === true ? String(got.body.problem) : ADMINISTRATORS_ONLY;
   if (got.status === 503) return "fabrik is busy. Try again in a minute.";
   if (got.status === 400 && key !== undefined) return "That isn't an Anthropic API key, which starts sk-ant-. Nothing was kept.";
   const said = String(got.body?.problem ?? `fabrik answered ${got.status}.`);
   return (key ? said.replaceAll(key, "[key]") : said).replace(/sk-ant-[A-Za-z0-9_-]+/g, "[key]");
 }
 
-/** Whether connections are on: on with a key Anthropic takes, off with none, refused with one it no longer takes. */
-async function state(ctx: Ctx): Promise<{ state: "on" | "off" | "refused" } | Result> {
+type State = "on" | "off" | "refused" | "unknown";
+
+/** Whether connections are on: on with a key Anthropic takes, off with none, refused with one it no longer takes, and
+ * unknown when Anthropic or fabrik didn't answer, with the reason. Only a refused sign-in keeps the card closed, so an
+ * administrator can still turn connections off or type a new key while Anthropic is down. */
+async function state(ctx: Ctx): Promise<{ state: State; problem?: string } | Result> {
   const got = await reader(ctx, { action: "check" });
-  if (got.status !== 200 || got.body?.ok !== true) return refused(reason(got));
+  if (got.status === 401 || got.status === 403) return refused(reason(got));
+  if (got.status !== 200 || got.body?.ok !== true) return { state: "unknown", problem: reason(got) };
   const key = got.body.key;
   return { state: key === "available" ? "on" : key === "refused" ? "refused" : "off" };
 }
 
-const SAID = {
+/** What the card and Claude say for each state. The card takes these from show_connections_setup's result. */
+export const SAID: Record<State, string> = {
   on: "Connections are on.",
   off: "Connections are off.",
-  refused: "Connections are on, but Anthropic no longer takes the business's key, so fabrik reads no parts.",
+  refused: "Anthropic no longer takes the business's key, so fabrik reads no parts. Type a new key.",
+  unknown: "fabrik couldn't ask Anthropic whether the key works.",
 };
 
 const showConnectionsSetup = tool({
@@ -57,10 +67,11 @@ const showConnectionsSetup = tool({
   run: async (ctx) => {
     const now = await state(ctx);
     if ("content" in now) return now;
+    const said = now.problem ? `${SAID[now.state]} ${now.problem}` : SAID[now.state];
     return {
-      content: [{ type: "text", text: `The connections card is shown. ${SAID[now.state]} The person types the key on the card. ` +
+      content: [{ type: "text", text: `The connections card is shown. ${said} The person types the key on the card. ` +
         "End the turn here; once they say the card shows connected, fabrik reads the waiting parts within a day." }],
-      structuredContent: { card: "connections-setup", state: now.state },
+      structuredContent: { card: "connections-setup", state: now.state, ...(now.problem ? { problem: now.problem } : {}), said: SAID },
     };
   },
 });
