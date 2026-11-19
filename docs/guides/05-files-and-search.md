@@ -31,6 +31,14 @@ Connections are worth it when many of your files are about the same customers, s
 
 To turn connections on, ask Claude. Claude suggests the kinds of things for your glossary from your business profile, and saves each one you approve. Then it shows a card where an administrator types the key. The key goes from the card into your project's Vault, and never into the chat. The same card turns connections off.
 
+To make the key:
+
+1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
+2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
+3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else. fabrik's reader runs on Supabase, not on your computer.
+4. Name the key fabrik, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
+5. Paste it on the card and choose Save.
+
 ## Saving a file to your computer
 
 In a Code session, ask Claude to save a file from fabrik into your folder.

@@ -53,7 +53,14 @@ With no business profile, ask the person what kinds of things their files are mo
 Only an administrator turns connections on or off. When `fabrik_get_actor` gives another `authority_class`, tell the person an administrator turns connections on, and stop.
 
 1. Call `show_connections_setup`. It shows the connections card, which says whether connections are on.
-2. Tell the person to make an API key in the Anthropic Console, at console.anthropic.com, under API keys, and type it on the card. Never ask for the key in the chat, and never accept one that's offered. When the person pastes a key into the chat, tell them to delete it in the Anthropic Console. Then they make a new one for the card.
+2. Give the person these steps to make the key, one numbered line each:
+   1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits first. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
+   2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
+   3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else, since fabrik's reader runs on Supabase, not on this computer.
+   4. Name the key fabrik, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
+   5. Paste it on the card and choose Save.
+
+   Never ask for the key in the chat, and never accept one that's offered. When the person pastes a key into the chat, tell them to delete it in the Anthropic Console. Then they make a new one for the card.
 3. End the turn. The card checks the key with Anthropic before it keeps it, and shows connected, or the reason Anthropic gave.
 
 Once the person says the card shows connected, tell them fabrik reads the waiting parts within a day. A search after that finds a file through a connection, and `graph` is then among a hit's `found`. Name the link in plain words, as the `fabrik:records` skill's section 6 says.
