@@ -9,9 +9,9 @@ The glossary and the data dictionary are kept only in fabrik, in the `reference`
 
 - The **glossary** says what the business's words mean, for people and agents alike. Each row is a term with its kind, its definition and its other names, such as "memorandum of sale", other name "MoS".
   - A **term** is a word the business uses.
-  - A **class** is a kind of thing records and the file search graph are about, such as customer or order.
+  - A **class** is a kind of thing records and connections are about, such as customer or order.
   - A **relationship** names the classes at its two ends, from one class to the other, such as places, from customer to order.
-  - The classes and relationships are the business's ontology. The file search graph takes its entity types from the classes and its relation names from the relationships, as the `fabrik:records` skill's section 18 says.
+  - The classes and relationships are the business's ontology. Connections take the kinds of things from the classes and the names of links from the relationships, as the `fabrik:records` skill's section 18 says.
 - The **data dictionary** says where each fact is stored and in what form. Each **record kind** is linked to its glossary class, and has a meaning and its fields. Each **field** has a type, whether it is required, the glossary term it holds and its meaning. Each field names the systems it comes from, such as Loop, with the field's name there. A system is itself a glossary term.
 
 Each save is a new version of a model record in the `reference` scope, titled "Glossary: <term>" or "Data dictionary: <record kind>". The old version is kept in the record's history, and the audit log names who saved it.

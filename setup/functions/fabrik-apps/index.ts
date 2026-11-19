@@ -50,6 +50,7 @@ import { WORKFLOW_TOOLS } from "./workflows.ts";
 import { CONTACT_TOOLS } from "./contacts.ts";
 import { VOICE_TOOLS } from "./voice.ts";
 import { MAIL_TOOLS } from "./mail.ts";
+import { CONNECTIONS_TOOLS } from "./connections.ts";
 import { MAIL_SEND_TOOLS } from "./mail-send.ts";
 import { GUIDES } from "./guides.ts";
 
@@ -427,6 +428,7 @@ export const TOOLS: Tool[] = [
   ...CONTACT_TOOLS,
   ...VOICE_TOOLS,
   ...MAIL_TOOLS,
+  ...CONNECTIONS_TOOLS,
   ...MAIL_SEND_TOOLS,
   ...CARD_TOOLS,
 ];

@@ -7,7 +7,7 @@ fabrik itself is free and open source. You pay for the services it runs on, on y
 - **Supabase** hosts your database, files and functions. fabrik runs on its Free plan. A paid plan raises the limits on storage, file size and use. See supabase.com/pricing.
 - **Cloudflare** hosts your sign-in page on Cloudflare Pages, which has a free plan. See cloudflare.com/plans.
 - **Claude** is your Claude plan. Some connectors and features, such as Claude Code, need a paid plan. See claude.com/pricing.
-- **Anthropic**, only if you add your own API key so fabrik reads the people and things your files name. Anthropic charges that key for each part it reads. See anthropic.com/pricing.
+- **Anthropic**, only if you turn connections on, so fabrik reads the people and things your files name. Anthropic charges your own API key for each part of a file it reads. See anthropic.com/pricing.
 
 ## Limits
 
