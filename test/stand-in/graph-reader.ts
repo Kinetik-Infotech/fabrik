@@ -439,8 +439,8 @@ try {
   try {
     const password = await call(admin, { action: "check" });
     const code = await call(coded(admin), { action: "check" });
-    check("with the second factor set, graph-reader refuses an administrator's password-only sign-in", password.status === 403
-      && password.body.problem === "Only an administrator sets, removes or checks graph-reader's key.", password);
+    check("with the second factor set, graph-reader refuses an administrator's password-only sign-in, and names the second factor", password.status === 403
+      && password.body.problem === "Sign in with a code from your authenticator app, then try again." && password.body.second_factor === true, password);
     check("and takes the same administrator's sign-in with a code", code.status === 200 && code.body.key === "available", code);
   } finally { await sql`update fabrik_private.sign_in_setting set second_factor = 'off'`; }
 

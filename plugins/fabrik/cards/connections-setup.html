@@ -21,16 +21,13 @@
   </div>
 </div>
 <script>
-// The connections card: it shows whether connections are on, from show_connections_setup's result. Save calls
-// connections_setup_save with the key typed here, which fabrik keeps only once Anthropic takes it, and the card then
-// shows connected or the reason. Turn off calls connections_off, which removes the key.
-var SAID = {
-  on: "Connections are on.",
-  off: "Connections are off.",
-  refused: "Connections are on, but Anthropic no longer takes the key. Type a new one.",
-};
-function showState(state) {
-  $("cs-state").textContent = SAID[state] || "";
+// The connections card: it shows whether connections are on, in the words show_connections_setup's result gives. Save
+// calls connections_setup_save with the key typed here, which fabrik keeps only once Anthropic takes it, and the card then
+// shows connected or the reason. Turn off calls connections_off, which removes the key. When Anthropic didn't answer, the
+// card says why and offers both.
+var SAID = {};
+function showState(state, problem) {
+  $("cs-state").textContent = (SAID[state] || "") + (problem ? " " + problem : "");
   $("cs-off").hidden = state === "off";
   $("cs-save").textContent = state === "off" ? "Save" : "Save a new key";
 }
@@ -53,5 +50,5 @@ $("cs-off").addEventListener("click", function () {
     else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });
-onResult(function (given) { showState(given.state); });
+onResult(function (given) { SAID = given.said || {}; showState(given.state, given.problem); });
 </script>

@@ -165,9 +165,12 @@ const { handler: fileSearch } = await load(SEARCH);
 // is kept, so a check can say which key reached Anthropic.
 const ANTHROPIC_KEY = "sk-ant-standin-connections-0123456789abcdef";
 const anthropicKeys: string[] = [];
+/** Set while a check stands for Anthropic being down: every call answers 500. */
+let anthropicDown = false;
 const anthropic = Deno.serve({ port: 0, onListen() {} }, (req) => {
   const key = req.headers.get("x-api-key") ?? "";
   anthropicKeys.push(key);
+  if (anthropicDown) return Response.json({ type: "error", error: { type: "api_error", message: "Internal server error" } }, { status: 500 });
   if (key !== ANTHROPIC_KEY) return Response.json({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, { status: 401 });
   return Response.json({ type: "model", id: "claude-haiku-5-5", display_name: "Claude Haiku 5.5", created_at: "2026-09-01T00:00:00Z" });
 });
@@ -1462,6 +1465,21 @@ try {
     keyField: connCard.doc.getElementById("cs-key")?.value, offHidden: connCard.doc.getElementById("cs-off")?.hidden,
     calls: readerCalls.slice(callsBefore), called: [...connCard.called], vault: await vaultKey(), anthropic: anthropicKeys.at(-1) === ANTHROPIC_KEY };
   const onAgain = await tool(ownerToken, "show_connections_setup", {});
+  // Anthropic down while a key is kept: the card still opens, says why, and offers both Save and Turn off.
+  anthropicDown = true;
+  let downCard;
+  try {
+    downCard = await openCard(ownerToken, "show_connections_setup", {});
+    await until(() => (downCard!.doc.getElementById("cs-state")?.textContent ?? "").startsWith("fabrik couldn't ask Anthropic"), "the card open with Anthropic down", downCard);
+    conn.down = { state: downCard.doc.getElementById("cs-state")?.textContent, offHidden: downCard.doc.getElementById("cs-off")?.hidden,
+      save: downCard.doc.getElementById("cs-save")?.textContent, result: downCard.result?.structuredContent?.state };
+  } finally { anthropicDown = false; await downCard?.close(); }
+  // An administrator who hasn't given their second factor is told so, and a sign-in Auth can't confirm is told to sign in again.
+  await sql`update fabrik_private.sign_in_setting set second_factor = 'administrators'`;
+  let noFactor;
+  try { noFactor = await tool(ownerToken, "show_connections_setup", {}); }
+  finally { await sql`update fabrik_private.sign_in_setting set second_factor = 'off'`; }
+  const unknownUser = await tool(await tokenOf(crypto.randomUUID()), "show_connections_setup", {});
   const wrongKey = "sk-ant-standin-wrong-key-0123456789abcdef";
   const connWrong = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: wrongKey } });
   const askedBefore = anthropicKeys.length;
@@ -1499,6 +1517,12 @@ try {
     conn.saved);
   check("show_connections_setup then says connections are on, from graph-reader's check",
     v(onAgain)?.state === "on" && onAgain?.content?.[0]?.text.includes("Connections are on.") === true, onAgain);
+  check("with Anthropic down, the connections card still opens, says fabrik couldn't ask Anthropic and why, and offers Save a new key and Turn off",
+    (conn.down as any)?.result === "unknown" && String((conn.down as any)?.state).includes("Anthropic did not answer") && (conn.down as any)?.offHidden === false
+      && (conn.down as any)?.save === "Save a new key", conn.down);
+  check("an administrator without their second factor is told to sign in with a code, and a sign-in Auth can't confirm is told to sign in again",
+    said(noFactor) === "Sign in with a code from your authenticator app, then try again." && said(unknownUser) === "fabrik couldn't confirm your sign-in. Sign in again, then try again.",
+    { noFactor, unknownUser });
   check("a key Anthropic refuses is not kept, and the card is told so; a text that isn't a key is refused before Anthropic is asked",
     said(connWrong) === "Anthropic refused the new key. Nothing was kept." && said(notAKey) === "That isn't an Anthropic API key, which starts sk-ant-. Nothing was kept." && conn.notAKeyAsked === false && conn.afterWrong === ANTHROPIC_KEY,
     { connWrong, notAKey, asked: conn.notAKeyAsked, vault: conn.afterWrong });
@@ -1511,6 +1535,10 @@ try {
   check("the card's Turn off calls graph-reader's remove_key as the owner, which takes the key out of the Vault, and the card says connections are off",
     (conn.off as any).said === "Connections are off. The connections fabrik already keeps stay." && JSON.stringify((conn.off as any).calls) === JSON.stringify([{ action: "remove_key", user: owner }])
       && (conn.off as any).vault === null, conn.off);
+  // deno-lint-ignore no-explicit-any
+  const order = ((await mcp(ownerToken, "tools/list")).body?.result?.tools ?? []).map((t: any) => t.name);
+  check("Claude lists the connections tools after every mail tool", order.indexOf("show_connections_setup") > Math.max(order.indexOf("mail_reply"), order.indexOf("mail_send"), order.indexOf("show_mail_setup")),
+    order.slice(Math.max(0, order.indexOf("show_mail_setup") - 1), order.indexOf("connections_off") + 1));
   check("connections_setup_save and connections_off are app-only, and show_connections_setup names the card",
     connListed.length === 3 && connListed.every((t: any) => t.name === "show_connections_setup" ? t._meta?.ui?.resourceUri === "ui://fabrik-apps/connections-setup.html"
       : JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), connListed.map((t: any) => [t.name, t._meta]));
