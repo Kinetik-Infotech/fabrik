@@ -13,6 +13,7 @@
 // Cloudflare holds the address, so a later run reuses it without asking. An address Cloudflare refuses isn't kept.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { promises as dns } from "node:dns";
+import https from "node:https";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -171,9 +172,34 @@ export async function dnsAnswers(host, target, onCloudflare, lookups = dns) {
 const defaultOnCloudflare = domain => dns.resolveNs(domain)
   .then(ns => ns.length > 0 && ns.every(n => n.toLowerCase().endsWith(".ns.cloudflare.com")), () => false);
 
-/** Whether https://<host>/ answers with a page, which takes its DNS record and a valid certificate. */
-const defaultReach = host => fetch(`https://${host}/`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) })
-  .then(res => res.ok, () => false);
+/** The host's IPv4 address as Cloudflare's own DNS gives it, over HTTPS, or null. The computer's DNS cache can keep a
+ * deleted record for many minutes, and Cloudflare's answer is new as soon as the record is. */
+export async function cloudflareAddress(host, get = fetch) {
+  try {
+    const res = await get(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=A`,
+      { headers: { accept: "application/dns-json" }, signal: AbortSignal.timeout(10_000) });
+    const body = await res.json();
+    return (body.Answer ?? []).find(a => a.type === 1 && /^\d+\.\d+\.\d+\.\d+$/.test(a.data))?.data ?? null;
+  } catch { return null; }
+}
+
+/** Whether https://<host>/ answers with a page, which takes its DNS record and a valid certificate. It connects to the
+ * address that address(host) gives, and checks the certificate against the host's own name. request and port are seams
+ * for a test. */
+export const reachWith = ({ address = cloudflareAddress, request = https.request, port = 443 } = {}) => async host => {
+  const ip = await address(host);
+  if (!ip) return false;
+  return new Promise(done => {
+    const req = request({
+      host, servername: host, port, method: "HEAD", path: "/", timeout: 10_000,
+      lookup: (_name, options, back) => options?.all ? back(null, [{ address: ip, family: 4 }]) : back(null, ip, 4),
+    }, res => { res.resume(); done(res.statusCode >= 200 && res.statusCode < 300); });
+    req.on("timeout", () => req.destroy());
+    req.on("error", () => done(false));
+    req.end();
+  });
+};
+const defaultReach = reachWith();
 const defaultPause = ms => new Promise(done => setTimeout(done, ms));
 const turnstile = (host, pagesHost) =>
   `Add ${host} under Hostname management in the Turnstile widget, beside ${pagesHost}, or the chat can't check visitors there.`;
