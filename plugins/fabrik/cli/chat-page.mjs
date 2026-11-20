@@ -87,7 +87,9 @@ export function buildChatPage({ brand, address, folder, agents }) {
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
   const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
-  const widget = fill(readFileSync(join(SOURCE, "widget.js"), "utf8"), { ACCENT: accent, ON_ACCENT: onColour(accent) });
+  // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
+  const fallback = agents.some(a => a.slug === "chat") ? "chat" : "";
+  const widget = fill(readFileSync(join(SOURCE, "widget.js"), "utf8"), { ACCENT: accent, ON_ACCENT: onColour(accent), AGENT: fallback });
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
   writeFileSync(join(folder, "index.html"), root);

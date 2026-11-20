@@ -63,6 +63,9 @@ const AGENTS = "agents.md";
 /** The agent a post that names none reaches. */
 const FIRST = "chat";
 const SLUG = /^[a-z0-9-]{1,40}$/;
+/** A new agent's model and daily cap, as public_agent's column defaults hold them. */
+const DEFAULT_MODEL = "claude-haiku-5-5";
+const DEFAULT_CAP = 500_000;
 const MAX_TOKENS = 1000;
 /** The most turns of history sent with a question. A turn is a question and its answer. */
 const TURNS = 10;
@@ -180,12 +183,16 @@ async function knowledge(slug: string): Promise<string | null> {
   const text = await read(knowledgeFile(slug));
   if (text !== null || slug !== FIRST) return text;
   const old = await read(OLD_KNOWLEDGE);
-  if (old === null) return null;
+  // Gone since the first read means another call moved it.
+  if (old === null) return await read(knowledgeFile(slug));
   const res = await seam.storage("move", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ bucketId: BUCKET, sourceKey: OLD_KNOWLEDGE, destinationKey: knowledgeFile(slug) }) });
   await res.body?.cancel();
-  if (!res.ok) throw new Error(`Storage answered ${res.status} to the move of KNOWLEDGE.md`);
-  return old;
+  if (res.ok) return old;
+  // Another call moved it first.
+  const moved = await read(knowledgeFile(slug));
+  if (moved === null) throw new Error(`Storage answered ${res.status} to the move of KNOWLEDGE.md`);
+  return moved;
 }
 
 /** An agent's INSTRUCTIONS.md. Where none was ever saved, STARTING is saved as it first. */
@@ -195,12 +202,19 @@ async function instructions(slug: string): Promise<string> {
   await write(instructionsFile(slug), STARTING);
   return STARTING;
 }
-const instructionsState = (text: string) => text === STARTING ? "starting" : text.trim() ? "written" : "empty";
+/** What an agent's INSTRUCTIONS.md holds, read without saving anything: one never saved is the starting text. */
+const instructionsState = (text: string | null) => text === null || text === STARTING ? "starting" : text.trim() ? "written" : "empty";
+/** Whether an agent's KNOWLEDGE.md is saved, read without moving anything. */
+async function hasKnowledge(slug: string): Promise<boolean> {
+  const text = (await read(knowledgeFile(slug))) ?? (slug === FIRST ? await read(OLD_KNOWLEDGE) : null);
+  return !!text?.trim();
+}
 
 /** AGENTS.md's text: a line for each agent, or nothing while there is one. */
 export function agentsText(list: { slug: string; name: string; purpose: string }[], page: string | null): string {
   if (list.length < 2) return "";
-  return list.map((a) => `- ${a.name}${page ? `, ${page}/${a.slug}/` : ""}${a.purpose.trim() ? `: ${a.purpose.trim()}` : ""}`).join("\n") + "\n";
+  const line = (text: string) => text.replace(/\s+/g, " ").trim();
+  return list.map((a) => `- ${line(a.name)}${page ? `, ${page}/${a.slug}/` : ""}${line(a.purpose) ? `: ${line(a.purpose)}` : ""}`).join("\n") + "\n";
 }
 async function writeAgents() {
   await write(AGENTS, agentsText(await agents(), (await settings()).page));
@@ -265,10 +279,9 @@ async function ask({ agent, question, history, token }: ReturnType<typeof visito
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const [s] = await sql`select slug, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${agent}`;
   if (!s) throw refuse(404, UNAVAILABLE);
-  const file = await knowledge(agent);
+  const [file, rules, saved] = await Promise.all([knowledge(agent), instructions(agent), read(AGENTS)]);
   if (!file?.trim()) throw refuse(503, UNAVAILABLE, { setup: "knowledge" });
-  const rules = await instructions(agent);
-  const list = (await read(AGENTS)) ?? "";
+  const list = saved ?? "";
   // The most this answer can cost is held against the cap before Claude is called. So questions sent side by side
   // can't pass the cap together. Every token covers at least one byte of UTF-8. So the bytes sent, with room for each
   // message's framing, are the most Claude can read, in any language.
@@ -308,11 +321,17 @@ async function ask({ agent, question, history, token }: ReturnType<typeof visito
   }
 }
 
-/** Whether the key is there and Anthropic takes it: available, missing or refused. */
-async function keyState(model = "claude-haiku-5-5"): Promise<"available" | "missing" | "refused" | "unknown"> {
+/** Every model an agent answers with, or the default model while there is no agent. */
+async function modelsInUse(): Promise<string[]> {
+  const rows = await sql`select distinct model from fabrik_private.public_agent order by model`;
+  return rows.length ? rows.map((r) => String(r.model)) : [DEFAULT_MODEL];
+}
+
+/** Whether the key is there and Anthropic takes it for every model in use: available, missing or refused. */
+async function keyState(models: string[]): Promise<"available" | "missing" | "refused" | "unknown"> {
   const key = await vault(KEY_NAME);
   if (!key) return "missing";
-  try { await seam.client(key).models.retrieve(model); return "available"; }
+  try { await Promise.all(models.map((m) => seam.client(key).models.retrieve(m))); return "available"; }
   catch (err) {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) return "refused";
     return "unknown";
@@ -322,7 +341,8 @@ async function keyState(model = "claude-haiku-5-5"): Promise<"available" | "miss
 async function setKey(given: unknown) {
   const candidate = hide(typeof given === "string" ? given.trim() : "");
   if (!/^sk-ant-[A-Za-z0-9_-]{20,300}$/.test(candidate)) throw refuse(400, "Give the Anthropic API key, which starts sk-ant-, as key. Nothing was kept.");
-  await seam.client(candidate).models.retrieve("claude-haiku-5-5").catch((err) => {
+  const client = seam.client(candidate);
+  await Promise.all((await modelsInUse()).map((m) => client.models.retrieve(m))).catch((err) => {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError)
       throw refuse(422, "Anthropic refused the new key. Nothing was kept.");
     throw refuse(502, `Anthropic did not confirm the new key: ${message(err)}. Nothing was kept.`);
@@ -382,11 +402,10 @@ async function removeKey() {
 async function check() {
   const s = await settings();
   const list = await agents();
-  const each = [];
-  for (const a of list) {
-    each.push({ slug: a.slug, name: a.name, knowledge: !!(await knowledge(a.slug))?.trim(), instructions: instructionsState(await instructions(a.slug)) });
-  }
-  return { ok: true, key: await keyState(list[0]?.model), turnstile: (await vault(TURNSTILE_NAME)) ? "set" : "missing",
+  const each = await Promise.all(list.map(async (a) => ({ slug: a.slug, name: a.name, knowledge: await hasKnowledge(a.slug),
+    instructions: instructionsState(await read(instructionsFile(a.slug))) })));
+  const models = list.length ? [...new Set(list.map((a) => a.model))] : [DEFAULT_MODEL];
+  return { ok: true, key: await keyState(models), turnstile: (await vault(TURNSTILE_NAME)) ? "set" : "missing",
     sitekey: s.turnstile_sitekey ? "set" : "missing", agents: each };
 }
 
@@ -407,13 +426,16 @@ async function saveInstructions(agent: Agent, given: unknown) {
 
 /** The name, purpose, model and cap given, checked. Each is undefined when not given. */
 async function agentFields(args: Record<string, unknown>) {
-  const { name, purpose, model, daily_cap_tokens: cap } = args;
-  if (name !== undefined && (typeof name !== "string" || name.trim().length < 1 || name.trim().length > 80))
+  const { model, daily_cap_tokens: cap } = args;
+  // AGENTS.md gives each agent one line, so a name or purpose is kept on one line.
+  const line = (given: unknown) => typeof given === "string" ? given.replace(/\s+/g, " ").trim() : given;
+  const name = line(args.name), purpose = line(args.purpose);
+  if (name !== undefined && (typeof name !== "string" || name.length < 1 || name.length > 80))
     throw refuse(400, "name is the agent's name, 1 to 80 characters.");
-  if (purpose !== undefined && (typeof purpose !== "string" || purpose.trim().length > 500))
+  if (purpose !== undefined && (typeof purpose !== "string" || purpose.length > 500))
     throw refuse(400, "purpose says what the agent is for, at most 500 characters.");
   if (model !== undefined && (typeof model !== "string" || !/^claude-[a-z0-9.-]{1,60}$/.test(model)))
-    throw refuse(400, "model is a Claude model's id, such as claude-haiku-5-5.");
+    throw refuse(400, `model is a Claude model's id, such as ${DEFAULT_MODEL}.`);
   if (cap !== undefined && (!Number.isInteger(cap) || (cap as number) < 1000 || (cap as number) > 100_000_000))
     throw refuse(400, "daily_cap_tokens is a whole number from 1,000 to 100,000,000.");
   if (typeof model === "string") {
@@ -423,7 +445,7 @@ async function agentFields(args: Record<string, unknown>) {
       throw refuse(502, `Anthropic did not confirm the model: ${message(err)}. Nothing was changed.`);
     });
   }
-  return { name: typeof name === "string" ? name.trim() : null, purpose: typeof purpose === "string" ? purpose.trim() : null,
+  return { name: typeof name === "string" ? name : null, purpose: typeof purpose === "string" ? purpose : null,
     model: typeof model === "string" ? model : null, cap: typeof cap === "number" ? cap : null };
 }
 
@@ -438,7 +460,7 @@ async function createAgent(args: Record<string, unknown>) {
   if (typeof args.name !== "string") throw refuse(400, "Give the new agent's name as name.");
   const f = await agentFields(args);
   const [made] = await sql`insert into fabrik_private.public_agent(slug, name, purpose, model, daily_cap_tokens)
-    values (${slug}, ${f.name}, ${f.purpose ?? ""}, coalesce(${f.model}::text, 'claude-haiku-5-5'), coalesce(${f.cap}::integer, 500000))
+    values (${slug}, ${f.name}, ${f.purpose ?? ""}, coalesce(${f.model}::text, ${DEFAULT_MODEL}), coalesce(${f.cap}::integer, ${DEFAULT_CAP}))
     on conflict (slug) do nothing returning slug`;
   if (!made) throw refuse(409, `fabrik already has a public agent ${slug}. Nothing was changed.`);
   if ((await read(instructionsFile(slug))) === null) await write(instructionsFile(slug), STARTING);
@@ -458,30 +480,34 @@ async function changeAgent(args: Record<string, unknown>) {
 
 async function removeAgent(args: Record<string, unknown>) {
   const agent = await agentOf(args.agent);
-  await remove(knowledgeFile(agent.slug));
-  await remove(instructionsFile(agent.slug));
-  await sql`delete from fabrik_private.public_agent where slug = ${agent.slug}`;
+  // The row is deleted first and kept if a file can't be deleted. KNOWLEDGE.md goes first, so an agent left half
+  // removed stops answering rather than answering from the starting rules.
+  await runs.getStore()!.sql.begin(async (tx) => {
+    await tx`delete from fabrik_private.public_agent where slug = ${agent.slug}`;
+    await remove(knowledgeFile(agent.slug));
+    await remove(instructionsFile(agent.slug));
+  });
   await writeAgents();
   return { ok: true, agent: agent.slug, removed: true };
 }
 
-/** The site key and the page's address, after setting page when given, and the agent's settings when agent is given. */
+/** The site key and the page's address, after setting page when given, and the agent's settings when agent is given.
+ * Everything given is checked before anything is saved. */
 async function changeSettings(args: Record<string, unknown>) {
   const { page } = args;
+  if (args.agent === undefined && (args.model !== undefined || args.daily_cap_tokens !== undefined))
+    throw refuse(400, "Name the agent whose model or cap changes as agent.");
+  const address = typeof page === "string" ? page.trim().replace(/\/+$/, "").toLowerCase() : "";
+  if (page !== undefined && !/^https:\/\/[a-z0-9.-]{1,253}(:[0-9]{1,5})?$/.test(address))
+    throw refuse(400, "page is the chat page's address, such as https://fabrik-chat-<ref>.pages.dev.");
+  const changed = args.agent === undefined ? null
+    : await changeAgent({ agent: args.agent, model: args.model, daily_cap_tokens: args.daily_cap_tokens });
   if (page !== undefined) {
-    const address = typeof page === "string" ? page.trim().replace(/\/+$/, "").toLowerCase() : "";
-    if (!/^https:\/\/[a-z0-9.-]{1,253}(:[0-9]{1,5})?$/.test(address)) throw refuse(400, "page is the chat page's address, such as https://fabrik-chat-<ref>.pages.dev.");
     await sql`update fabrik_private.public_agent_setting set page_address = ${address}, updated_at = now() where id`;
     await writeAgents();
   }
   const s = await settings();
-  if (args.agent === undefined) {
-    if (args.model !== undefined || args.daily_cap_tokens !== undefined) throw refuse(400, "Name the agent whose model or cap changes as agent.");
-    return { ok: true, ...s };
-  }
-  const agent = await agentOf(args.agent);
-  const changed = await changeAgent({ agent: agent.slug, model: args.model, daily_cap_tokens: args.daily_cap_tokens });
-  return { ...changed, turnstile_sitekey: s.turnstile_sitekey, page: s.page };
+  return changed ? { ...changed, turnstile_sitekey: s.turnstile_sitekey, page: s.page } : { ok: true, ...s };
 }
 
 Deno.serve(async (req) => {

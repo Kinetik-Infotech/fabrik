@@ -50,6 +50,8 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   if (req.method === "GET" && url.pathname.startsWith("/v1/models/")) {
     const id = url.pathname.slice("/v1/models/".length);
     if (!id.startsWith("claude-")) return Response.json({ type: "error", error: { type: "not_found_error", message: id } }, { status: 404 });
+    // A model the organisation's key may not use.
+    if (id.includes("locked")) return Response.json({ type: "error", error: { type: "permission_error", message: id } }, { status: 403 });
     return Response.json({ type: "model", id, display_name: id, created_at: "2026-09-01T00:00:00Z" });
   }
   if (req.method === "POST" && url.pathname === "/v1/messages") {
@@ -198,9 +200,14 @@ try {
   check("a Turnstile secret Cloudflare refuses is not kept", res.status === 422 && res.body.problem === "Cloudflare refused the secret key. Nothing was kept.", res);
   res = await post({ action: "set_turnstile", secret: SECRET }, admin);
   check("set_turnstile keeps the secret once siteverify takes it", res.status === 200 && res.body.turnstile === "set", res);
-  const moved = await post({ action: "knowledge_get", agent: "chat" }, admin);
-  check("the agent chat's first read moves the KNOWLEDGE.md the one chat box answered from to agents/chat/knowledge.md",
-    moved.body.text === KNOWLEDGE && JSON.stringify([...files.keys()]) === '["agents/chat/knowledge.md"]', { moved, files: [...files.keys()] });
+  const looked = await post({ action: "check" }, admin);
+  check("check reads the agents' files and saves or moves none of them",
+    looked.body.agents?.[0]?.knowledge === true && looked.body.agents?.[0]?.instructions === "starting"
+      && JSON.stringify([...files.keys()]) === '["KNOWLEDGE.md"]', { looked: looked.body, files: [...files.keys()] });
+  const [moved, movedToo] = await Promise.all([post({ action: "knowledge_get", agent: "chat" }, admin), post({ action: "knowledge_get", agent: "chat" }, admin)]);
+  check("the agent chat's first read moves the KNOWLEDGE.md the one chat box answered from to agents/chat/knowledge.md, and a read at the same moment gets it too",
+    moved.body.text === KNOWLEDGE && movedToo.body.text === KNOWLEDGE && JSON.stringify([...files.keys()]) === '["agents/chat/knowledge.md"]',
+    { moved, movedToo, files: [...files.keys()] });
   res = await post({ action: "knowledge_save", agent: "chat", text: "x".repeat(100_001) }, admin);
   check("a KNOWLEDGE.md over 100,000 characters is refused", res.status === 400 && files.get("agents/chat/knowledge.md") === KNOWLEDGE, res);
   res = await post({ action: "knowledge_save", agent: "chat", text: KNOWLEDGE }, admin);
@@ -297,6 +304,9 @@ try {
     res.status === 200 && res.body.answer === RESTING && sent.length === before, res);
   res = await post({ action: "settings", agent: "chat", model: "gpt-4" }, admin);
   check("a model that isn't Claude's is refused", res.status === 400, res);
+  res = await post({ action: "settings", page: "https://elsewhere.example", daily_cap_tokens: 9000 }, admin);
+  const [{ p: pageAfter }] = await sql`select page_address as p from fabrik_private.public_agent_setting`;
+  check("settings with a cap and no agent is refused, and the page's address it gave isn't saved", res.status === 400 && pageAfter === null, { res, pageAfter });
 
   // Nothing holds a question.
   const tables = await sql`select format('%I.%I', table_schema, table_name) as t from information_schema.tables
@@ -383,8 +393,14 @@ try {
       && holds(emptySystem, [block(`<agents>\n${AGENTS_MD}\n</agents>`), block(`<knowledge>\n${BOOKINGS}\n</knowledge>`, true)])
       && JSON.stringify(emptyCheck.map((a: any) => a.instructions)) === '["starting","empty","starting"]', { emptySystem, emptyGot, emptyCheck });
 
-  // AGENTS.md follows a new name and purpose, and a removed agent.
-  await post({ action: "agent_change", agent: "cakes", name: "Celebration cakes", purpose: "Cakes for birthdays and weddings." }, admin);
+  // The key is checked against every agent's model, not one.
+  await sql`update fabrik_private.public_agent set model = 'claude-locked-1' where slug = 'bookings'`;
+  const lockedCheck = (await post({ action: "check" }, admin)).body;
+  await sql`update fabrik_private.public_agent set model = 'claude-haiku-5-5' where slug = 'bookings'`;
+  check("check says Anthropic refuses the key when one agent's model is one the key may not use", lockedCheck.key === "refused", lockedCheck);
+
+  // AGENTS.md follows a new name and purpose, on one line however it was typed, and a removed agent.
+  await post({ action: "agent_change", agent: "cakes", name: "Celebration cakes", purpose: "Cakes for birthdays\nand weddings." }, admin);
   const renamed = files.get("agents.md");
   const removed = await post({ action: "agent_remove", agent: "cakes" }, admin);
   const afterRemove = files.get("agents.md");
@@ -504,15 +520,19 @@ try {
   await other.happyDOM.close();
 
   // A website's own data-accent: the icon takes the colour that reads on it.
-  const light = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  const light = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true, disableIframePageLoading: true } });
   const ltag = light.document.createElement("script");
   ltag.setAttribute("src", `${site}/widget.js`);
   ltag.setAttribute("data-accent", "#ffe14d");
   light.document.body.appendChild(ltag);
   Object.defineProperty(light.document, "currentScript", { get: () => ltag, configurable: true });
   new Function("window", "document", "URL", widgetJs)(light, light.document, URL);
-  const iconColour = String((light.document.querySelector(".fabrik-chat-button") as any)?.style.color);
+  const lightButton = light.document.querySelector(".fabrik-chat-button") as any;
+  const iconColour = String(lightButton?.style.color);
   check("with a pale data-accent, the button's icon is near black", /#111111|17, 17, 17/.test(iconColour), iconColour);
+  lightButton.click();
+  const oldLine = light.document.querySelector("iframe.fabrik-chat-panel")?.getAttribute("src");
+  check("a widget line with no data-agent, as one from before there were many agents, opens the agent chat", oldLine === `${site}/chat/`, oldLine);
   await light.happyDOM.close();
 
   // Bookings' page, which the panel opens at its own address: chat.js asks for the site key with a GET, draws the
