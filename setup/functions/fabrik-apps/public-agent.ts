@@ -1,7 +1,7 @@
-// The public agent's tools: the chat box on the owner's website, which the public-agent hosted function answers from
-// KNOWLEDGE.md. Each tool calls public-agent with the person's own sign-in, so the function's own check of an
-// administrator decides it. The function keeps the file in its private bucket, and the settings in fabrik_private, where
-// no signed-in person reaches them directly.
+// The public agents' tools. Each public agent is a chat box on the owner's website, which the public-agent hosted
+// function answers as the agent's INSTRUCTIONS.md says, from its KNOWLEDGE.md. Each tool calls public-agent with the
+// person's own sign-in, so the function's own check of an administrator decides it. The function keeps the files in its
+// private bucket, and the agents and settings in fabrik_private, where no signed-in person reaches them directly.
 //
 // The Anthropic API key and the Turnstile keys go from the public agent card through card_call, as on the
 // connections card. They never pass through the model. show_public_agent_setup gives the card a pass in its result's
@@ -69,12 +69,23 @@ export const SAID: Record<string, string> = {
   unknown: "fabrik couldn't ask Anthropic whether the key works.",
 };
 
+/** What the card and Claude say of an agent's INSTRUCTIONS.md, for each state check gives. */
+export const INSTRUCTIONS_SAID: Record<string, string> = {
+  starting: "holds fabrik's starting rules",
+  written: "is the owner's own",
+  empty: "is empty",
+};
+type AgentState = { slug: string; name: string; knowledge: boolean; instructions: string };
+
+const AGENT = z.string().describe("The agent's slug, such as chat or bookings. public_agents_list gives every agent's slug.");
+
 const showSetup = tool({
   name: "show_public_agent_setup",
-  description: "Show the public agent card, which says whether the chat box on the owner's website has its Anthropic API key, its " +
-    "Cloudflare Turnstile site key and secret key, and its KNOWLEDGE.md. On it an administrator types the keys, or turns the chat box off. " +
-    "The card checks each key before fabrik keeps it. The keys go from the card into the project's Vault: never ask for them in " +
-    "the chat, and never pass them here. Administrators only.",
+  description: "Show the public agent card. It says whether the public agents on the owner's website have their Anthropic API key and " +
+    "their Cloudflare Turnstile site key and secret key. It lists the agents, and says for each whether its KNOWLEDGE.md is saved and " +
+    "what its INSTRUCTIONS.md holds. On it an administrator types the keys, or turns every agent off, and the card checks each key " +
+    "before fabrik keeps it. The keys go from the card into the project's Vault: never ask for them in the chat, and never pass " +
+    "them here. Administrators only.",
   input: z.object({ page: z.string().optional().describe("The chat page's address, which fabrik chat-page printed, such as https://fabrik-chat-<ref>.pages.dev. The card names it as the Turnstile widget's hostname.") }),
   meta: { ui: { resourceUri: cardUri(CARD) } },
   run: async (ctx, { page }) => {
@@ -85,14 +96,15 @@ const showSetup = tool({
       key: ok ? String(got.body!.key) : "unknown",
       turnstile: ok ? String(got.body!.turnstile) : "unknown",
       sitekey: ok ? String(got.body!.sitekey) : "unknown",
-      knowledge: ok ? got.body!.knowledge === true : null,
+      agents: ok && Array.isArray(got.body!.agents) ? got.body!.agents as AgentState[] : [],
     };
     const pass = await issuePass(ctx.person, Date.now(), CARD);
     return {
       content: [{ type: "text", text: `The public agent card is shown. ${SAID[state.key] ?? ""} The Turnstile secret key is ${state.turnstile}, and its site key ${state.sitekey}. ` +
-        `KNOWLEDGE.md is ${state.knowledge === true ? "saved" : state.knowledge === false ? "not saved yet" : "unknown"}. ` +
+        (state.agents.length ? state.agents.map((a) => `The agent ${a.slug}, ${a.name}: KNOWLEDGE.md is ${a.knowledge ? "saved" : "not saved yet"}, and INSTRUCTIONS.md ${INSTRUCTIONS_SAID[a.instructions] ?? "is unknown"}. `).join("")
+          : ok ? "fabrik has no public agent yet. " : "") +
         "The person types the keys on the card. End the turn here." }],
-      structuredContent: { card: CARD, ...state, said: SAID, address: address(), ...(pageHost(page) ? { page_host: pageHost(page) } : {}) },
+      structuredContent: { card: CARD, ...state, said: SAID, instructions_said: INSTRUCTIONS_SAID, address: address(), ...(pageHost(page) ? { page_host: pageHost(page) } : {}) },
       ...(pass ? { _meta: { pass } } : {}),
     };
   },
@@ -125,7 +137,7 @@ const setupSave = appTool([CARD], {
 
 const turnOff = appTool([CARD], {
   name: "public_agent_off",
-  description: "Remove the public agent's Anthropic API key, which stops the chat box answering. KNOWLEDGE.md and the Turnstile keys stay.",
+  description: "Remove the public agents' Anthropic API key, which stops every agent answering. The agents, their files and the Turnstile keys stay.",
   input: z.object({ pass: z.string().optional() }),
   run: async (ctx, { pass }) => {
     if (!await passHolds(pass, ctx.person, Date.now(), CARD)) return refused(CARD_ONLY);
@@ -135,38 +147,90 @@ const turnOff = appTool([CARD], {
   },
 });
 
+const agentsList = tool({
+  name: "public_agents_list",
+  description: "List the public agents: each one's slug, name, purpose, model, daily cap and today's tokens, and the chat page's address. " +
+    "Administrators only.",
+  input: z.object({}),
+  run: (ctx) => run(ctx, { action: "agents_list" }, { address: address() }),
+});
+
+const agentCreate = tool({
+  name: "public_agent_create",
+  description: "Add a public agent. agent is its slug, 1 to 40 characters of a to z, 0 to 9 and hyphens, which names its page. name is " +
+    "what visitors see, and purpose says what it is for, in a sentence, which every other agent reads in AGENTS.md. Its INSTRUCTIONS.md " +
+    "starts as fabrik's starting rules, and it answers once its KNOWLEDGE.md is saved. Administrators only.",
+  input: z.object({ agent: AGENT, name: z.string(), purpose: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
+  run: (ctx, args) => run(ctx, { action: "agent_create", ...args }),
+});
+
+const agentChange = tool({
+  name: "public_agent_change",
+  description: "Change a public agent's name, purpose, model or daily_cap_tokens, or several. fabrik rewrites AGENTS.md when the name or " +
+    "purpose changes. Administrators only.",
+  input: z.object({ agent: AGENT, name: z.string().optional(), purpose: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
+  run: (ctx, args) => run(ctx, { action: "agent_change", ...args }),
+});
+
+const agentRemove = tool({
+  name: "public_agent_remove",
+  description: "Remove a public agent with its INSTRUCTIONS.md, its KNOWLEDGE.md and its count of tokens. Neither file is kept. Its page " +
+    "stays up until fabrik chat-page runs again. Administrators only.",
+  input: z.object({ agent: AGENT }),
+  run: (ctx, { agent }) => run(ctx, { action: "agent_remove", agent }),
+});
+
 const knowledgeGet = tool({
   name: "public_knowledge_get",
-  description: "Read KNOWLEDGE.md, the one file the public agent answers the owner's website visitors from. Gives text, or null " +
-    "when none is saved. Administrators only.",
-  input: z.object({}),
-  run: (ctx) => run(ctx, { action: "knowledge_get" }),
+  description: "Read a public agent's KNOWLEDGE.md, what it answers the owner's website visitors from. Gives text, or null when none " +
+    "is saved. Administrators only.",
+  input: z.object({ agent: AGENT }),
+  run: (ctx, { agent }) => run(ctx, { action: "knowledge_get", agent }),
 });
 
 const knowledgeSave = tool({
   name: "public_knowledge_save",
-  description: "Replace KNOWLEDGE.md, the one file the public agent answers the owner's website visitors from, with the Markdown " +
-    "given, at most 100,000 characters. The file before it is not kept. Anything in it can reach any visitor. Administrators only.",
-  input: z.object({ text: z.string() }),
-  run: (ctx, { text }) => run(ctx, { action: "knowledge_save", text }),
+  description: "Replace a public agent's KNOWLEDGE.md with the Markdown given, at most 100,000 characters. The file before it is not " +
+    "kept. Anything in it can reach any visitor. Administrators only.",
+  input: z.object({ agent: AGENT, text: z.string() }),
+  run: (ctx, { agent, text }) => run(ctx, { action: "knowledge_save", agent, text }),
+});
+
+const instructionsGet = tool({
+  name: "public_instructions_get",
+  description: "Read a public agent's INSTRUCTIONS.md, everything the agent is told besides AGENTS.md and KNOWLEDGE.md. It gives the " +
+    "agent's name, character and voice, what it answers and turns down, and what it says when it doesn't know. A new agent's file " +
+    "holds fabrik's starting rules until the owner changes it. Administrators only.",
+  input: z.object({ agent: AGENT }),
+  run: (ctx, { agent }) => run(ctx, { action: "instructions_get", agent }),
+});
+
+const instructionsSave = tool({
+  name: "public_instructions_save",
+  description: "Replace a public agent's INSTRUCTIONS.md with the Markdown given, at most 20,000 characters. It may be empty, and " +
+    "then the agent has no instructions. The file before it is not kept. fabrik adds no rules of its own. Administrators only.",
+  input: z.object({ agent: AGENT, text: z.string() }),
+  run: (ctx, { agent, text }) => run(ctx, { action: "instructions_save", agent, text }),
 });
 
 const settings = tool({
   name: "public_agent_settings",
-  description: "Read the public agent's settings: its model, its daily cap, today's tokens, the Turnstile site key, and the " +
-    "address the chat page posts to. Once a day's tokens reach the cap, the chat box answers that it's resting until the next day, in UTC. " +
-    "Administrators only.",
-  input: z.object({}),
-  run: (ctx) => run(ctx, { action: "settings" }, { address: address() }),
+  description: "Read a public agent's settings: its model, its daily cap and today's tokens. It also gives the Turnstile site key, " +
+    "the chat page's address and the address the pages post to. Once a day's tokens reach an agent's cap, it answers that it's resting until " +
+    "the next day, in UTC. Administrators only.",
+  input: z.object({ agent: AGENT }),
+  run: (ctx, { agent }) => run(ctx, { action: "settings", agent }, { address: address() }),
 });
 
 const changeSettings = tool({
   name: "public_agent_settings_change",
-  description: "Change the public agent's model, a Claude model's id, or its daily_cap_tokens, from 1,000 to 100,000,000, or " +
-    "both. Gives the settings after the change, as public_agent_settings does. Administrators only.",
-  input: z.object({ model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
+  description: "Change a public agent's model, a Claude model's id, or its daily_cap_tokens, from 1,000 to 100,000,000, or both. " +
+    "page sets the chat page's address, which fabrik chat-page printed, for AGENTS.md. Gives the settings after the change, as " +
+    "public_agent_settings does. Administrators only.",
+  input: z.object({ agent: AGENT.optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional(), page: z.string().optional() }),
   run: (ctx, args) => run(ctx, { action: "settings", ...args }, { address: address() }),
 });
 
 /** The public agent's tools, in the order Claude lists them. */
-export const PUBLIC_AGENT_TOOLS: Tool[] = [showSetup, setupSave, turnOff, knowledgeGet, knowledgeSave, settings, changeSettings];
+export const PUBLIC_AGENT_TOOLS: Tool[] = [showSetup, setupSave, turnOff, agentsList, agentCreate, agentChange,
+  agentRemove, knowledgeGet, knowledgeSave, instructionsGet, instructionsSave, settings, changeSettings];

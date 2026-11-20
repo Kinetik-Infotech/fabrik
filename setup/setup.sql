@@ -8242,8 +8242,8 @@ grant execute on function fabrik.fabrik_list_mailboxes() to authenticated;
 notify pgrst, 'reload schema';
 
 -- ===================================================================
--- The public agent: the chat box on the owner's website, which the public-agent hosted function answers from the
--- KNOWLEDGE.md file in the private bucket public-agent. The bucket has no rule for a signed-in person, so only the
+-- The public agents: chat boxes on the owner's website, which the public-agent hosted function answers from each
+-- agent's INSTRUCTIONS.md and KNOWLEDGE.md in the private bucket public-agent. The bucket has no rule for a signed-in person, so only the
 -- function reads or writes it, with the project's service key. The settings row holds the Claude model and the daily
 -- cap in tokens, and the Turnstile site key the chat page draws its check with. The usage table holds each day's tokens, counted from Claude's answers, and nothing a visitor typed.
 -- Only the function reads or changes either table.
@@ -8267,7 +8267,48 @@ revoke all on fabrik_private.public_agent_setting, fabrik_private.public_agent_u
 reset role;
 insert into storage.buckets(id, name, public) values ('public-agent', 'public-agent', false) on conflict (id) do nothing;
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey');
+-- Any number of public agents, as upgrade 0014 makes them: one row each in public_agent, and each day's tokens per agent.
+-- Whether the project has used the chat box, read as the postgres login, which reads Storage and the Vault.
+select set_config('fabrik.chat_used', (exists (select 1 from storage.objects where bucket_id = 'public-agent' and name = 'KNOWLEDGE.md')
+  or exists (select 1 from vault.secrets where name = 'public_agent_anthropic_key'))::text, true);
+
+set role fabrik_owner;
+create table if not exists fabrik_private.public_agent (
+ slug text primary key check (slug ~ '^[a-z0-9-]{1,40}$'),
+ name text not null check (length(btrim(name)) between 1 and 80),
+ purpose text not null default '' check (length(purpose) <= 500),
+ model text not null default 'claude-haiku-5-5' check (model ~ '^claude-[a-z0-9.-]{1,60}$'),
+ daily_cap_tokens integer not null default 500000 check (daily_cap_tokens between 1000 and 100000000),
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now()
+);
+alter table fabrik_private.public_agent enable row level security;
+revoke all on fabrik_private.public_agent from public, anon, authenticated;
+alter table fabrik_private.public_agent_setting add column if not exists page_address text
+ check (page_address ~ '^https://[a-z0-9.-]{1,253}(:[0-9]{1,5})?$');
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'fabrik_private' and table_name = 'public_agent_setting' and column_name = 'model') then
+    if current_setting('fabrik.chat_used', true) = 'true' or exists (select 1 from fabrik_private.public_agent_usage) then
+      insert into fabrik_private.public_agent(slug, name, model, daily_cap_tokens)
+      select 'chat', 'Chat', model, daily_cap_tokens from fabrik_private.public_agent_setting where id
+      on conflict (slug) do nothing;
+    end if;
+    alter table fabrik_private.public_agent_setting drop column model, drop column daily_cap_tokens;
+  end if;
+  if not exists (select 1 from information_schema.columns
+                 where table_schema = 'fabrik_private' and table_name = 'public_agent_usage' and column_name = 'slug') then
+    alter table fabrik_private.public_agent_usage add column slug text;
+    update fabrik_private.public_agent_usage set slug = 'chat';
+    alter table fabrik_private.public_agent_usage alter column slug set not null,
+      drop constraint public_agent_usage_pkey, add primary key (slug, day),
+      add foreign key (slug) references fabrik_private.public_agent(slug) on delete cascade;
+  end if;
+end $$;
+reset role;
+
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

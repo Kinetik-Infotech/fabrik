@@ -189,11 +189,13 @@ const SITEKEY = "0x4AAAAAAAstandin-sitekey-01";
 const agentCalls: { action: string; user: string }[] = [];
 const { module: publicAgentModule, handler: publicAgent } = await load(new URL("../../setup/functions/public-agent/index.ts", import.meta.url));
 publicAgentModule.seam.client = graphReaderModule.seam.client;
-let knowledgeFile: string | null = null;
-publicAgentModule.seam.storage = (init: RequestInit = {}) => {
-  if ((init.method ?? "GET") === "GET") return Promise.resolve(knowledgeFile === null ? new Response("{}", { status: 400 }) : new Response(knowledgeFile));
-  knowledgeFile = String(init.body);
-  return Promise.resolve(Response.json({ Key: "public-agent/KNOWLEDGE.md" }));
+const agentFiles = new Map<string, string>();
+publicAgentModule.seam.storage = (path: string, init: RequestInit = {}) => {
+  const file = path.replace(/^public-agent\//, "");
+  if ((init.method ?? "GET") === "GET") return Promise.resolve(agentFiles.has(file) ? new Response(agentFiles.get(file)) : new Response("{}", { status: 400 }));
+  if (init.method === "DELETE") return Promise.resolve(agentFiles.delete(file) ? Response.json({}) : new Response("{}", { status: 400 }));
+  agentFiles.set(file, String(init.body));
+  return Promise.resolve(Response.json({ Key: path }));
 };
 const siteverify = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const form = await req.formData();
@@ -369,7 +371,7 @@ try {
   check("every tool's input in tools/list refuses an argument it does not name",
     listed.length > 0 && listed.every((t) => t.inputSchema?.additionalProperties === false), listed.filter((t) => t.inputSchema?.additionalProperties !== false).map((t) => t.name));
   const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save", "connections_setup_save", "connections_off",
-    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
+    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_instructions_save", "public_agent_change", "public_agent_remove", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
   const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call", "show_connections_setup", "connections_setup_save",
     "show_public_agent_setup", "public_agent_setup_save", "public_agent_settings_change", "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
   check("tools/list gives every tool a title and a hint: read-only tools, the show cards among them, readOnlyHint true; deleting, removing, replacing and sending tools destructiveHint true",
@@ -1612,7 +1614,7 @@ try {
   const secretOf = async (name: string) => (await sql`select secret from vault.secrets where name = ${name}`)[0]?.secret ?? null;
   const paCard = await openCard(ownerToken, "show_public_agent_setup", { page: "https://fabrik-chat-standin.pages.dev" });
   await until(() => paCard.doc.getElementById("pa-state")?.textContent === "The public agent has no Anthropic API key.", "the public agent card shown", paCard);
-  const paShown = { host: paCard.doc.getElementById("pa-host")?.textContent, text: paCard.text(), offHidden: paCard.doc.getElementById("pa-off")?.hidden, uri: paCard.uri, data: paCard.result?.structuredContent };
+  const paShown = { agents: paCard.doc.getElementById("pa-agents")?.textContent, host: paCard.doc.getElementById("pa-host")?.textContent, text: paCard.text(), offHidden: paCard.doc.getElementById("pa-off")?.hidden, uri: paCard.uri, data: paCard.result?.structuredContent };
   const paPass = paCard.result?._meta?.pass;
   paCard.doc.getElementById("pa-key").value = ANTHROPIC_KEY;
   paCard.doc.getElementById("pa-secret").value = TURNSTILE;
@@ -1628,21 +1630,38 @@ try {
   const paWrong = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_setup_save", arguments: { secret: "0x4AAAAAAAstandin-wrong-secret-0000", pass: paPass } });
   const paNoPass = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_off", arguments: {} });
   const paOtherCard = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_off", arguments: { pass: ownerPass } });
-  const paSave = await tool(ownerToken, "public_knowledge_save", { text: "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" });
-  const paGet = await tool(ownerToken, "public_knowledge_get", {});
-  const paSettings = await tool(ownerToken, "public_agent_settings_change", { daily_cap_tokens: 2000 });
-  const paReader = [await tool(readerToken, "show_public_agent_setup", {}), await tool(readerToken, "public_knowledge_save", { text: "Hijacked" }),
-    await tool(readerToken, "public_knowledge_get", {}), await tool(readerToken, "public_agent_settings", {})];
+  const paCreate = await tool(ownerToken, "public_agent_create", { agent: "chat", name: "Chat", purpose: "Answers questions about the joinery." });
+  const paSave = await tool(ownerToken, "public_knowledge_save", { agent: "chat", text: "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" });
+  const paGet = await tool(ownerToken, "public_knowledge_get", { agent: "chat" });
+  const paSettings = await tool(ownerToken, "public_agent_settings_change", { agent: "chat", daily_cap_tokens: 2000 });
+  const paStarting = await tool(ownerToken, "public_instructions_get", { agent: "chat" });
+  const paVoice = "You are Rosie, the joinery's helper. Speak plainly and warmly.\n";
+  const paInstructionsSave = await tool(ownerToken, "public_instructions_save", { agent: "chat", text: paVoice });
+  const paInstructionsGet = await tool(ownerToken, "public_instructions_get", { agent: "chat" });
+  const paSecond = await tool(ownerToken, "public_agent_create", { agent: "orders", name: "Orders", purpose: "Takes orders for fitted kitchens." });
+  const paChange = await tool(ownerToken, "public_agent_change", { agent: "orders", purpose: "Takes orders for fitted kitchens and wardrobes." });
+  const paPage = await tool(ownerToken, "public_agent_settings_change", { page: "https://fabrik-chat-standin.pages.dev" });
+  const paList = await tool(ownerToken, "public_agents_list", {});
+  const paAgentsMd = agentFiles.get("agents.md");
+  const paRemove = await tool(ownerToken, "public_agent_remove", { agent: "orders" });
+  const paReader = [await tool(readerToken, "show_public_agent_setup", {}), await tool(readerToken, "public_knowledge_save", { agent: "chat", text: "Hijacked" }),
+    await tool(readerToken, "public_knowledge_get", { agent: "chat" }), await tool(readerToken, "public_agent_settings", { agent: "chat" }),
+    await tool(readerToken, "public_instructions_save", { agent: "chat", text: "Hijacked" }), await tool(readerToken, "public_agent_create", { agent: "evil", name: "Evil" }),
+    await tool(readerToken, "public_agent_remove", { agent: "chat" }), await tool(readerToken, "public_agents_list", {})];
   paCard.press(paCard.doc.getElementById("pa-off"));
   await until(() => paCard.doc.getElementById("pa-state")?.textContent === "The public agent has no Anthropic API key.", "the public agent turned off", paCard);
   const paOff = { said: paCard.doc.getElementById("pa-said")?.textContent, key: await secretOf("public_agent_anthropic_key"), secret: await secretOf("turnstile_secret") };
   await paCard.close();
   // deno-lint-ignore no-explicit-any
   const paListed = ((await mcp(ownerToken, "tools/list")).body?.result?.tools ?? []).filter((t: any) => ["public_agent_setup_save", "public_agent_off"].includes(t.name));
-  if (OBSERVE) console.log("== public agent", JSON.stringify({ paShown, paSaved, paWrong, paNoPass, paOtherCard, paSave, paGet, paSettings, paReader, paOff }, null, 1));
-  check("show_public_agent_setup draws the public agent card at its own address, saying there's no key, no Turnstile secret key and no KNOWLEDGE.md, with no Turn off",
+  const paAgain = await openCard(ownerToken, "show_public_agent_setup", {});
+  await until(() => (paAgain.doc.getElementById("pa-agents")?.textContent ?? "").includes("Chat"), "the public agent card shown again", paAgain);
+  const paAgents = { first: paShown.agents, again: paAgain.doc.getElementById("pa-agents")?.textContent, said: paAgain.result?.content?.[0]?.text };
+  await paAgain.close();
+  if (OBSERVE) console.log("== public agent", JSON.stringify({ paAgents, paCreate, paStarting, paInstructionsSave, paInstructionsGet, paSecond, paChange, paPage, paList, paAgentsMd, paRemove, paShown, paSaved, paWrong, paNoPass, paOtherCard, paSave, paGet, paSettings, paReader, paOff }, null, 1));
+  check("show_public_agent_setup draws the public agent card at its own address, saying there's no key, no Turnstile secret key and no agent, with no Turn off",
     paShown.uri === "ui://fabrik-apps/public-agent-setup.html" && paShown.offHidden === true && paShown.text.includes("The Turnstile secret key isn't saved yet.")
-      && paShown.text.includes("KNOWLEDGE.md isn't saved yet.") && paShown.text.includes("The Turnstile site key isn't saved yet.")
+      && paShown.agents === "No public agent yet. Ask Claude to add one." && paShown.text.includes("The Turnstile site key isn't saved yet.")
       && paShown.host === "fabrik-chat-standin.pages.dev" && paShown.data?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, paShown);
   check("the card's Save sends the three keys to public-agent as the owner, which keeps the two secret ones in the Vault apart from the connections key, and the site key in the settings",
     paSaved.state === "The public agent's Anthropic API key works." && paSaved.turnstile === "The Turnstile secret key is saved." && paSaved.fields.join("") === ""
@@ -1656,10 +1675,22 @@ try {
   check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings_change sets the cap and gives the site key and the chat box's address",
     ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 2000 && v(paSettings)?.turnstile_sitekey === SITEKEY
       && v(paSettings)?.model === "claude-haiku-5-5" && v(paSettings)?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, { paSave, paGet, paSettings });
-  check("a person who isn't an administrator is refused the card, the knowledge and the settings, and the file stays",
-    paReader.every((r) => said(r) === "Only an administrator sets up the public agent.") && knowledgeFile?.startsWith("# Opening hours") === true, paReader);
+  check("public_agent_create adds an agent whose INSTRUCTIONS.md starts as fabrik's starting rules, public_instructions_save replaces it, and the card lists each agent with its files",
+    v(paCreate)?.slug === "chat" && v(paStarting)?.text === publicAgentModule.STARTING && ok(paInstructionsSave) && v(paInstructionsGet)?.text === paVoice
+      && paAgents.again === "Chat (chat): KNOWLEDGE.md is saved, and INSTRUCTIONS.md is the owner's own."
+      && /The agent chat, Chat: KNOWLEDGE\.md is saved, and INSTRUCTIONS\.md is the owner's own\./.test(String(paAgents.said)),
+    { paCreate, paStarting, paInstructionsSave, paInstructionsGet, paAgents });
+  check("public_agent_change, public_agents_list and the page's address keep AGENTS.md, and public_agent_remove takes an agent and its files away",
+    v(paSecond)?.slug === "orders" && v(paChange)?.purpose === "Takes orders for fitted kitchens and wardrobes." && v(paPage)?.page === "https://fabrik-chat-standin.pages.dev"
+      && JSON.stringify(v(paList)?.agents?.map((a: any) => a.slug)) === '["chat","orders"]'
+      && paAgentsMd === "- Chat, https://fabrik-chat-standin.pages.dev/chat/: Answers questions about the joinery.\n- Orders, https://fabrik-chat-standin.pages.dev/orders/: Takes orders for fitted kitchens and wardrobes.\n"
+      && v(paRemove)?.removed === true && !agentFiles.has("agents/orders/instructions.md") && agentFiles.get("agents.md") === "",
+    { paSecond, paChange, paPage, paList, paAgentsMd, paRemove, agentsMd: agentFiles.get("agents.md") });
+  check("a person who isn't an administrator is refused the card, the agents, their files and the settings, and the files stay",
+    paReader.every((r) => said(r) === "Only an administrator sets up the public agent.") && agentFiles.get("agents/chat/knowledge.md")?.startsWith("# Opening hours") === true
+      && agentFiles.get("agents/chat/instructions.md") === paVoice, paReader);
   check("the card's Turn off removes the Anthropic key, and the Turnstile secret key stays",
-    paOff.said === "The chat box is off. KNOWLEDGE.md and the Turnstile keys stay." && paOff.key === null && paOff.secret === TURNSTILE, paOff);
+    paOff.said === "The agents are off. Their files and the Turnstile keys stay." && paOff.key === null && paOff.secret === TURNSTILE, paOff);
   check("public_agent_setup_save and public_agent_off are app-only",
     paListed.length === 2 && paListed.every((t: any) => JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), paListed.map((t: any) => [t.name, t._meta]));
   check("the Turnstile secret key is in no answer the connector gave", !answersSeen.some((t) => t.includes(TURNSTILE)), answersSeen.filter((t) => t.includes(TURNSTILE)).map((t) => t.slice(0, 300)));
