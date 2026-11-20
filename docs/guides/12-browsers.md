@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Claude in Chrome and the built-in browser
 
 Claude can open web pages while it works with fabrik, in one of two browsers.

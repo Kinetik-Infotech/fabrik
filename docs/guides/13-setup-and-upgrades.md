@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Updates, and running setup again
 
 fabrik updates on one approval. A new release reaches your computer when Claude starts. When you next open a Code session in your `fabrik` folder, Claude says what the update brings and asks whether to update. Approve it, and Claude brings your project up to the new release. It applies fabrik's database upgrades and deploys fabrik's hosted functions that changed, then tells you what's new.

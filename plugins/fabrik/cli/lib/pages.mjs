@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { check as humanizerCheck } from "./humanizer-checks.mjs";
-import { logoHtml, printStyle, widgetStyle } from "./brand.mjs";
+import { headLogoHtml, logoHtml, markHtml, printStyle, widgetStyle } from "./brand.mjs";
 
 const SKILLS = fileURLToPath(new URL("../../skills/", import.meta.url));
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -585,6 +585,8 @@ export function createTools({ agentFolder = null, readBrand = null }) {
         html = html.replace(/<section\b[^>]*>/g, (tag) => title(tag) ? `${tag}\n${logo}` : tag)
           .replace(/<footer\b[^>]*>/g, (tag) => band(tag) ? `${tag}${logo}` : tag);
       }
+      // fabrik's mark at the right of each slide's foot, beside the brand's logo.
+      html = html.replace(/<footer\b[^>]*class="[^"]*\bband\b[^"]*"[^>]*>[\s\S]*?<\/footer>/g, (foot) => foot.replace(/<\/footer>$/, `${markHtml("fabrik-mark")}</footer>`));
       look = dressed ? "brand" : "plain";
     }
     const embedded = embedPictures(html, pageFile);
@@ -692,11 +694,9 @@ export function createTools({ agentFolder = null, readBrand = null }) {
     if (missing.length) return { ok: false, problem: `${dataFile} lacks ${missing.join(", ")}. Nothing was drawn.` };
     const dressed = await brand();
     let kit = readTemplate(join(WIDGETS, "kit.html"));
-    if (dressed) {
-      // The brand's style after the kit's, so its values win, and its logo at the header's start.
-      kit = kit.replace("</style>\n", () => `</style>\n<style>\n${widgetStyle(dressed)}</style>\n`);
-      if (dressed.logo) kit = kit.replace('<div class="wk-head">\n', () => `<div class="wk-head">\n    ${logoHtml(dressed, "wk-logo")}\n`);
-    }
+    // The brand's style after the kit's, so its values win. Its logo, or fabrik's mark, at the header's start.
+    if (dressed) kit = kit.replace("</style>\n", () => `</style>\n<style>\n${widgetStyle(dressed)}</style>\n`);
+    kit = kit.replace('<div class="wk-head">\n', () => `<div class="wk-head">\n    ${headLogoHtml(dressed, "wk-logo")}\n`);
     const part = readTemplate(join(WIDGETS, "question.html"));
     const code = /<script>\n([\s\S]*?)<\/script>/;
     // Each < in the data is written \u003c, so no value can close the data block.

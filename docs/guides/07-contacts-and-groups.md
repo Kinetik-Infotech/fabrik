@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Contacts and groups
 
 A contact is a person or an organisation you deal with. A group is a list of contacts, such as a client's team or a board.

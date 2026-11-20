@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Records and scopes
 
 A record is one thing fabrik holds, such as a note, a decision or a task. A scope is a part of fabrik that holds records and files, such as General.

@@ -31,7 +31,7 @@
 // records.
 import type { McpServer } from "npm:@modelcontextprotocol/server@2.4.0";
 import { z } from "npm:zod@4.3.6";
-import { type Brand, cardStyle, FONT_DOMAINS, logoHtml, readBrand } from "./brand.ts";
+import { type Brand, cardStyle, FONT_DOMAINS, headLogoHtml, readBrand } from "./brand.ts";
 import { CARDS } from "./card.ts";
 import { allScopes, answer, call, type Ctx, refused, type Result, scopeIn, scopeOf, type Tool, tool, VERSION } from "./tool.ts";
 
@@ -153,15 +153,13 @@ export function pageOf(card: Card): Page {
 const PAGES = Object.fromEntries(CARD_NAMES.map((c) => [c, pageOf(c)])) as Record<Card, Page>;
 
 /** A card's page in the business's brand: the fonts' @import first, the brand's tokens after the kit's and the card's
- * style, and the logo at the start of the card's first header. */
+ * style. The brand's logo, or fabrik's mark where there is no brand logo, goes at the start of the card's first header. */
 export function brandedPage(page: Page, brand: Brand | null): Page {
-  if (!brand) return page;
-  const { imports, css } = cardStyle(brand), logo = logoHtml(brand);
-  return {
-    style: imports + page.style + css,
-    body: logo ? page.body.replace('<div class="fk-head">', () => `<div class="fk-head">${logo}`) : page.body,
-    script: page.script,
-  };
+  const logo = headLogoHtml(brand);
+  const body = page.body.replace('<div class="fk-head">', () => `<div class="fk-head">${logo}`);
+  if (!brand) return { ...page, body };
+  const { imports, css } = cardStyle(brand);
+  return { style: imports + page.style + css, body, script: page.script };
 }
 
 const cardPage = tool({

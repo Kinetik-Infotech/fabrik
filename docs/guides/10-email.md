@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Email
 
 fabrik connects to a mailbox you set up in it, for a provider Claude has no connector for, such as StartMail or Namecheap Private Email. It reads mail over IMAP and sends over SMTP, the standard ways mail programs do. Claude reads and searches the inbox, Sent and Drafts. It writes drafts, sends, replies and moves messages to Trash, each only once you approve it.

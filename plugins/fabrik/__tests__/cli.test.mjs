@@ -324,7 +324,7 @@ test("draw_widget dresses the question card in the Brand record in General, read
   } finally { await project.close(); }
 });
 
-test("with no Brand record, or no sign-in, the question card is drawn as it was before brands", async () => {
+test("with no Brand record, or no sign-in, the question card is drawn plain, with fabrik's mark in its header", async () => {
   const project = await supabase(brandAnswers(null));
   try {
     const me = person(project);
@@ -335,7 +335,8 @@ test("with no Brand record, or no sign-in, the question card is drawn as it was 
     const signedOut = JSON.parse((await fabrik({ home: work, work }, ["draw_widget", "kind=question", "data_file=question.json"])).out);
     assert.deepEqual([none.look, signedOut.look], ["plain", "plain"]);
     assert.equal(none.widget_code, signedOut.widget_code);
-    assert.doesNotMatch(none.widget_code, /wk-logo"|light-dark|@import/);
+    assert.doesNotMatch(none.widget_code, /light-dark|@import/);
+    assert.match(none.widget_code, /<div class="wk-head">\n    <img class="wk-logo" alt="fabrik" src="data:image\/svg\+xml;base64,/);
     assert.equal(rpcCalls(project).filter(([fn]) => fn === "fabrik_show_record").length, 0);
   } finally { await project.close(); }
 });

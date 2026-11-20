@@ -31,6 +31,7 @@ footer.band { position: absolute; left: 56px; right: 56px; bottom: 24px; display
 section.slide.title footer.band { display: none; }
 /* The brand's logo: above the title slide's headline, and at the start of each slide's foot. */
 section.slide.title > .brand-logo { display: block; align-self: flex-start; height: 64px; width: auto; max-width: 320px; object-fit: contain; margin: 0 0 32px; }
+footer.band .fabrik-mark { height: 16px; width: 16px; margin-left: 16px; }
 footer.band .brand-logo { height: 20px; width: auto; max-width: 160px; object-fit: contain; margin-right: auto; }
 /* The status strip. */
 .status { display: flex; gap: 16px; margin: 8px 0 24px; }
