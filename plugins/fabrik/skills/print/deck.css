@@ -9,7 +9,7 @@
   --border: var(--rule, rgba(49,49,49,.12)); --border-strong: var(--rule, rgba(49,49,49,.24));
   --accent: #8f8d86; --late: #b42318; --late-bg: #fdecea; --amber: #a15c07; --amber-bg: #fdf3e1; --surface-1: #f0eee6;
   --sans: var(--body-font, "Helvetica Neue", Arial, sans-serif);
-  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 html { font: 20px/1.4 var(--sans); color: var(--text); background: var(--paper, #fff); }
 h1, h2, h3 { font-family: var(--heading-font, var(--sans)); }

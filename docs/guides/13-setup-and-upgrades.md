@@ -8,7 +8,7 @@ When the update deploys a hosted function, it needs a Supabase access token. Cla
 
 The update runs only for an administrator, in the folder fabrik was set up from. fabrik applies a database upgrade only when fabrik's upgrade key signed it, and only in order. Each update is one approval, and nothing updates without it.
 
-When the update adds a new connector tool, open a new session to use it.
+When the update adds a new connector tool, reconnect fabrik in Claude, in Settings, then Connectors. Claude keeps the connector's tools from when it was last connected, so a new session alone doesn't show the new tool. Then open a new session to use it.
 
 ## Updates when Claude starts
 
