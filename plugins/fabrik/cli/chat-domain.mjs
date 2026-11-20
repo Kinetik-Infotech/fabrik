@@ -1,12 +1,15 @@
 // fabrik chat-page's own-domain step: puts the chat pages at an address on the owner's own domain, such as
-// chat.example.com, as a custom domain of the Pages project fabrik-chat-<ref>. The pages.dev address keeps working.
+// chat.example.com. The pages.dev address of the Pages project fabrik-chat-<ref> keeps working.
 //
 // It lists the domains (zones) of the Cloudflare account fabrik is signed in to and asks which one, and which subdomain,
-// chat unless the owner types another. A domain whose DNS Cloudflare runs gets its DNS record and certificate from
-// Cloudflare. A domain whose DNS is elsewhere needs one CNAME record, pointing at the pages.dev address, which fabrik
-// prints for the owner to add at the domain's provider. Either way fabrik asks Cloudflare for the domain's status until
-// it is active, up to a limit. The choice is kept in ~/.config/fabrik/chat/<ref>.json, beside the pages' folder, once
-// Cloudflare holds the domain, so a later run reuses it without asking. A domain Cloudflare refuses isn't kept.
+// chat unless the owner types another. On a domain whose DNS Cloudflare runs, fabrik puts the same pages up as the
+// Worker fabrik-chat-<ref>. That Worker has the pages as static assets and no script, and the address is its custom
+// domain. Cloudflare then makes the DNS record and certificate itself. It can't where the address already has a DNS
+// record, and fabrik then asks the owner to delete that record. fabrik never deletes one. On a domain whose DNS is
+// elsewhere, the address is a custom domain of the Pages project. fabrik prints the one CNAME record the owner adds at
+// the domain's provider, pointing at the pages.dev address. Either way fabrik waits until the address is
+// ready, up to a limit. The choice is kept in ~/.config/fabrik/chat/<ref>.json, beside the pages' folder, once
+// Cloudflare holds the address, so a later run reuses it without asking. An address Cloudflare refuses isn't kept.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { promises as dns } from "node:dns";
 import { homedir } from "node:os";
@@ -18,11 +21,16 @@ export const API = "https://api.cloudflare.com/client/v4";
 export const KEEP = "pages.dev";
 /** The file that keeps one project's choice of address: { "host": "chat.example.com" }, or { "host": null } for pages.dev. */
 export const choiceFile = (ref, home = homedir()) => join(home, ".config", "fabrik", "chat", `${ref}.json`);
+/** The folder that holds the Wrangler config of one project's chat Worker, beside the pages' folder. */
+export const workerFolder = (ref, home = homedir()) => join(home, ".config", "fabrik", "chat", `${ref}-worker`);
+/** The Workers runtime version the chat Worker is deployed on. */
+export const COMPATIBILITY_DATE = "2026-11-01";
 
 const HOST = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const message = err => err instanceof Error ? err.message : String(err);
 const bare = answer => String(answer ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+const enc = encodeURIComponent;
 
 /** The kept choice: a host name, null for pages.dev, or undefined when nothing is kept. */
 export function readChoice(ref, home = homedir()) {
@@ -38,6 +46,19 @@ export function keepChoice(ref, host, home = homedir()) {
 }
 const forgetChoice = (ref, home) => rmSync(choiceFile(ref, home), { force: true });
 
+/** Writes the Wrangler config of the Worker `name`, which serves the pages in `folder` and has no script, and gives its
+ * path. The config has no route. Wrangler, run with no terminal, replaces a DNS record in a custom domain's way. So
+ * fabrik adds the custom domain itself through Cloudflare's API, and never replaces a record. */
+export function writeWorkerConfig({ ref, name, accountId, folder, home = homedir() }) {
+  const dir = workerFolder(ref, home);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const file = join(dir, "wrangler.json");
+  const config = { name, ...(accountId ? { account_id: accountId } : {}), compatibility_date: COMPATIBILITY_DATE,
+    workers_dev: false, preview_urls: false, assets: { directory: folder } };
+  writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  return file;
+}
+
 /** A failure after the pages are up at pages.dev, where the own domain isn't ready: chat-page carries on at pages.dev. */
 export class DomainNotReady extends Error {}
 
@@ -52,6 +73,8 @@ async function call(api, token, path, { method = "GET", body } = {}) {
   return { ok: res.ok && got.success !== false, status: res.status, result: got.result, errors: Array.isArray(got.errors) ? got.errors : [], info: got.result_info };
 }
 const said = errors => errors.map(e => e.message).filter(Boolean).join(" ") || "nothing more";
+/** Whether Cloudflare's answer says the Pages project has no such custom domain. */
+const missing = got => got.status === 404 || got.errors.some(e => e.code === 8000021);
 
 /** Calls Cloudflare's API with the sign-in's token, read once, and read again once when Cloudflare refuses it. */
 function cloudflare(api, token) {
@@ -67,7 +90,7 @@ function cloudflare(api, token) {
 export async function listZones({ cf, accountId }) {
   const zones = [];
   for (let page = 1; ; page++) {
-    const got = await cf(`/zones?account.id=${encodeURIComponent(accountId)}&per_page=50&page=${page}`);
+    const got = await cf(`/zones?account.id=${enc(accountId)}&per_page=50&page=${page}`);
     if (!got.ok) throw new Error(`Cloudflare didn't list your domains: ${said(got.errors)}`);
     zones.push(...(got.result ?? []).map(z => ({ name: String(z.name).toLowerCase(), type: z.type })));
     if (page >= (got.info?.total_pages ?? 1)) return zones;
@@ -143,18 +166,29 @@ export async function dnsAnswers(host, target, onCloudflare, lookups = dns) {
   if (cname.some(c => c.toLowerCase().replace(/\.$/, "") === target)) return true;
   return onCloudflare && (await lookups.resolve4(host).catch(() => [])).length > 0;
 }
+/** Whether https://<host>/ answers with a page, which takes its DNS record and a valid certificate. */
+const defaultReach = host => fetch(`https://${host}/`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) })
+  .then(res => res.ok, () => false);
 const defaultPause = ms => new Promise(done => setTimeout(done, ms));
+const turnstile = (host, pagesHost) =>
+  `Add ${host} under Hostname management in the Turnstile widget, beside ${pagesHost}, or the chat can't check visitors there.`;
+const notFinished = (host, tries, every, it) => {
+  const minutes = Math.max(1, Math.round(tries * every / 60_000));
+  return new DomainNotReady(`Cloudflare hasn't finished setting up ${host} after ${minutes === 1 ? "a minute" : `${minutes} minutes`}. ` +
+    `${it}Run chat-page again later, and it carries on from here.`);
+};
 
 /**
- * Puts the Pages project `project`, whose pages.dev address is pagesHost, at an address on the owner's domain. given
- * is --domain's value, if any. Returns the https address the chat is at: the own domain's once Cloudflare reports it
- * active, or the pages.dev one when the owner keeps it. Throws with a plain message where the address can't be chosen,
- * and a DomainNotReady where Cloudflare refuses the domain, or at the limit of tries × every milliseconds.
- * pause(ms), resolve(host, target, onCloudflare) and isDomain(host) are seams for a test.
+ * Puts the chat pages, up on Pages as `project` at pagesHost, at an address on the owner's domain. given is --domain's
+ * value, if any. folder holds the built pages, and deploy(config, what) runs `wrangler deploy` on fabrik's sign-in.
+ * Returns the https address the chat is at: the own domain's once it is ready, or the pages.dev one when the owner keeps
+ * it. Throws with a plain message where the address can't be chosen. Throws a DomainNotReady where Cloudflare refuses
+ * the address, or at the limit of tries × every milliseconds. pause(ms), resolve(host, target, onCloudflare), reach(host)
+ * and isDomain(host) are seams for a test.
  */
-export async function ownDomain({ ref, project, pagesHost, accountId, token, given }, {
+export async function ownDomain({ ref, project, pagesHost, accountId, token, given, folder, deploy }, {
   ask, say, home = homedir(), api = API, every = 10_000, tries = 90, pause = defaultPause, resolve = dnsAnswers,
-  isDomain = defaultIsDomain,
+  reach = defaultReach, isDomain = defaultIsDomain,
 } = {}) {
   const cf = cloudflare(api, token);
   const zones = await listZones({ cf, accountId });
@@ -179,31 +213,78 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
 
   const refused = why => { forgetChoice(ref, home); return new DomainNotReady(why); };
   const zone = zoneOf(host, zones);
+  const pages = `/accounts/${enc(accountId)}/pages/projects/${enc(project)}/domains`;
+  const onPages = `${pages}/${enc(host)}`;
+  let got = await cf(onPages);
+  if (!got.ok && !missing(got)) throw new DomainNotReady(`Cloudflare didn't say whether ${host} is on your chat pages: ${said(got.errors)}`);
+
+  if (zone?.type === "full") {
+    // An earlier fabrik put the address on the Pages project. Pages lets it go, so the Worker can have it.
+    if (got.ok) {
+      got = await cf(onPages, { method: "DELETE" });
+      if (!got.ok) throw new DomainNotReady(`Cloudflare didn't take ${host} off your chat pages on Pages: ${said(got.errors)}`);
+      say(`Took ${host} off your chat pages on Pages, so the chat pages' Worker can have it.`);
+    }
+    try { deploy(writeWorkerConfig({ ref, name: project, accountId, folder, home }), "your chat pages' Worker"); }
+    catch (err) { throw new DomainNotReady(message(err)); }
+    const domains = `/accounts/${enc(accountId)}/workers/scripts/${enc(project)}/domains`;
+    const origins = [{ hostname: host, zone_name: zone.name }];
+    const name = host.slice(0, -(zone.name.length + 1));
+    let held;
+    for (;;) {
+      // Cloudflare's changeset says what adding the address would change: an address another Worker has, or a DNS
+      // record in its way, which Cloudflare would replace.
+      got = await cf(`${domains}/changeset?replace_state=true`, { method: "POST", body: origins });
+      if (!got.ok) throw new DomainNotReady(`Cloudflare didn't say whether ${host} can be your chat pages' address: ${said(got.errors)}`);
+      const change = got.result ?? {};
+      const taken = (change.updated ?? []).find(d => d.modified);
+      if (taken) {
+        const other = taken.id ? await cf(`/accounts/${enc(accountId)}/workers/domains/${enc(taken.id)}`) : { ok: false };
+        throw refused(`${host} is already the address of ${other.ok && other.result?.service ? `the Worker ${other.result.service}` : "another Worker"} on Cloudflare. Choose another address with --domain.`);
+      }
+      held = (change.updated ?? []).some(d => d.hostname === host);
+      if (!(change.conflicting ?? []).length) break;
+      keepChoice(ref, host, home);
+      say(`${host} already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named ${name} on Cloudflare's DNS page for ${zone.name}, https://dash.cloudflare.com/${accountId}/${zone.name}/dns/records. fabrik never deletes a DNS record itself.`);
+      try { await ask(`Press Return once the record named ${name} is deleted: `); }
+      catch { throw new DomainNotReady(`${host} still has its DNS record. Once it's deleted, run chat-page again.`); }
+    }
+    if (!held) {
+      got = await cf(`${domains}/records`, { method: "PUT", body: { override_scope: true, override_existing_origin: false, override_existing_dns_record: false, origins } });
+      if (!got.ok) throw refused(`Cloudflare didn't make ${host} your chat pages' address: ${said(got.errors)}`);
+      say(`Cloudflare is making the DNS record and certificate for ${host}.`);
+    }
+    keepChoice(ref, host, home);
+    for (let i = 0; i < tries; i++) {
+      if (await reach(host)) {
+        say(`${host} is ready.`);
+        if (!held) say(turnstile(host, pagesHost));
+        return `https://${host}`;
+      }
+      await pause(every);
+    }
+    throw notFinished(host, tries, every, "");
+  }
+
   const domain = await domainOf(host, zones, isDomain);
-  const path = `/accounts/${encodeURIComponent(accountId)}/pages/projects/${encodeURIComponent(project)}/domains`;
-  const one = `${path}/${encodeURIComponent(host)}`;
-  let got = await cf(one);
   const wasActive = got.ok && got.result?.status === "active";
   if (!got.ok) {
-    const missing = got.status === 404 || got.errors.some(e => e.code === 8000021);
-    if (!missing) throw new DomainNotReady(`Cloudflare didn't say whether ${host} is on your chat pages: ${said(got.errors)}`);
-    got = await cf(path, { method: "POST", body: { name: host } });
+    got = await cf(pages, { method: "POST", body: { name: host } });
     if (!got.ok) throw refused(`Cloudflare didn't add ${host} to your chat pages: ${said(got.errors)}`);
     say(`Added ${host} to your chat pages on Cloudflare.`);
   }
   keepChoice(ref, host, home);
   const record = `Name ${host.slice(0, -(domain.length + 1))}, type CNAME, target ${pagesHost}`;
-  const outside = zone?.type !== "full";
-  if (outside) say(zones.length
+  say(zones.length
     ? `Your domain's DNS isn't on this Cloudflare account. Add this record where you manage the DNS of ${domain}: ${record}. fabrik waits for it.`
     : `fabrik can't see the domains on this Cloudflare account. If ${domain}'s DNS isn't on Cloudflare, add this record where you manage it: ${record}. fabrik waits for it.`);
   let seen = false, last = null, retried = false;
   for (let i = 0; i < tries; i++) {
-    if (i > 0) got = await cf(one);
+    if (i > 0) got = await cf(onPages);
     const d = got.result ?? {};
     if (got.ok && d.status === "active") {
       say(`${host} is ready.`);
-      if (!wasActive) say(`Add ${host} under Hostname management in the Turnstile widget, beside ${pagesHost}, or the chat can't check visitors there.`);
+      if (!wasActive) say(turnstile(host, pagesHost));
       return `https://${host}`;
     }
     if (got.ok && ["error", "blocked", "deactivated"].includes(d.status)) {
@@ -212,7 +293,7 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
       if (d.status === "error" && !retried) {
         retried = true;
         say(`Cloudflare says ${host} has an error: ${why} fabrik asks it to check again.`);
-        got = await cf(one, { method: "PATCH" });
+        got = await cf(onPages, { method: "PATCH" });
         last = null;
         await pause(every);
         continue;
@@ -220,13 +301,8 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
       throw refused(`Cloudflare couldn't set up ${host}: ${why}`);
     }
     if (got.ok && d.status !== last) { last = d.status; say(`Cloudflare is setting up ${host}: ${d.status}.`); }
-    if (!seen && await resolve(host, pagesHost, !outside)) { seen = true; if (outside) say(`fabrik sees the CNAME record for ${host}.`); }
-    // Cloudflare adds the record itself on its own DNS. If it hasn't after a minute or so, the owner adds it there.
-    if (!seen && !outside && i === Math.ceil(60_000 / every))
-      say(`${host} has no DNS record yet. If it's still missing, add it on Cloudflare's DNS page for ${zone.name}: ${record}.`);
+    if (!seen && await resolve(host, pagesHost, false)) { seen = true; say(`fabrik sees the CNAME record for ${host}.`); }
     await pause(every);
   }
-  const minutes = Math.max(1, Math.round(tries * every / 60_000));
-  throw new DomainNotReady(`Cloudflare hasn't finished setting up ${host} after ${minutes === 1 ? "a minute" : `${minutes} minutes`}. ` +
-    `It says ${last ?? "nothing"}. Run chat-page again later, and it carries on from here.`);
+  throw notFinished(host, tries, every, `It says ${last ?? "nothing"}. `);
 }
