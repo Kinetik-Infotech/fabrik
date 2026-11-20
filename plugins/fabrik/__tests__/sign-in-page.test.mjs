@@ -20,7 +20,7 @@ const cmd = args.join(" ");
 if (cmd === "whoami --json") {
   if (!s.signedIn) { console.log(JSON.stringify({ loggedIn: false })); process.exit(1); }
   console.log(JSON.stringify({ loggedIn: true, email: "olive@owner.example", accounts: s.accounts, ...(s.scopes ? { tokenPermissions: s.scopes } : {}) }));
-} else if (args[0] === "login") { s.signedIn = s.loginWorks; if (s.scopes) s.scopes = [...args.slice(2), "offline_access"]; save(); }
+} else if (args[0] === "login") { s.signedIn = s.loginWorks; if (s.scopes) s.scopes = [...(s.grants ?? args.slice(2)), "offline_access"]; save(); }
 else if (cmd === "pages project list --json") {
   console.log(JSON.stringify(s.projects.map(p => ({ "Project Name": p, "Project Domains": p + "-3x7.pages.dev", "Git Provider": "No" }))));
 } else if (args.slice(0, 3).join(" ") === "pages project create") { s.projects.push(args[3]); save(); console.log("Successfully created the project."); }
@@ -78,6 +78,12 @@ test("a sign-in from before fabrik read domains signs in again once, asking for 
   assert.ok(s.said.includes("fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."), s.said.join("\n"));
   await s.go();
   assert.equal(s.log().filter(x => x.args[0] === "login").length, 1, "the second run signs in no more");
+});
+
+test("a sign-in that still lacks zone:read stops and says so, rather than going on with no domains", async t => {
+  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write"], grants: ["account:read", "user:read", "pages:write"] });
+  await assert.rejects(s.go(), { message: "Cloudflare's sign-in didn't give fabrik zone:read. Run the command again, and allow Wrangler everything it asks for in the browser." });
+  assert.ok(!s.log().some(x => x.args[0] === "pages"), "nothing is put up");
 });
 
 test("a sign-in that sees two accounts: the owner picks one by number, asked again off the list, and every call after names it", async t => {

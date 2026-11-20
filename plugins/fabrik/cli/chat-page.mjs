@@ -19,7 +19,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
 import { publishPage, WRANGLER } from "./sign-in-page.mjs";
-import { ownDomain } from "./chat-domain.mjs";
+import { DomainNotReady, ownDomain } from "./chat-domain.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** The folder that holds chat.js, widget.js and page.html, the template of index.html. */
@@ -125,8 +125,13 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage, doma
   say(brand ? `Built ${agents.length === 1 ? "the chat page" : `${agents.length} chat pages`} in ${brand.name || "the business"}'s brand.`
     : "Built the chat pages in fabrik's own look, since fabrik holds no Brand record.");
   const put = await publishPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
+  // Where the own domain isn't ready, the pages are still up at pages.dev, so the agents' addresses are given there.
   const site = await ownDomain({ ref, project: chatProject(ref), pagesHost: new URL(put.site).host, accountId: put.accountId, token: put.token, given: domain },
-    { ask, say, home, ...domains });
+    { ask, say, home, ...domains }).catch(err => {
+    if (!(err instanceof DomainNotReady)) throw err;
+    say(`${err.message} Meanwhile the pages are at ${put.site}.`);
+    return put.site;
+  });
   try { await savePage(site); }
   catch (err) { say(`fabrik couldn't save the address for AGENTS.md: ${err instanceof Error ? err.message : err}. The agents can't give each other's addresses until chat-page runs again.`); }
   return { site, agents: agents.map(a => ({ slug: a.slug, name: a.name, page: `${site}/${a.slug}/`, widget: widgetLine(site, a.slug) })), folder };

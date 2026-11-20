@@ -63,7 +63,11 @@ fabrik builds a page for each agent from the Brand record, with its logo, colour
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
 3. When the domain's DNS isn't on that Cloudflare account, it prints one CNAME record. The owner adds it where they manage the domain's DNS, and the command waits for Cloudflare to finish. Cloudflare can take several minutes to issue the certificate.
 4. It prints the pages' address, such as `https://chat.example.com`, and for each agent its page and the line for the website. Keep them for sections 5 and 7.
-5. It may ask which Cloudflare account to use, ask for Cloudflare's permission to read the domains, or say Cloudflare's sign-in didn't finish. Then ask the person to run the same command in a Terminal tab and answer there.
+5. It may ask which Cloudflare account to use, or ask for Cloudflare's permission to read the domains. It may say Cloudflare's sign-in didn't finish, or didn't give that permission. Then ask the person to run the same command in a Terminal tab and answer there.
+
+When the pages move to a new address, the command says to add it to the Turnstile widget. Tell the owner to add it under Hostname management, beside the address already there. Until they do, Turnstile refuses visitors at the new address, and the chat answers no one there.
+
+If Cloudflare refuses the domain, or doesn't finish within 15 minutes, the command says why and gives the pages at the pages.dev address. A refused domain isn't kept, so the next run asks again. An unfinished one is kept, and the next run carries on from there.
 
 It also saves the address with fabrik, so AGENTS.md gives each agent's page. Run it again after an agent is added or removed. A page asks for the Turnstile site key each time it opens, so a new key needs no new page. When the Brand record changes, ask the owner whether to put the pages up again in the new look. Once they approve, run the command again.
 
