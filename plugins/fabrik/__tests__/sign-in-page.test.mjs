@@ -51,7 +51,7 @@ function stage(t, state) {
 test("no one signed in: the browser sign-in runs, the project is made, the page deployed and its address read, all under fabrik's own Wrangler sign-in", async t => {
   const s = stage(t, { signedIn: false });
   assert.equal(await s.go(), `https://${NAME}-3x7.pages.dev`);
-  assert.deepEqual(s.log().map(x => x.args.join(" ")), ["whoami --json", "login --scopes account:read user:read pages:write zone:read", "whoami --json", "pages project list --json",
+  assert.deepEqual(s.log().map(x => x.args.join(" ")), ["whoami --json", "login --scopes account:read user:read pages:write zone:read workers:write workers_scripts:write", "whoami --json", "pages project list --json",
     `pages project create ${NAME} --production-branch main`, `pages deploy ${s.page} --project-name ${NAME} --branch main`, "pages project list --json"]);
   assert.ok(s.log().every(x => x.xdg === wranglerHome(s.home)), "every call uses fabrik's own sign-in");
   // Wrangler asks nothing of its own, such as installing its skills: no call has a terminal to answer on.
@@ -71,18 +71,18 @@ test("signed in, with the project there: no sign-in, no second project, the page
   assert.ok(s.log().every(x => x.account === "acc-1" || x.args[0] === "whoami"), "the one account is named on each call after whoami");
 });
 
-test("a sign-in from before fabrik read domains signs in again once, asking for zone:read, and a full one doesn't", async t => {
-  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write"] });
+test("a sign-in from before fabrik put the chat pages on a Worker signs in again once, asking for the Worker scopes, and a full one doesn't", async t => {
+  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write", "zone:read"] });
   await s.go();
-  assert.deepEqual(s.log().filter(x => x.args[0] === "login").map(x => x.args.join(" ")), ["login --scopes account:read user:read pages:write zone:read"]);
-  assert.ok(s.said.includes("fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."), s.said.join("\n"));
+  assert.deepEqual(s.log().filter(x => x.args[0] === "login").map(x => x.args.join(" ")), ["login --scopes account:read user:read pages:write zone:read workers:write workers_scripts:write"]);
+  assert.ok(s.said.includes("fabrik needs Cloudflare's permission to read your domains and put your chat pages on them. A browser window opens for Cloudflare. Allow Wrangler, then come back here."), s.said.join("\n"));
   await s.go();
   assert.equal(s.log().filter(x => x.args[0] === "login").length, 1, "the second run signs in no more");
 });
 
-test("a sign-in that still lacks zone:read stops and says so, rather than going on with no domains", async t => {
-  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write"], grants: ["account:read", "user:read", "pages:write"] });
-  await assert.rejects(s.go(), { message: "Cloudflare's sign-in didn't give fabrik zone:read. Run the command again, and allow Wrangler everything it asks for in the browser." });
+test("a sign-in that still lacks the Worker scopes stops and says so, rather than going on without them", async t => {
+  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write", "zone:read"], grants: ["account:read", "user:read", "pages:write", "zone:read"] });
+  await assert.rejects(s.go(), { message: "Cloudflare's sign-in didn't give fabrik workers:write and workers_scripts:write. Run the command again, and allow Wrangler everything it asks for in the browser." });
   assert.ok(!s.log().some(x => x.args[0] === "pages"), "nothing is put up");
 });
 

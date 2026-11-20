@@ -8,8 +8,8 @@
 // owner's folder, and made again each run.
 //
 // It puts them up with Wrangler as the Pages project fabrik-chat-<ref>, on the same Cloudflare sign-in as the sign-in
-// page. chat-domain.mjs then puts them at an address on the owner's own domain, such as chat.example.com, or keeps the
-// pages.dev one. Then it saves the address with public-agent, for AGENTS.md, and prints each agent's page and the line
+// page. chat-domain.mjs then puts them at an address on the owner's own domain, such as chat.example.com, as the Worker
+// fabrik-chat-<ref> where Cloudflare runs the domain's DNS, or keeps the pages.dev one. Then it saves the address with public-agent, for AGENTS.md, and prints each agent's page and the line
 // that puts its chat button on a website. With no Brand record, the pages take fabrik's own look.
 // The pages hold no key: chat.js asks public-agent for the Turnstile site key.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -126,7 +126,8 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage, doma
     : "Built the chat pages in fabrik's own look, since fabrik holds no Brand record.");
   const put = await publishPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
   // Where the own domain isn't ready, the pages are still up at pages.dev, so the agents' addresses are given there.
-  const site = await ownDomain({ ref, project: chatProject(ref), pagesHost: new URL(put.site).host, accountId: put.accountId, token: put.token, given: domain },
+  const site = await ownDomain({ ref, project: chatProject(ref), pagesHost: new URL(put.site).host, accountId: put.accountId, token: put.token, given: domain,
+    folder, deploy: put.deploy },
     { ask, say, home, ...domains }).catch(err => {
     if (!(err instanceof DomainNotReady)) throw err;
     say(`${err.message} Meanwhile the pages are at ${put.site}.`);
