@@ -31,7 +31,9 @@ Claude asks what visitors ask this agent about, such as opening hours, services,
 
 ## 4. The chat pages
 
-Claude builds a page for each agent in your brand, with your logo, colours and fonts, and Cloudflare hosts them for you. The address ends in pages.dev. Its root page lists your agents, and each agent's page adds its slug, such as /bookings/. If you haven't given fabrik your brand, the pages take fabrik's own look until you do. When your brand changes, or you add or remove an agent, Claude puts the pages up again.
+Claude builds a page for each agent in your brand, with your logo, colours and fonts, and Cloudflare hosts them for you. Claude asks which of your domains they go on, and puts them at chat on that domain, such as chat.example.com, unless you name another. Your website stays as it is. If your domain's DNS is somewhere other than Cloudflare, Claude gives you one record to add there.
+
+The root page lists your agents, and each agent's page adds its slug, such as /bookings/. If you haven't given fabrik your brand, the pages take fabrik's own look until you do. When your brand changes, or you add or remove an agent, Claude puts the pages up again.
 
 ## 5. Three keys
 
