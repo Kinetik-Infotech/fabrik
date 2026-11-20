@@ -71,6 +71,11 @@
   else fetch(address, { method: "GET" }).then(function (res) {
     return res.json().catch(function () { return {}; });
   }).then(function (body) {
+    if (body.setup === "sitekey") {
+      line("This chat isn't set up yet: fabrik has no Turnstile site key. Save it on the public agent card.", "a problem");
+      form.hidden = true;
+      return;
+    }
     if (typeof body.sitekey !== "string" || !body.sitekey) throw new Error("no site key");
     sitekey = body.sitekey;
     loadTurnstile();
