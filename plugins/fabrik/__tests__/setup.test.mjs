@@ -2,6 +2,7 @@
 // first on the PATH keeps the plugins it is given, answers their list, and records each call. A
 // stand-in sign-in records its arguments and saves a session, and the folder's actor file, as the
 // fabrik plugin's sign-in does.
+import process from "node:process";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -11,6 +12,7 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installCommand, NODE_MAJOR } from "../cli/node-version.mjs";
 import { MARKETPLACE } from "../cli/setup.mjs";
+import { osMismatch } from "../cli/os-version.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FABRIK = resolve(HERE, "../cli/fabrik.mjs");
@@ -128,6 +130,36 @@ test("setup on another Node version with a mistyped option gives the usage first
   assert.equal(ran.status, 2, ran.err);
   assert.match(ran.err, /^--emial is not an option of setup\.\nUsage: /);
   assert.doesNotMatch(ran.err, /Node is not version/);
+});
+
+const MAC_UNREAD = "fabrik setup could not read this Mac's macOS version with sw_vers. Check that this Mac runs macOS 15 or later, then run fabrik setup again.";
+const WINDOWS_UNREAD = "fabrik setup could not read this computer's Windows build. Check that it runs Windows 10 version 1809 or later, then run fabrik setup again.";
+
+test("setup stops on macOS before 15, and on a macOS version it cannot read", () => {
+  assert.equal(osMismatch("darwin", () => "14.7.1\n"), "This Mac runs macOS 14.7.1. Update to macOS 15 or later, then run fabrik setup again.");
+  for (const version of ["", "beta", "15beta.1"]) assert.equal(osMismatch("darwin", () => version), MAC_UNREAD, version);
+  assert.equal(osMismatch("darwin", () => { throw new Error("no sw_vers"); }), MAC_UNREAD);
+  for (const version of ["15.0", "26.6.2"]) assert.equal(osMismatch("darwin", () => version), null, version);
+});
+
+test("setup stops on Windows before build 17763, Windows 10 version 1809, and checks no Linux", () => {
+  assert.equal(osMismatch("win32", () => "10.0.17134"), "This computer runs Windows build 17134. Update to Windows 10 version 1809 or later, then run fabrik setup again.");
+  assert.equal(osMismatch("win32", () => "10.0.17763"), null);
+  for (const release of ["", "garbage", "10.0", "10.0.beta"]) assert.equal(osMismatch("win32", () => release), WINDOWS_UNREAD, release);
+  assert.equal(osMismatch("win32", () => { throw new Error("no release"); }), WINDOWS_UNREAD);
+  assert.equal(osMismatch("linux", () => "1.0.0"), null);
+});
+
+test("setup on macOS 14 stops before any step with the one line, and writes nothing", { skip: process.platform !== "darwin" && "sw_vers runs only on a Mac" }, t => {
+  const s = scratch(t);
+  writeFileSync(join(s.bin, "sw_vers"), "#!/bin/sh\necho 14.7.1\n", { mode: 0o755 });
+  const ran = s.setup("--folder", join(s.home, "fabrik"), "--email", EMAIL, ...CLIENT);
+  assert.equal(ran.status, 1, ran.out);
+  assert.equal(ran.err, "This Mac runs macOS 14.7.1. Update to macOS 15 or later, then run fabrik setup again.\n");
+  assert.equal(ran.out, "");
+  assert.deepEqual(ran.claude, []);
+  assert.deepEqual(ran.signIn, []);
+  assert.deepEqual(readdirSync(s.home), []);
 });
 
 test("the install command is the user guide's for each system", () => {

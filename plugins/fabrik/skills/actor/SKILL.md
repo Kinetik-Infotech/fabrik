@@ -295,7 +295,8 @@ else on the computer this way, and writes nothing.
 PDFs, pictures, recordings and videos need programs on the computer. A PDF needs Poppler, and
 Tesseract for a page with no text. A picture needs ImageMagick. A recording needs FFmpeg and
 whisper.cpp. A video needs FFmpeg, and whisper.cpp for its speech. When one is missing, the agent is
-told, with the line that adds it.
+told, with the line that adds it. The macOS lines need macOS 15 or later, and the Windows lines need
+Windows 10 version 1809 or later.
 
 | Program | macOS | Windows | Debian and Ubuntu |
 |---|---|---|---|
