@@ -835,6 +835,12 @@ try {
   const unnamed = await sql`select distinct conversation::text as c from fabrik_private.public_exchange where question in ('Opening hours?', 'Opening hours again?')`;
   check("a question with no conversation, from a page built before there was one, is kept under a new id of its own",
     noId.status === 200 && noIdToo.status === 200 && unnamed.length === 2 && unnamed.every((r) => r.c !== one && r.c !== two), unnamed);
+  const tokensBeforeNul = (await post({ action: "settings", agent: "chat" }, admin)).body.today_tokens;
+  const nul = await fromVisitor({ conversation: two, question: "Do you sell\u0000 bread?", turnstile_token: GOOD_TOKEN });
+  const tokensAfterNul = (await post({ action: "settings", agent: "chat" }, admin)).body.today_tokens;
+  const [nulKept] = await sql`select question from fabrik_private.public_exchange where conversation = ${two}::uuid order by id desc limit 1`;
+  check("a question holding a NUL character gets its answer, is kept without it, and costs the agent its 1,030 tokens, not what was held",
+    nul.status === 200 && nulKept?.question === "Do you sell bread?" && tokensAfterNul - tokensBeforeNul === 1030, { nul, nulKept, tokensBeforeNul, tokensAfterNul });
   const identifying: string[] = [];
   for (const { t } of tables) {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like any($1)`, [[`%${IP}%`, `%${GOOD_TOKEN}%`, "%StandInBrowser%"]]);
@@ -846,7 +852,7 @@ try {
   const remaining = await post({ action: "conversations_list", agent: "chat", since }, admin);
   const gone = await post({ action: "conversation_get", id: two }, admin);
   check("conversations_delete refuses an id with an agent, deletes the one conversation given, and the other stays whole",
-    badDelete.status === 400 && deleted.status === 200 && deleted.body.conversations === 1 && deleted.body.exchanges === 1 && gone.status === 404
+    badDelete.status === 400 && deleted.status === 200 && deleted.body.conversations === 1 && deleted.body.exchanges === 2 && gone.status === 404
       && JSON.stringify(remaining.body.conversations?.map((c: any) => c.id).filter((c: string) => c === one || c === two)) === JSON.stringify([one])
       && (await post({ action: "conversation_get", id: one }, admin)).body.exchanges?.length === 2, { badDelete, deleted, remaining: remaining.body, gone });
   const bookingsBefore = (await post({ action: "conversations_list", agent: "bookings" }, admin)).body.conversations.length;

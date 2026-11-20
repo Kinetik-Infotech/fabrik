@@ -57,7 +57,7 @@
 //
 // conversations_list gives the conversations newest first, each with its agent, its first question, its number of
 // questions and its first and last times, for agent and since when given, at most limit. conversation_get gives one
-// conversation's exchanges in order. conversations_delete deletes the conversation given as id, or every conversation of
+// conversation's exchanges in order, its first 500, with more true when there are others. conversations_delete deletes the conversation given as id, or every conversation of
 // agent whose last question was before before.
 import { AsyncLocalStorage } from "node:async_hooks";
 import postgres from "npm:postgres@3.4.9";
@@ -90,6 +90,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** The most conversations conversations_list gives, and how many when limit isn't given. */
 const MAX_LIST = 500;
 const LIST = 50;
+/** The most exchanges conversation_get gives, the earliest first. */
+const MAX_EXCHANGES = 500;
 
 /** A new agent's INSTRUCTIONS.md, until the owner changes it. */
 export const STARTING = "You answer visitors' questions on the owner's website.\n" +
@@ -272,7 +274,8 @@ export function historyOf(given: unknown): Turn[] | null {
 
 /** A visitor's post, checked before the function opens a database connection: the question, the history and a token. */
 function visitor(args: Record<string, unknown>) {
-  const question = typeof args.question === "string" ? args.question.trim() : "";
+  // PostgreSQL's text holds no NUL character, so one would stop the exchange being kept.
+  const question = typeof args.question === "string" ? args.question.replaceAll("\u0000", "").trim() : "";
   if (!question || question.length > MAX_QUESTION) throw refuse(400, `Ask a question of at most ${MAX_QUESTION} characters.`);
   const history = historyOf(args.history);
   if (!history) throw refuse(400, "history is a list of turns, a question then its answer, each { role, content }.");
@@ -309,11 +312,13 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
   const [reserved] = await sql`update fabrik_private.public_agent_usage set tokens = tokens + ${held}
     where slug = ${agent} and day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
   if (!reserved) {
-    await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer) values (${conversation}::uuid, ${agent}, ${question}, ${RESTING})`;
+    await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer) values (${conversation}::uuid, ${agent}, ${question}, ${RESTING})`
+      .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
     return { answer: RESTING };
   }
   // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers. The
-  // exchange is kept in the same statement, once the answer is known.
+  // exchange is kept after that, once the answer is known. A failure to keep it is logged and the visitor still gets
+  // the answer, so it never costs the agent the tokens held.
   let spent = 0, kept: { answer: string; input: number; output: number } | null = null;
   try {
     let reply;
@@ -339,11 +344,12 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     kept = { answer, input: (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0), output: u?.output_tokens ?? 0 };
     return { answer };
   } finally {
-    await sql`with exchange as (
-        insert into fabrik_private.public_exchange(conversation, slug, question, answer, input_tokens, output_tokens)
-        select ${conversation}::uuid, ${agent}, ${question}, ${kept?.answer ?? null}::text, ${kept?.input ?? 0}, ${kept?.output ?? 0}
-        where ${kept !== null})
-      update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
+    await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
+    if (kept) {
+      await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer, input_tokens, output_tokens)
+        values (${conversation}::uuid, ${agent}, ${question}, ${kept.answer}, ${kept.input}, ${kept.output})`
+        .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
+    }
   }
 }
 
@@ -545,9 +551,10 @@ async function getConversation(given: unknown) {
   const id = typeof given === "string" && UUID.test(given) ? given.toLowerCase() : null;
   if (!id) throw refuse(400, "id is a conversation's id, which conversations_list gives.");
   const rows = await sql`select slug, at, question, answer, input_tokens, output_tokens from fabrik_private.public_exchange
-    where conversation = ${id}::uuid order by at, id`;
+    where conversation = ${id}::uuid order by at, id limit ${MAX_EXCHANGES + 1}`;
   if (!rows.length) throw refuse(404, `fabrik keeps no conversation ${id}.`);
-  return { ok: true, id, agent: rows[0].slug, exchanges: rows.map((r) => ({ at: new Date(r.at).toISOString(), question: r.question, answer: r.answer,
+  const more = rows.length > MAX_EXCHANGES;
+  return { ok: true, id, agent: rows[0].slug, ...(more ? { more: true } : {}), exchanges: rows.slice(0, MAX_EXCHANGES).map((r) => ({ at: new Date(r.at).toISOString(), question: r.question, answer: r.answer,
     input_tokens: r.input_tokens, output_tokens: r.output_tokens })) };
 }
 
