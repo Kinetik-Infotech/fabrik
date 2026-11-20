@@ -1,6 +1,6 @@
 ---
 name: public-agent
-description: Use when the owner asks for a chat on their website that answers visitors, or for another one. Also use when they ask about the public agents, their chat pages, INSTRUCTIONS.md, KNOWLEDGE.md, AGENTS.md, the keys, a daily cap or a model. Covers adding an agent with its slug, name and purpose, and writing its INSTRUCTIONS.md and KNOWLEDGE.md with the owner. Covers putting up the chat pages in the business's brand, and the card where an administrator types the Anthropic API key and the Turnstile keys. Covers the caps, and the line that puts an agent's chat button on a website.
+description: Use when the owner asks for a chat on their website that answers visitors, or for another one. Also use when they ask about the public agents, their chat pages, INSTRUCTIONS.md, KNOWLEDGE.md, AGENTS.md, the keys, a daily cap or a model. Covers adding an agent with its slug, name and purpose, and writing its INSTRUCTIONS.md and KNOWLEDGE.md with the owner. Covers putting up the chat pages in the business's brand, and the card where an administrator types the Anthropic API key and the Turnstile keys. Covers the caps, the line that puts a chat button on a website, and reading and deleting what visitors asked.
 ---
 
 # The public agents
@@ -12,7 +12,9 @@ A public agent is a chat page in the business's brand, which Cloudflare Pages ho
 
 fabrik writes a third file, AGENTS.md, with every agent's name, page and purpose, and sends it to each agent. An agent can then point a visitor to another one, as its INSTRUCTIONS.md says. With one agent, AGENTS.md is empty.
 
-An agent never reads a record, a file or a search in fabrik. fabrik's `public-agent` hosted function answers each question with Claude, through the business's own Anthropic API key, which every agent shares. Cloudflare Turnstile checks each visitor is a person before Claude is called. fabrik keeps no question or answer, only each agent's count of tokens for each day.
+An agent never reads a record, a file or a search in fabrik. fabrik's `public-agent` hosted function answers each question with Claude, through the business's own Anthropic API key, which every agent shares. Cloudflare Turnstile checks each visitor is a person before Claude is called.
+
+fabrik stores every question an agent answered, with the answer shown, in the owner's own Supabase project. It also stores each agent's count of tokens for each day. Each conversation is known only by a random id the chat page makes when it opens, so a reload starts a new one. fabrik keeps nothing that identifies a visitor: no IP address, no cookie and no browser details. The chat page says under the box that the business keeps the conversation.
 
 Only an administrator sets the agents up. When `fabrik_get_actor` gives another `authority_class`, tell the person an administrator sets up the public agents, and stop.
 
@@ -117,8 +119,25 @@ Some website builders, such as Wix and Squarespace on lower plans, refuse a past
 
 Then ask the owner to try two questions on each new agent: one its KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second gets what INSTRUCTIONS.md says to answer when the file doesn't know.
 
+The first time the chat goes up on the owner's website, tell them once about their privacy notice. Their business keeps what visitors type, which can include a name or an email address, so their website's privacy notice should say so. Offer a line they can adapt, such as "We keep the questions you ask our website chat, and its answers, to improve them. We don't keep anything that identifies you unless you type it. To have a conversation deleted, contact us." Say it once, and not again after the owner has heard it.
+
 ## 8. Removing an agent, and turning all of them off
 
-`public_agent_remove` removes one agent with its two files and its tokens, once the owner approves. Neither file is kept. Run `chat-page` again so its page comes down, and tell the owner to take its line off their website.
+`public_agent_remove` removes one agent with its two files, its tokens and its conversations, once the owner approves. Nothing of it is kept, so offer to read the conversations first. Run `chat-page` again so its page comes down, and tell the owner to take its line off their website.
 
 The card's Turn off removes the Anthropic API key, and every agent then tells visitors it can't answer. The agents, their files and the Turnstile keys stay.
+
+## 9. What visitors asked
+
+Only an administrator reads or deletes the conversations.
+
+- To answer "what did visitors ask this week", call `public_conversations_list` with `since` set to the date a week ago, and `agent` when the owner names one. It gives each conversation's first question, its number of questions and its first and last times, newest first. Group the questions by subject in plain words, and give the number of conversations. Read a conversation whole with `public_conversation_get` when its first question doesn't say enough.
+- To read one conversation, call `public_conversation_get` with its id. Show each question and the answer the visitor got, in order.
+- When visitors keep asking something KNOWLEDGE.md doesn't answer, say so, and offer to add the answer to the file as section 3 says.
+
+Conversations are kept until the owner deletes them. To delete:
+
+1. Find what goes. For one conversation, call `public_conversation_get` with its id. For every conversation of an agent before a date, call `public_conversations_list` with that `agent`.
+2. Show the owner what goes: each conversation's first question and its times, and how many there are. Say a deleted conversation can't be brought back.
+3. Call `public_conversations_delete` only once the owner approves, with `id` for one conversation, or `agent` and `before` for every conversation of that agent whose last question was before that date.
+4. Say how many conversations and questions were deleted, as the tool gives them.
