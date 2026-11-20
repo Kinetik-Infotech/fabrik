@@ -2,7 +2,7 @@
 -- Run as postgres, through fabrik-setup or the SQL Editor. It refuses, and changes nothing, once fabrik holds a record or
 -- a file in a scope's bucket: from then on the project holds the person's work, and it stays.
 -- It removes fabrik's and file search's schemas with everything in them, their four roles, the empty buckets of fabrik's
--- scopes, file search's schedule and its two secrets, and the Data API's fabrik schema. The Auth users an earlier
+-- scopes and of the public agent, the schedule, the secrets fabrik keeps in the Vault, and the Data API's fabrik schema. The Auth users an earlier
 -- attempt made stay: the owner's first sign-in gives the owner's a new password. The fabrik_setup schema and the
 -- fabrik-setup hosted function stay, for the build that follows. One transaction: a failure keeps nothing.
 do $$
@@ -25,6 +25,12 @@ begin
   perform set_config('storage.allow_delete_query', 'true', true);
   execute 'delete from storage.buckets b using fabrik.scope s where s.code = b.id';
  end if;
+ -- The public agent's bucket, once it holds no KNOWLEDGE.md.
+ if exists(select 1 from storage.objects where bucket_id = 'public-agent') then
+  raise exception 'The public agent''s bucket holds KNOWLEDGE.md, so nothing was reset' using errcode = '55000';
+ end if;
+ perform set_config('storage.allow_delete_query', 'true', true);
+ delete from storage.buckets where id = 'public-agent';
 
  -- The Data API stops serving fabrik before the schema goes, so its schema cache can still be built.
  alter role authenticator reset pgrst.db_schemas;
@@ -36,7 +42,8 @@ begin
   end loop;
  end if;
  if to_regclass('vault.secrets') is not null then
-  delete from vault.secrets where name in ('file_search_worker_secret', 'file_search_project_url', 'graph_reader_secret', 'anthropic_api_key');
+  delete from vault.secrets where name in ('file_search_worker_secret', 'file_search_project_url', 'graph_reader_secret', 'anthropic_api_key',
+   'public_agent_anthropic_key', 'turnstile_secret');
  end if;
 
  -- Each schema with everything in it, and what depends on it elsewhere: fabrik's and file search's triggers and policies

@@ -52,6 +52,7 @@ import { VOICE_TOOLS } from "./voice.ts";
 import { MAIL_TOOLS } from "./mail.ts";
 import { MAIL_SEND_TOOLS } from "./mail-send.ts";
 import { CONNECTIONS_TOOLS } from "./connections.ts";
+import { PUBLIC_AGENT_TOOLS } from "./public-agent.ts";
 import { GUIDES } from "./guides.ts";
 
 export * from "./tool.ts";
@@ -430,6 +431,7 @@ export const TOOLS: Tool[] = [
   ...MAIL_TOOLS,
   ...MAIL_SEND_TOOLS,
   ...CONNECTIONS_TOOLS,
+  ...PUBLIC_AGENT_TOOLS,
   ...CARD_TOOLS,
 ];
 

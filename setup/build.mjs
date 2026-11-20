@@ -44,7 +44,8 @@ export const OWNER_CODE_FILE = ".fabrik-owner-code";
 /**
  * The hosted functions, in the order setup deploys them. fabrik-setup runs the setup files; the file search
  * functions follow, each with every file it imports; then fabrik-upgrade, which applies signed upgrades for an
- * administrator, and graph-reader, which stays off until an administrator adds their own Anthropic API key. Last,
+ * administrator, graph-reader, which stays off until an administrator adds their own Anthropic API key, and
+ * public-agent, which answers the chat box on the owner's website once an administrator adds its key. Last,
  * fabrik-apps, the connector every Claude client reaches fabrik through, which checks each person's token itself.
  */
 export const FUNCTIONS = [
@@ -54,7 +55,8 @@ export const FUNCTIONS = [
   { name: "file-search-purge", verify_jwt: true, files: ["index.ts"] },
   { name: "fabrik-upgrade", verify_jwt: true, files: ["index.ts", "upgrade-key.ts"] },
   { name: "graph-reader", verify_jwt: false, files: ["index.ts", "prompt.ts"] },
-  { name: "fabrik-apps", verify_jwt: false, files: ["index.ts", "tool.ts", "cards.ts", "card.ts", "brand.ts", "brand-core.mjs", "ported.ts", "memory.ts", "work.ts", "workflows.ts", "contacts.ts", "voice.ts", "mail.ts", "mail-send.ts", "guides.ts", "annotations.ts", "connections.ts"] },
+  { name: "public-agent", verify_jwt: false, files: ["index.ts"] },
+  { name: "fabrik-apps", verify_jwt: false, files: ["index.ts", "tool.ts", "cards.ts", "card.ts", "brand.ts", "brand-core.mjs", "ported.ts", "memory.ts", "work.ts", "workflows.ts", "contacts.ts", "voice.ts", "mail.ts", "mail-send.ts", "guides.ts", "annotations.ts", "connections.ts", "public-agent.ts"] },
 ];
 
 export const USAGE = `Usage: node build.mjs approve --ref <project reference> --folder <setup folder> [--reset]
