@@ -15,8 +15,9 @@ import process from "node:process";
 /** The Wrangler setup runs, through npx, at a fixed version. */
 export const WRANGLER = ["npx", "--yes", "wrangler@4.123.0"];
 /** The access fabrik's Cloudflare sign-in asks for: the account and the person, the Pages projects with their custom
- * domains, and reading the account's domains (zones). Wrangler adds offline_access itself. */
-export const SCOPES = ["account:read", "user:read", "pages:write", "zone:read"];
+ * domains, reading the account's domains (zones), and the Worker that serves the chat pages on the owner's own domain.
+ * Wrangler adds offline_access itself. */
+export const SCOPES = ["account:read", "user:read", "pages:write", "zone:read", "workers:write", "workers_scripts:write"];
 /** The folder that holds fabrik's own Cloudflare sign-in, as XDG_CONFIG_HOME. */
 export const wranglerHome = (home = homedir()) => join(home, ".config", "fabrik", "wrangler");
 /** The folder setup makes one fabrik project's sign-in page in, beside fabrik's Cloudflare sign-in, never in the owner's folder. */
@@ -46,8 +47,9 @@ export async function putUpPage(page, options = {}) {
   return (await publishPage(page, options)).site;
 }
 
-/** putUpPage, giving { site, accountId, token }: token() gives the sign-in's access token for Cloudflare's API, read
- * with `wrangler auth token --json`, which refreshes it when it has expired. */
+/** putUpPage, giving { site, accountId, token, deploy }: token() gives the sign-in's access token for Cloudflare's API,
+ * read with `wrangler auth token --json`, which refreshes it when it has expired. deploy(config, what) runs
+ * `wrangler deploy --config <config>` on the same sign-in, and throws with Wrangler's last lines where it fails. */
 export async function publishPage({ name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
   // WRANGLER_NO_SKILLS_UPDATE_PROMPTS, and no terminal on Wrangler's input, keep Wrangler from asking questions of its own.
   const base = { ...env, XDG_CONFIG_HOME: wranglerHome(home), WRANGLER_SEND_METRICS: "false", WRANGLER_NO_SKILLS_UPDATE_PROMPTS: "true" };
@@ -74,7 +76,7 @@ export async function publishPage({ name, folder, what }, { ask, say, wrangler =
   // as tokenPermissions, and an API token's not at all.
   const lacking = () => Array.isArray(me.tokenPermissions) ? SCOPES.filter(s => !me.tokenPermissions.includes(s)) : [];
   if (!me.loggedIn || lacking().length) {
-    say(me.loggedIn ? "fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."
+    say(me.loggedIn ? "fabrik needs Cloudflare's permission to read your domains and put your chat pages on them. A browser window opens for Cloudflare. Allow Wrangler, then come back here."
       : "A browser window opens for Cloudflare. Sign in, or make a free account, and allow Wrangler. Then come back here.");
     run(["login", "--scopes", ...SCOPES], { terminal: true });
     me = whoami();
@@ -111,5 +113,9 @@ export async function publishPage({ name, folder, what }, { ask, say, wrangler =
     if (!ran.ok || typeof got !== "string" || !got) throw failed("Reading fabrik's Cloudflare sign-in", ran);
     return got;
   };
-  return { site: `https://${domain}`, accountId, token };
+  const deploy = (config, what) => {
+    const ran = run(["deploy", "--config", config]);
+    if (!ran.ok) throw failed(`Putting ${what} up`, ran);
+  };
+  return { site: `https://${domain}`, accountId, token, deploy };
 }
