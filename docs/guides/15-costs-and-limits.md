@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Costs and limits
 
 fabrik itself is free and open source. You pay for the services it runs on, on your own accounts.

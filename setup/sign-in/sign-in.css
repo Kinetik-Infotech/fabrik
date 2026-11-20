@@ -54,4 +54,5 @@ button.quiet:hover { background: transparent; border-color: var(--ink); }
 #note:empty { display: none; }
 #note.refused { color: var(--refused); }
 footer { padding: 18px 40px; color: var(--muted); font: 400 14px/1.4 var(--font); }
+header, main, footer { width: 100%; max-width: 640px; margin-inline: auto; }
 @media (max-width: 640px) { header, footer { padding-left: 16px; padding-right: 16px; } main { padding: 16px 16px 32px; } .card { padding: 24px 20px; } }

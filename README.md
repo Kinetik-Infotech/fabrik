@@ -1,3 +1,5 @@
+<img src="site/brand/favicon.svg" width="56" height="56" alt="">
+
 # fabrik
 
 **Everything an AI assistant promises. Nothing it shouldn't keep.**
