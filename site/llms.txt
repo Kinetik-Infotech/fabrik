@@ -1,0 +1,56 @@
+# fabrik
+
+> fabrik is a free, open-source Claude plugin that runs your life or business as other AI assistants do, while every record and file stays in a Supabase project you own. Claude does the work through fabrik's connector, in every Claude app.
+
+fabrik is made by Kinetik Infotech Ltd, under the MIT licence. Its website is https://fabrik.tech and its code is https://github.com/Kinetik-Infotech/fabrik.
+
+Key facts:
+
+- fabrik stores records, files, their history and a search index in the owner's own Supabase project. Kinetik Infotech Ltd has no access to it.
+- Claude works with fabrik through a connector the owner's project hosts, and through the fabrik plugin in Claude Code.
+- It remembers people, meetings and decisions. It searches files by keyword, by meaning, and by the people and companies they name.
+- It drafts email and posts in the owner's voice, plans projects and tasks, and designs the owner's routines and follows them.
+- It puts websites live on the owner's own Cloudflare account, under their own web address.
+- It gives a website chat agents in the owner's brand. They answer visitors from files the owner writes, and the owner keeps each conversation.
+- With Claude in Chrome, Claude works in the owner's own browser, on the sites they're signed in to. It asks before it buys, pays or sends anything.
+- It acts only when the owner asks. Nothing runs while the owner is away.
+- fabrik is free. It needs a Claude plan, and free Supabase and Cloudflare accounts.
+- It needs the Claude desktop app on a Mac with macOS 15 or later, Windows 10 version 1809 or later, or Linux.
+- Setup takes about fifteen minutes: https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR
+
+## Guides
+
+- [What fabrik is](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/01-what-fabrik-is.md): fabrik is a knowledge base for one person, and the routines Claude follows to do your work.
+- [fabrik in each Claude app](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/02-claude-apps.md): You add fabrik's connector once, in Claude's settings, and it then works in every Claude app signed in to the same Claude account.
+- [Adding other connectors in Claude](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/03-other-connectors.md): A connector links Claude to another service, such as Gmail, Google Calendar, Google Drive, Slack or Notion.
+- [Records and scopes](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/04-records-and-scopes.md): A record is one thing fabrik holds, such as a note, a decision or a task.
+- [Files and search](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/05-files-and-search.md): fabrik keeps files in each scope, and search finds them by what they say, with your records, in one question.
+- [Projects and tasks](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/06-projects-and-tasks.md): A project is work with several steps, such as a client job, a launch or a renovation.
+- [Contacts and groups](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/07-contacts-and-groups.md): A contact is a person or an organisation you deal with.
+- [Routines and their design](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/08-routines.md): A routine is a piece of work you do again and again, such as invoicing or planning the week's meals.
+- [Importing from other apps](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/09-importing.md): fabrik brings in exports from LinkedIn, Notion, Obsidian, Substack and X.
+- [Email](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/10-email.md): fabrik connects to a mailbox you set up in it, for a provider Claude has no connector for, such as StartMail or Namecheap Private Email.
+- [Drawing boards and graphs, and printing](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/11-drawing-and-printing.md): fabrik draws what it holds as cards in any Claude app, and as pages and PDFs in a Code session.
+- [Claude in Chrome and the built-in browser](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/12-browsers.md): Claude can open web pages while it works with fabrik, in one of two browsers.
+- [Updates, and running setup again](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/13-setup-and-upgrades.md): fabrik updates on one approval.
+- [A forgotten password](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/14-forgotten-password.md): Your Supabase account has full access to your project, so you can always set a new fabrik password from it.
+- [Costs and limits](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/15-costs-and-limits.md): fabrik itself is free and open source.
+- [Getting help](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/16-getting-help.md): Ask Claude, such as "How do I add my calendar?".
+- [Chat on your website](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/17-website-chat.md): fabrik can give your website chat agents that answer visitors' questions.
+
+## Website
+
+- [fabrik.tech](https://fabrik.tech/): what fabrik does, a day with it, and how it works. It compares fabrik with Instinct, Muse, Dots and Claude Duet.
+- [Privacy](https://fabrik.tech/privacy/): what the website and its chat keep.
+- [The full text](https://fabrik.tech/llms-full.txt): the README and every guide in one file.
+
+## Plugins
+
+- [fabrik](https://github.com/Kinetik-Infotech/fabrik/tree/main/plugins/fabrik): the knowledge base's tools and skills. They cover records, files and search, boards, graphs and printed PDFs, projects and the glossary. They also cover imports from LinkedIn, Notion, Obsidian, Substack and X, and website chat agents.
+- [cloudflare](https://github.com/Kinetik-Infotech/fabrik/tree/main/plugins/cloudflare): deploys a folder as a website on Cloudflare Pages, with its form handlers, adds the owner's domain and manages its DNS records.
+- [humanizer](https://github.com/Kinetik-Infotech/fabrik/tree/main/plugins/humanizer): writing rules and checks, so what Claude writes reads as a person wrote it.
+
+## Optional
+
+- [README](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/README.md): the project's overview, with setup and updating.
+- [Code](https://github.com/Kinetik-Infotech/fabrik): the plugins, the setup for the Supabase project, its hosted functions and the tests.
