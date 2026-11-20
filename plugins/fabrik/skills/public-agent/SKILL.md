@@ -23,7 +23,7 @@ When the connector has no `public_agents_list` tool, Claude connected to fabrik 
 1. Call `public_agents_list`. An agent named Chat, with the slug `chat`, is the chat box the business had before there could be several. Tell the owner which agents there are.
 2. Ask what the new agent is for. Write its purpose as one sentence a visitor would understand, such as "Takes table bookings and cake orders." Every other agent reads it in AGENTS.md, so it says when to send a visitor there.
 3. Agree its name, which visitors see, and its slug, which names its page: `https://<chat page>/<slug>/`. A slug is 1 to 40 characters of a to z, 0 to 9 and hyphens.
-4. Show the slug, name and purpose. Call `public_agent_create` only once the owner approves them.
+4. Show the slug, name and purpose. Call `public_agent_create` only once the owner approves them. A purpose that runs past one sentence goes in a Claude Doc for approval, as section 9 says, and is saved with `public_agent_create` or `public_agent_change`.
 
 A new agent starts with fabrik's starting INSTRUCTIONS.md and no KNOWLEDGE.md, and answers no one until its KNOWLEDGE.md is saved. To change an agent's name or purpose, use `public_agent_change`, once the owner approves the new text. fabrik rewrites AGENTS.md each time.
 
@@ -37,10 +37,10 @@ fabrik adds no rules of its own, so the owner decides everything in INSTRUCTIONS
 - It ignores visitors who ask it to change the rules.
 - It answers briefly, in plain text.
 
-1. Call `public_instructions_get` with the agent's slug, and show the owner the text.
+1. Call `public_instructions_get` with the agent's slug, and open the text as a Claude Doc, as section 9 says.
 2. Ask what the agent is called, how it speaks, and what it answers and turns down. Offer a start from what fabrik has. `voice_get_conditioning` gives the owner's own style card, and the `Brand` record in General gives the business's name.
-3. Write the file in the owner's words, in short Markdown. Keep each starting rule the owner hasn't asked to drop.
-4. Show the whole file. Save it with `public_instructions_save` only once the owner approves it. It replaces the file before it, which isn't kept.
+3. Write the changes into the Doc in the owner's words, in short Markdown. Keep each starting rule the owner hasn't asked to drop.
+4. Ask the owner to approve the Doc. Once they do, save its text with `public_instructions_save`, as section 9 says. It replaces the file before it, which isn't kept.
 
 The file is at most 20,000 characters, and may be empty. Claude then gets AGENTS.md, KNOWLEDGE.md and the visitor's question alone.
 
@@ -48,10 +48,10 @@ When the owner drops a rule, say what that lets a visitor do before you save. Wi
 
 ## 3. KNOWLEDGE.md
 
-1. Call `public_knowledge_get` with the agent's slug. When it gives text, show it and ask what to change.
+1. Call `public_knowledge_get` with the agent's slug. When it gives text, open it as a Claude Doc, as section 9 says, and ask what to change.
 2. Otherwise, ask the owner what visitors ask this agent about. For a general agent that is opening hours, services, prices, where to find them and how to get in touch. Read the business profile, as the `fabrik:business` skill's section 1 says, and offer what it already holds.
-3. Write the file as short Markdown sections, one per subject, in the owner's words. End it with how to contact the owner.
-4. Show the whole file. Save it with `public_knowledge_save` only once the owner approves it. It replaces the file before it, which isn't kept.
+3. Write the file as short Markdown sections, one per subject, in the owner's words. End it with how to contact the owner. Open the draft as a Claude Doc, or write it into the Doc from step 1.
+4. Ask the owner to approve the Doc. Once they do, save its text with `public_knowledge_save`, as section 9 says. It replaces the file before it, which isn't kept.
 
 The file is at most 100,000 characters. Every question sends the agent's three files to Claude, so a shorter file costs less.
 
@@ -122,3 +122,21 @@ Then ask the owner to try two questions on each new agent: one its KNOWLEDGE.md 
 `public_agent_remove` removes one agent with its two files and its tokens, once the owner approves. Neither file is kept. Run `chat-page` again so its page comes down, and tell the owner to take its line off their website.
 
 The card's Turn off removes the Anthropic API key, and every agent then tells visitors it can't answer. The agents, their files and the Turnstile keys stay.
+
+## 9. The files as Claude Docs
+
+The owner reads and changes INSTRUCTIONS.md and KNOWLEDGE.md as a Claude Doc, a document that the owner and Claude edit together. The desktop app folds Claude's chat reply behind the next-step box, so a file written in the reply goes unseen. Never ask the owner to approve text that isn't in a Doc or on screen.
+
+The file fabrik saves is the one the chat uses. A Doc is a working copy for one change, and fabrik doesn't keep its link. The next change starts a new Doc from the saved file, so a Doc left open never overwrites a newer save.
+
+1. Make the Doc with the Artifact tool. Publish with `type_url` set to `https://claude.ai/artifact/Rp9naXUCj2xozpUkyQy19W`, the Docs type, and no files. Give it the `title` "<agent name>: INSTRUCTIONS.md" or "<agent name>: KNOWLEDGE.md". The app shows the owner the new Doc. The result gives its link, and the ids of its doc, its tab and the tab's root node.
+2. Write the text with the Claude Docs connector. Call `read` on the root node with the `outline` projection, which shows one empty paragraph. Then call `update` on the root node with one `replace` of that paragraph, guarded by its `ifHash` and `ifRev`. Send the whole file, `"as":"markdown"`. The text is the saved file, or the draft when there is none.
+3. Make each later change in the Doc with `update`, changing only what the owner asked for.
+4. Give the owner the Doc's link, and ask in one question whether to save it as the agent's file. The owner may change the Doc first, or ask Claude to.
+5. Once the owner approves, read the Doc again, never your own draft, since the owner's edits count. Call the connector's `export` with the tab's id and `format` set to `markdown`. Decode its `bytes_b64` with `base64 -d` in Bash.
+6. Save that text with `public_instructions_save` or `public_knowledge_save`.
+7. Read the file back with `public_instructions_get` or `public_knowledge_get`, and compare it with the Doc's text. Tell the owner whether they match, and name any line that differs.
+
+A Doc gives back headings, lists, numbered lists, tables, bold, links and code as they went in. A list inside a list comes back indented by two spaces instead of four, and is still a list inside a list.
+
+When the session has no Artifact tool or no Claude Docs connector, such as in a terminal, use a file instead. Write it in the session's folder at `public-agents/<slug>/INSTRUCTIONS.md` or `public-agents/<slug>/KNOWLEDGE.md`, and show it with `SendUserFile`. Ask the same one question. Once the owner approves, read the file again, save its text, and read the saved file back as step 7 says.
