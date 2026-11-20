@@ -83,3 +83,6 @@
 @media (max-width:899px){.pl-row{grid-template-columns:minmax(0,1fr)}.pl-card:nth-child(2){--lift:0px}}
 @media (max-width:599px){.pl-card,.pl-card:nth-child(2){--tilt:0deg}}
 @media (prefers-reduced-motion:reduce){.pl-card{transition:none}.pl-card:hover{--lift:0px}}
+
+/* Claude in Chrome: room between the lede and its card */
+#chrome .moment{margin-top:clamp(28px,3.4vw,40px)}
