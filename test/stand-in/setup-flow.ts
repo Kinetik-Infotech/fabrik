@@ -21,6 +21,7 @@
 // setup-flow.sh runs it on a cluster of its own, with STAND_IN_DB, STAND_IN_PARTLY_DB and STAND_IN_OWNER_DB naming three
 // new databases with supabase.sql's parts, and STAND_IN_ADMIN_DB the cluster's superuser, which drops each once it is done.
 import postgres from "npm:postgres@3.4.9";
+import { SCOPES } from "../../plugins/fabrik/cli/sign-in-page.mjs";
 
 const DB = Deno.env.get("STAND_IN_DB")!;
 const PARTLY_DB = Deno.env.get("STAND_IN_PARTLY_DB")!;
@@ -679,7 +680,7 @@ const args = process.argv.slice(2), cmd = args.join(" ");
 appendFileSync("${ownerBin}/wrangler.log", JSON.stringify({ args, xdg: process.env.XDG_CONFIG_HOME }) + "\\n");
 const save = () => writeFileSync(file, JSON.stringify(s));
 if (cmd === "whoami --json") { console.log(JSON.stringify(s.signedIn ? { loggedIn: true, email: "olive@owner.example", accounts: [{ id: "acc-1", name: "Olive's Account" }] } : { loggedIn: false })); process.exit(s.signedIn ? 0 : 1); }
-else if (cmd === "login --scopes account:read user:read pages:write") { s.signedIn = true; save(); console.log("Successfully logged in."); }
+else if (cmd === "login --scopes ${SCOPES.join(" ")}") { s.signedIn = true; save(); console.log("Successfully logged in."); }
 else if (cmd === "pages project list --json") console.log(JSON.stringify(s.projects.map(p => ({ "Project Name": p, "Project Domains": p + "-3x7.pages.dev" }))));
 else if (args.slice(0, 3).join(" ") === "pages project create") { s.projects.push(args[3]); save(); }
 else if (args.slice(0, 2).join(" ") === "pages deploy") { s.deployed = args[2]; save(); console.log("Deployment complete!"); }
