@@ -177,6 +177,8 @@ section{padding:var(--pad-y) var(--pad-x)}
 .to-top:hover{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
 .to-top.is-shown{opacity:1;visibility:visible}
 body:has(.nav.is-open) .to-top{opacity:0;visibility:hidden}
+/* with the chat button in the corner, back to top sits above it, centred on it */
+body:has(.fabrik-chat-button) .to-top{right:27px;bottom:96px}
 @media (prefers-reduced-motion:reduce){.to-top{transition:none}}
 
 /* the closing band */
