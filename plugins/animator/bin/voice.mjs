@@ -13,12 +13,10 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
-// The key can live in ANIMATOR_ENV_FILE's path, a .env file in the folder the job is made from, or one at the root
-// of the repository that holds this plugin. A key already set in the environment is kept.
-const ENV_FILE = process.env.ANIMATOR_ENV_FILE
-  || [path.resolve('.env'), path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env')].find(f => existsSync(f));
+// The key can live in ANIMATOR_ENV_FILE's path or a .env file in the folder the job is made from. A key already set in
+// the environment is kept. A .env file beside the plugin is never read: the marketplace that holds it is not the person's.
+const ENV_FILE = process.env.ANIMATOR_ENV_FILE || path.resolve('.env');
 // Only ASSEMBLYAI_API_KEY is taken from the file: nothing else in it reaches this process or the programs it runs.
 if (ENV_FILE && existsSync(ENV_FILE) && !process.env.ASSEMBLYAI_API_KEY) {
   const m = readFileSync(ENV_FILE, 'utf8').match(/^\s*(?:export\s+)?ASSEMBLYAI_API_KEY\s*=\s*["']?([^"'\s#]+)/m);
