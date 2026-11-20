@@ -72,13 +72,14 @@ export async function publishPage({ name, folder, what }, { ask, say, wrangler =
   let me = whoami();
   // A sign-in from before fabrik asked for all of SCOPES signs in again once. whoami lists an OAuth sign-in's scopes
   // as tokenPermissions, and an API token's not at all.
-  const lacking = Array.isArray(me.tokenPermissions) ? SCOPES.filter(s => !me.tokenPermissions.includes(s)) : [];
-  if (!me.loggedIn || lacking.length) {
+  const lacking = () => Array.isArray(me.tokenPermissions) ? SCOPES.filter(s => !me.tokenPermissions.includes(s)) : [];
+  if (!me.loggedIn || lacking().length) {
     say(me.loggedIn ? "fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."
       : "A browser window opens for Cloudflare. Sign in, or make a free account, and allow Wrangler. Then come back here.");
     run(["login", "--scopes", ...SCOPES], { terminal: true });
     me = whoami();
     if (!me.loggedIn) throw new PageStopped("Cloudflare's sign-in did not finish. Wrangler waits two minutes for you to sign in and allow it in the browser.");
+    if (lacking().length) throw new PageStopped(`Cloudflare's sign-in didn't give fabrik ${lacking().join(" and ")}. Run the command again, and allow Wrangler everything it asks for in the browser.`);
   }
   const accounts = Array.isArray(me.accounts) ? me.accounts : [];
   if (accounts.length > 1) {
