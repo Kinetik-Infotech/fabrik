@@ -2,35 +2,41 @@
 
 # Chat on your website
 
-fabrik can put a chat box on your website that answers visitors' questions. It answers from one page you write, called KNOWLEDGE.md, and from nothing else in fabrik. It never reads your records, files or email. A visitor can find out anything in that page, so put in only what you'd put on your website.
+fabrik can give your website a chat that answers visitors' questions. It answers from one file you write, called KNOWLEDGE.md, and from nothing else in fabrik. It never reads your records, files or email. A visitor can find out anything in that file, so put in only what you'd put on your website.
 
-To set it up, ask Claude in your fabrik folder for a chat box on your website. Claude takes you through three steps. Only an administrator can set it up.
+To set it up, ask Claude in your fabrik folder for a chat on your website. Claude takes you through four steps. Only an administrator can set it up.
 
 ## 1. What it knows
 
-Claude asks what visitors ask you about, such as opening hours, services, prices, where to find you and how to get in touch. It offers what your business profile already holds. Then it writes the page in your words and shows it to you. It saves the page only once you approve it.
+Claude asks what visitors ask you about, such as opening hours, services, prices, where to find you and how to get in touch. It offers what your business profile already holds. Then it writes the file in your words and shows it to you. It saves the file only once you approve it.
 
-When the box doesn't find an answer in the page, it says it doesn't know and suggests the visitor contacts you. To change what it knows, ask Claude to change the page.
+When the chat doesn't find an answer in the file, it says it doesn't know and suggests the visitor contacts you. To change what it knows, ask Claude to change the file.
 
-## 2. Two keys
+## 2. The chat page
 
-The box needs two keys, and you paste both on a card Claude shows you, never in the chat.
+Claude builds a chat page in your brand, with your logo, colours and fonts, and Cloudflare hosts it for you. Claude gives you its address, which ends in pages.dev. If you haven't given fabrik your brand, the page takes fabrik's own look until you do. When your brand changes, Claude offers to put the page up again in the new look.
+
+## 3. Three keys
+
+The chat needs three keys, and you paste them on a card Claude shows you, never in the chat.
 
 - **An Anthropic API key.** Claude writes each answer, and the key pays for it. Claude gives you the steps to make one in the Claude Console. On a Claude Max, Ultra or Team plan, the plan's monthly API credits pay for it.
-- **A Turnstile secret key.** Turnstile is Cloudflare's free check that a visitor is a person and not a program. Claude gives you the steps to add a Turnstile widget in your Cloudflare account. It gives you a site key for your website and a secret key for the card.
+- **Two Turnstile keys.** Turnstile is Cloudflare's free check that a visitor is a person and not a program. Claude gives you the steps to add a Turnstile widget in your Cloudflare account, for your chat page's address. Cloudflare then shows you a site key and a secret key.
 
 The card checks each key before fabrik keeps it.
 
-## 3. The box on your website
+## 4. The chat on your website
 
-Claude gives you a small file, chat.js, and two lines of code to add to your website where the box should appear. Then try two questions on your website: one the page answers, and one it doesn't.
+Claude gives you one line of code. Paste it into your website's pages, and a round chat button in your brand's colour appears in the bottom right corner. It opens the chat in a panel. You can also link to the chat page's address from your website, an email or a social profile. Some website builders, such as Wix and Squarespace on lower plans, refuse pasted code, and the link works there instead.
+
+Then try two questions: one KNOWLEDGE.md answers, and one it doesn't.
 
 ## What it costs
 
-Each answer uses some of your Anthropic API credits. A daily limit stops the box running up a bill: once a day's answers reach it, the box tells visitors it's resting until tomorrow. Every question sends the whole page to Claude, so a shorter page lets the box answer more questions a day. Ask Claude to raise or lower the limit.
+Each answer uses some of your Anthropic API credits. A daily limit stops the chat running up a bill: once a day's answers reach it, the chat tells visitors it's resting until tomorrow. Every question sends the whole file to Claude, so a shorter file lets the chat answer more questions a day. Ask Claude to raise or lower the limit.
 
-fabrik keeps no question or answer, only how much the box used each day.
+fabrik keeps no question or answer, only how much the chat used each day.
 
 ## Turning it off
 
-Ask Claude to turn the chat box off. It removes the Anthropic API key, and the box then tells visitors it can't answer. To remove the box itself, take the two lines off your website.
+Ask Claude to turn the chat off. It removes the Anthropic API key, and the chat then tells visitors it can't answer. To remove the button, take the line off your website.

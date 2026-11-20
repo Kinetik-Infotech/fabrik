@@ -15,9 +15,13 @@
 // fabrik_private.public_agent_usage, in UTC days. It stores and logs no question, history or answer. The Anthropic API key is the Vault's public_agent_anthropic_key. It is
 // kept apart from the connections key, so turning one on never turns on the other.
 //
+// The chat page asks with a GET for the Turnstile site key, which it draws its check with. The answer is { sitekey },
+// or 503 when none is saved. The site key is public, so the page holds no key, and a new key needs no new page.
+//
 // An administrator calls it with their own sign-in and an action, as the fabrik-apps connector does. check says whether
-// the key, the Turnstile secret and the file are there. set_key keeps key once the Models API accepts it. set_turnstile
-// keeps secret once siteverify accepts it. remove_key deletes the key, which stops the chat box answering.
+// the key, the Turnstile secret, the site key and the file are there. set_key keeps key once the Models API accepts it.
+// set_turnstile keeps secret, sitekey or both, once siteverify accepts the secret given or the one saved.
+// remove_key deletes the key, which stops the chat box answering.
 //
 // knowledge_get gives the file's text, or null. knowledge_save replaces the file with text. settings gives the model,
 // the cap and today's tokens, after setting model or daily_cap_tokens when given. No reply holds the key or the secret.
@@ -79,7 +83,7 @@ const sql = ((strings: TemplateStringsArray, ...values: unknown[]) =>
 const hide = (secret: string) => { if (secret) runs.getStore()?.secrets.push(secret); return secret; };
 const clean = (text: string) => (runs.getStore()?.secrets ?? []).reduce((t, s) => t.replaceAll(s, "[secret]"), text);
 const message = (err: unknown) => clean(err instanceof Error ? err.message : String(err));
-const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type" };
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "content-type" };
 const json = (status: number, body: unknown) =>
   new Response(clean(JSON.stringify(body)), { status, headers: { "Content-Type": "application/json", ...CORS } });
 
@@ -102,9 +106,9 @@ async function vaultSet(name: string, value: string, about: string) {
   });
 }
 
-async function settings(): Promise<{ model: string; daily_cap_tokens: number }> {
-  const [s] = await sql`select model, daily_cap_tokens from fabrik_private.public_agent_setting where id`;
-  return { model: s?.model ?? "claude-haiku-5-5", daily_cap_tokens: s?.daily_cap_tokens ?? 500000 };
+async function settings(): Promise<{ model: string; daily_cap_tokens: number; turnstile_sitekey: string | null }> {
+  const [s] = await sql`select model, daily_cap_tokens, turnstile_sitekey from fabrik_private.public_agent_setting where id`;
+  return { model: s?.model ?? "claude-haiku-5-5", daily_cap_tokens: s?.daily_cap_tokens ?? 500000, turnstile_sitekey: s?.turnstile_sitekey ?? null };
 }
 async function today(): Promise<number> {
   const [u] = await sql`select tokens from fabrik_private.public_agent_usage where day = (now() at time zone 'utc')::date`;
@@ -236,17 +240,38 @@ async function setKey(given: unknown) {
   return { ok: true, key: "set" };
 }
 
-async function setTurnstile(given: unknown) {
-  const candidate = hide(typeof given === "string" ? given.trim() : "");
-  if (!/^[A-Za-z0-9_-]{20,200}$/.test(candidate)) throw refuse(400, "Give the Turnstile widget's secret key as secret. Nothing was kept.");
+/** A Turnstile site key's form: a digit, x, and the rest of the key. */
+export const SITEKEY = /^[0-9]x[A-Za-z0-9_-]{18,60}$/;
+
+/** Keeps the secret, the site key or both. Neither is kept unless siteverify accepts the secret given, or the one saved
+ * when only the site key is given, and the site key has a site key's form. */
+async function setTurnstile(givenSecret: unknown, givenSitekey: unknown) {
+  const candidate = hide(typeof givenSecret === "string" ? givenSecret.trim() : "");
+  const sitekey = typeof givenSitekey === "string" ? givenSitekey.trim() : "";
+  if (!candidate && !sitekey) throw refuse(400, "Give the Turnstile widget's secret key as secret, its site key as sitekey, or both. Nothing was kept.");
+  if (candidate && !/^[A-Za-z0-9_-]{20,200}$/.test(candidate)) throw refuse(400, "Give the Turnstile widget's secret key as secret. Nothing was kept.");
+  if (sitekey && !SITEKEY.test(sitekey)) throw refuse(400, "That isn't a Turnstile site key. Copy the site key from the widget's page in Cloudflare. Nothing was kept.");
+  if (sitekey && candidate === sitekey) throw refuse(400, "The site key and the secret key are the same. Copy each from the widget's page in Cloudflare. Nothing was kept.");
+  const secret = candidate || await vault(TURNSTILE_NAME);
+  if (!secret) throw refuse(400, "Give the Turnstile secret key with the site key, since none is saved. Nothing was kept.");
   // A made-up token tells a wrong secret from a right one: siteverify names the secret when it refuses it.
   let got;
-  try { got = await turnstile(candidate, "fabrik-secret-check", null); }
+  try { got = await turnstile(secret, "fabrik-secret-check", null); }
   catch (err) { throw refuse(502, `Cloudflare did not answer: ${message(err)}. Nothing was kept.`); }
   if (got.codes.includes("invalid-input-secret") || got.codes.includes("missing-input-secret"))
-    throw refuse(422, "Cloudflare refused the secret key. Nothing was kept.");
-  await vaultSet(TURNSTILE_NAME, candidate, "The secret key of the website chat box's Cloudflare Turnstile widget, set with the set_turnstile action");
-  return { ok: true, turnstile: "set" };
+    throw refuse(422, `Cloudflare refused the ${candidate ? "" : "saved "}secret key. Nothing was kept.`);
+  if (candidate) await vaultSet(TURNSTILE_NAME, candidate, "The secret key of the website chat box's Cloudflare Turnstile widget, set with the set_turnstile action");
+  if (sitekey) await sql`update fabrik_private.public_agent_setting set turnstile_sitekey = ${sitekey}, updated_at = now() where id`;
+  return { ok: true, ...(candidate ? { turnstile: "set" } : {}), ...(sitekey ? { sitekey: "set" } : {}) };
+}
+
+/** The chat page's site key, for anyone: { sitekey }, or 503 when none is saved. */
+async function sitekeyOf() {
+  let s;
+  try { s = await settings(); }
+  catch (err) { console.error("public-agent could not read the site key:", message(err)); throw refuse(503, UNAVAILABLE); }
+  if (!s.turnstile_sitekey) throw refuse(503, UNAVAILABLE, { setup: "sitekey" });
+  return { sitekey: s.turnstile_sitekey };
 }
 
 async function removeKey() {
@@ -260,7 +285,8 @@ async function removeKey() {
 async function check() {
   const s = await settings();
   const file = await knowledge();
-  return { ok: true, key: await keyState(s.model), turnstile: (await vault(TURNSTILE_NAME)) ? "set" : "missing", knowledge: !!file?.trim() };
+  return { ok: true, key: await keyState(s.model), turnstile: (await vault(TURNSTILE_NAME)) ? "set" : "missing",
+    sitekey: s.turnstile_sitekey ? "set" : "missing", knowledge: !!file?.trim() };
 }
 
 async function saveKnowledge(given: unknown) {
@@ -295,7 +321,16 @@ async function changeSettings(args: Record<string, unknown>) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-  if (req.method !== "POST") return json(405, { ok: false, problem: "Call this function with POST." });
+  if (req.method === "GET") {
+    const db = seam.connect();
+    try {
+      return await runs.run({ sql: db, secrets: [] }, async () => {
+        try { return json(200, await sitekeyOf()); }
+        catch (err) { if (err instanceof Refusal) return json(err.status, err.body); throw err; }
+      });
+    } finally { await db.end(); }
+  }
+  if (req.method !== "POST") return json(405, { ok: false, problem: "Call this function with GET or POST." });
   const args = await req.json().catch(() => ({})) as Record<string, unknown>;
   let given: ReturnType<typeof visitor> | null = null;
   if (args.action === undefined) {
@@ -334,7 +369,7 @@ async function serve(req: Request, args: Record<string, unknown>, asked: ReturnT
     try {
       if (args.action === "check") return json(200, await check());
       if (args.action === "set_key") return json(200, await setKey(args.key));
-      if (args.action === "set_turnstile") return json(200, await setTurnstile(args.secret));
+      if (args.action === "set_turnstile") return json(200, await setTurnstile(args.secret, args.sitekey));
       if (args.action === "remove_key") return json(200, await removeKey());
       if (args.action === "knowledge_get") return json(200, { ok: true, text: await knowledge() });
       if (args.action === "knowledge_save") return json(200, await saveKnowledge(args.text));

@@ -185,6 +185,7 @@ const { module: graphReaderModule, handler: graphReader } = await load(GRAPH_REA
 graphReaderModule.seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 // The real public-agent hosted function, with its Storage kept here and Cloudflare's siteverify, which takes TURNSTILE alone.
 const TURNSTILE = "0x4AAAAAAAstandin-turnstile-secret-0123";
+const SITEKEY = "0x4AAAAAAAstandin-sitekey-01";
 const agentCalls: { action: string; user: string }[] = [];
 const { module: publicAgentModule, handler: publicAgent } = await load(new URL("../../setup/functions/public-agent/index.ts", import.meta.url));
 publicAgentModule.seam.client = graphReaderModule.seam.client;
@@ -1609,17 +1610,20 @@ try {
   // settings tools reach public-agent as the person, a person who isn't an administrator is refused, and no answer holds
   // either key. ----
   const secretOf = async (name: string) => (await sql`select secret from vault.secrets where name = ${name}`)[0]?.secret ?? null;
-  const paCard = await openCard(ownerToken, "show_public_agent_setup", {});
+  const paCard = await openCard(ownerToken, "show_public_agent_setup", { page: "https://fabrik-chat-standin.pages.dev" });
   await until(() => paCard.doc.getElementById("pa-state")?.textContent === "The public agent has no Anthropic API key.", "the public agent card shown", paCard);
-  const paShown = { text: paCard.text(), offHidden: paCard.doc.getElementById("pa-off")?.hidden, uri: paCard.uri, data: paCard.result?.structuredContent };
+  const paShown = { host: paCard.doc.getElementById("pa-host")?.textContent, text: paCard.text(), offHidden: paCard.doc.getElementById("pa-off")?.hidden, uri: paCard.uri, data: paCard.result?.structuredContent };
   const paPass = paCard.result?._meta?.pass;
   paCard.doc.getElementById("pa-key").value = ANTHROPIC_KEY;
   paCard.doc.getElementById("pa-secret").value = TURNSTILE;
+  paCard.doc.getElementById("pa-sitekey-in").value = SITEKEY;
   const paBefore = agentCalls.length;
   paCard.doc.getElementById("pa-form").dispatchEvent(new paCard.w.Event("submit", { bubbles: true, cancelable: true }) as never);
   await until(() => (paCard.doc.getElementById("pa-said")?.textContent ?? "").startsWith("Saved"), "the public agent's keys saved", paCard);
   const paSaved = { state: paCard.doc.getElementById("pa-state")?.textContent, turnstile: paCard.doc.getElementById("pa-turnstile")?.textContent,
-    fields: [paCard.doc.getElementById("pa-key")?.value, paCard.doc.getElementById("pa-secret")?.value], offHidden: paCard.doc.getElementById("pa-off")?.hidden,
+    sitekeyText: paCard.doc.getElementById("pa-sitekey")?.textContent,
+    sitekey: (await sql`select turnstile_sitekey from fabrik_private.public_agent_setting`)[0]?.turnstile_sitekey,
+    fields: [paCard.doc.getElementById("pa-key")?.value, paCard.doc.getElementById("pa-secret")?.value, paCard.doc.getElementById("pa-sitekey-in")?.value], offHidden: paCard.doc.getElementById("pa-off")?.hidden,
     calls: agentCalls.slice(paBefore), key: await secretOf("public_agent_anthropic_key"), secret: await secretOf("turnstile_secret"), connectionsKey: await secretOf("anthropic_api_key") };
   const paWrong = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_setup_save", arguments: { secret: "0x4AAAAAAAstandin-wrong-secret-0000", pass: paPass } });
   const paNoPass = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_off", arguments: {} });
@@ -1638,22 +1642,24 @@ try {
   if (OBSERVE) console.log("== public agent", JSON.stringify({ paShown, paSaved, paWrong, paNoPass, paOtherCard, paSave, paGet, paSettings, paReader, paOff }, null, 1));
   check("show_public_agent_setup draws the public agent card at its own address, saying there's no key, no Turnstile secret key and no KNOWLEDGE.md, with no Turn off",
     paShown.uri === "ui://fabrik-apps/public-agent-setup.html" && paShown.offHidden === true && paShown.text.includes("The Turnstile secret key isn't saved yet.")
-      && paShown.text.includes("KNOWLEDGE.md isn't saved yet.") && paShown.data?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, paShown);
-  check("the card's Save sends both keys to public-agent as the owner, which keeps each in the Vault apart from the connections key",
+      && paShown.text.includes("KNOWLEDGE.md isn't saved yet.") && paShown.text.includes("The Turnstile site key isn't saved yet.")
+      && paShown.host === "fabrik-chat-standin.pages.dev" && paShown.data?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, paShown);
+  check("the card's Save sends the three keys to public-agent as the owner, which keeps the two secret ones in the Vault apart from the connections key, and the site key in the settings",
     paSaved.state === "The public agent's Anthropic API key works." && paSaved.turnstile === "The Turnstile secret key is saved." && paSaved.fields.join("") === ""
+      && paSaved.sitekeyText === "The Turnstile site key is saved." && paSaved.sitekey === SITEKEY
       && paSaved.offHidden === false && JSON.stringify(paSaved.calls) === JSON.stringify([{ action: "set_key", user: owner }, { action: "set_turnstile", user: owner }])
       && paSaved.key === ANTHROPIC_KEY && paSaved.secret === TURNSTILE && paSaved.connectionsKey === null, paSaved);
   check("a Turnstile secret key Cloudflare refuses is not kept, and Save and Turn off without this card's pass are refused",
     said(paWrong) === "Cloudflare refused the secret key. Nothing was kept." && await secretOf("turnstile_secret") === TURNSTILE
       && [paNoPass, paOtherCard].every((r) => said(r) === "Only the public agent card sets its keys, and this one has expired. Show the public agent card again."),
     { paWrong, paNoPass, paOtherCard });
-  check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings_change sets the cap and gives the chat box's address",
-    ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 2000
+  check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings_change sets the cap and gives the site key and the chat box's address",
+    ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 2000 && v(paSettings)?.turnstile_sitekey === SITEKEY
       && v(paSettings)?.model === "claude-haiku-5-5" && v(paSettings)?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, { paSave, paGet, paSettings });
   check("a person who isn't an administrator is refused the card, the knowledge and the settings, and the file stays",
     paReader.every((r) => said(r) === "Only an administrator sets up the public agent.") && knowledgeFile?.startsWith("# Opening hours") === true, paReader);
   check("the card's Turn off removes the Anthropic key, and the Turnstile secret key stays",
-    paOff.said === "The chat box is off. KNOWLEDGE.md and the Turnstile secret key stay." && paOff.key === null && paOff.secret === TURNSTILE, paOff);
+    paOff.said === "The chat box is off. KNOWLEDGE.md and the Turnstile keys stay." && paOff.key === null && paOff.secret === TURNSTILE, paOff);
   check("public_agent_setup_save and public_agent_off are app-only",
     paListed.length === 2 && paListed.every((t: any) => JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), paListed.map((t: any) => [t.name, t._meta]));
   check("the Turnstile secret key is in no answer the connector gave", !answersSeen.some((t) => t.includes(TURNSTILE)), answersSeen.filter((t) => t.includes(TURNSTILE)).map((t) => t.slice(0, 300)));

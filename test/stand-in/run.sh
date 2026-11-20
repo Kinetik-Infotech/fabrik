@@ -526,11 +526,12 @@ step_mail() {
 }
 
 # The public agent answers a visitor only from KNOWLEDGE.md, after Cloudflare's Turnstile check, within the daily cap in
-# tokens, and keeps no question. Anthropic, Cloudflare and Storage are answered by the test.
+# tokens, and keeps no question. fabrik chat-page builds its page in the brand, and the widget opens it from another
+# website. Anthropic, Cloudflare, Storage and Wrangler are answered by the test.
 step_public_agent() {
   echo "== public-agent"
   STAND_IN_DB="postgres://postgres@127.0.0.1:$PORT/$DB" "$DENO" run --quiet --no-lock \
-    --allow-net --allow-env --allow-read --allow-sys --allow-import "$HERE/public-agent.ts" || exit 1
+    --allow-net --allow-env --allow-read --allow-write --allow-run --allow-sys --allow-import "$HERE/public-agent.ts" || exit 1
 }
 
 psql -U supabase_admin -q -f "$HERE/supabase.sql" || exit 1
