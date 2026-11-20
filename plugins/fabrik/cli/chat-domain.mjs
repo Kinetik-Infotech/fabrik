@@ -7,7 +7,8 @@
 // domain. Cloudflare then makes the DNS record and certificate itself. It can't where the address already has a DNS
 // record, and fabrik then asks the owner to delete that record. fabrik never deletes one. On a domain whose DNS is
 // elsewhere, the address is a custom domain of the Pages project. fabrik prints the one CNAME record the owner adds at
-// the domain's provider, pointing at the pages.dev address. Either way fabrik waits until the address is
+// the domain's provider, pointing at the pages.dev address. A domain whose DNS another Cloudflare account runs is
+// refused, since Cloudflare deactivates the address there within minutes. Either way fabrik waits until the address is
 // ready, up to a limit. The choice is kept in ~/.config/fabrik/chat/<ref>.json, beside the pages' folder, once
 // Cloudflare holds the address, so a later run reuses it without asking. An address Cloudflare refuses isn't kept.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -166,6 +167,10 @@ export async function dnsAnswers(host, target, onCloudflare, lookups = dns) {
   if (cname.some(c => c.toLowerCase().replace(/\.$/, "") === target)) return true;
   return onCloudflare && (await lookups.resolve4(host).catch(() => [])).length > 0;
 }
+/** Whether Cloudflare runs a domain's DNS: each of its name servers is one of Cloudflare's. */
+const defaultOnCloudflare = domain => dns.resolveNs(domain)
+  .then(ns => ns.length > 0 && ns.every(n => n.toLowerCase().endsWith(".ns.cloudflare.com")), () => false);
+
 /** Whether https://<host>/ answers with a page, which takes its DNS record and a valid certificate. */
 const defaultReach = host => fetch(`https://${host}/`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) })
   .then(res => res.ok, () => false);
@@ -183,12 +188,12 @@ const notFinished = (host, tries, every, it) => {
  * value, if any. folder holds the built pages, and deploy(config, what) runs `wrangler deploy` on fabrik's sign-in.
  * Returns the https address the chat is at: the own domain's once it is ready, or the pages.dev one when the owner keeps
  * it. Throws with a plain message where the address can't be chosen. Throws a DomainNotReady where Cloudflare refuses
- * the address, or at the limit of tries × every milliseconds. pause(ms), resolve(host, target, onCloudflare), reach(host)
- * and isDomain(host) are seams for a test.
+ * the address, or at the limit of tries × every milliseconds. pause(ms), resolve(host, target, onCloudflare), reach(host),
+ * isDomain(host) and onCloudflare(domain) are seams for a test.
  */
 export async function ownDomain({ ref, project, pagesHost, accountId, token, given, folder, deploy }, {
   ask, say, home = homedir(), api = API, every = 10_000, tries = 90, pause = defaultPause, resolve = dnsAnswers,
-  reach = defaultReach, isDomain = defaultIsDomain,
+  reach = defaultReach, isDomain = defaultIsDomain, onCloudflare = defaultOnCloudflare,
 } = {}) {
   const cf = cloudflare(api, token);
   const zones = await listZones({ cf, accountId });
@@ -235,7 +240,7 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
       return refused(why);
     };
     const name = host.slice(0, -(zone.name.length + 1));
-    const record = `${host} already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named ${name} on Cloudflare's DNS page for ${zone.name}, https://dash.cloudflare.com/${accountId}/${zone.name}/dns/records. fabrik never deletes a DNS record itself.`;
+    const record = `${host} already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named ${name} on Cloudflare's DNS page for ${zone.name}, https://dash.cloudflare.com/${accountId}/${zone.name}/dns/records.`;
     if (released) {
       got = await cf(onPages, { method: "DELETE" });
       if (!got.ok) throw new DomainNotReady(`Cloudflare didn't take ${host} off your chat pages on Pages: ${said(got.errors)}`);
@@ -287,6 +292,10 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
   }
 
   const domain = await domainOf(host, zones, isDomain);
+  // Cloudflare keeps a Pages address only on the account that holds its domain. On a domain another Cloudflare account
+  // holds, the address goes active, then Cloudflare deactivates it within minutes and it answers 403.
+  if (zones.length && await onCloudflare(domain))
+    throw refused(`${domain}'s DNS is on another Cloudflare account. Cloudflare keeps the chat's address only on the account that holds its domain, so a chat at ${host} would stop answering within minutes. Choose a domain on this account, or move ${domain} to this account first.`);
   const wasActive = got.ok && got.result?.status === "active";
   if (!got.ok) {
     got = await cf(pages, { method: "POST", body: { name: host } });
