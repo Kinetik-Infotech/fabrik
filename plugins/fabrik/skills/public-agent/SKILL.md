@@ -1,11 +1,11 @@
 ---
 name: public-agent
-description: Use when the owner asks for a chat box on their website that answers visitors. Also use when they ask about the public agent, KNOWLEDGE.md, its keys, its daily cap or its model. Covers writing KNOWLEDGE.md with the owner, and the card where an administrator types the Anthropic API key and the Turnstile secret key. Covers the cap, and the script tag that puts the box on the website.
+description: Use when the owner asks for a chat box on their website that answers visitors. Also use when they ask about the public agent, its chat page, KNOWLEDGE.md, its keys, its daily cap or its model. Covers writing KNOWLEDGE.md with the owner, and putting up the chat page in the business's brand. Covers the card where an administrator types the Anthropic API key and the Turnstile keys. Covers the cap, and the line that puts the chat button on a website.
 ---
 
 # The public agent
 
-The public agent is a chat box on the owner's website. It answers visitors from one file, KNOWLEDGE.md, and from nothing else in fabrik. It never reads a record, a file or a search. A visitor can see anything in KNOWLEDGE.md, so only what the owner would put on their website goes in it.
+The public agent is a chat page in the business's brand, which Cloudflare Pages hosts, and a chat button that opens it from any website. It answers visitors from one file, KNOWLEDGE.md, and from nothing else in fabrik. It never reads a record, a file or a search. A visitor can see anything in KNOWLEDGE.md, so only what the owner would put on their website goes in it.
 
 fabrik's `public-agent` hosted function answers each question with Claude, through the business's own Anthropic API key. Cloudflare Turnstile checks each visitor is a person before Claude is called. fabrik keeps no question or answer, only each day's count of tokens.
 
@@ -22,15 +22,25 @@ When the connector has no `public_knowledge_get` tool, Claude connected to fabri
 
 The file is at most 100,000 characters. Every question sends the whole file to Claude, so a shorter file costs less.
 
-## 2. The keys, on the card
+## 2. The chat page
 
-The chat box needs two keys. Both go on the card, never in the chat. When the person pastes either into the chat, tell them to delete it where they made it and make a new one for the card.
+fabrik builds the chat page from the Brand record, with its logo, colours and fonts. With no Brand record it takes fabrik's own look. Cloudflare Pages hosts it, on the Cloudflare account fabrik's sign-in page uses.
 
-The card lists the steps for each key.
+1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
+2. It prints the page's address, such as `https://fabrik-chat-<ref>.pages.dev`, and the line for the website. Keep both for sections 3 and 5.
+3. It may ask which Cloudflare account to use, or say Cloudflare's sign-in didn't finish. Then ask the person to run the same command in a Terminal tab and answer there.
 
-1. Call `show_public_agent_setup`. The card says which keys are saved and whether KNOWLEDGE.md is, and gives the steps for each key.
+The page asks for the Turnstile site key each time it opens, so a new key needs no new page. When the Brand record changes, ask the owner whether to put the page up again in the new look. Once they approve, run the command again.
+
+## 3. The keys, on the card
+
+The chat box needs an Anthropic API key and two Turnstile keys. They go on the card, never in the chat. A secret key pasted into the chat is no longer secret. Tell the person to delete it where they made it, and make a new one for the card.
+
+1. Call `show_public_agent_setup` with `page` set to the chat page's address. The card says which keys are saved and whether KNOWLEDGE.md is. It gives the steps for each key, with the page's address as the Turnstile widget's hostname.
 2. When the person asks for help with a step, give that step again from these lists. On the Turnstile page, Add widget manually is the route. Set up with Spin hands the job to a coding agent and isn't used here.
 3. The person chooses Save. The card checks each key with Anthropic or Cloudflare before fabrik keeps it. End the turn.
+
+When the card has no site key box, or `public_agent_settings` gives no `turnstile_sitekey`, the project is behind the plugin. Bring it up to date with the `fabrik:update` skill first.
 
 The Anthropic API key, in more detail:
 
@@ -39,16 +49,16 @@ The Anthropic API key, in more detail:
 3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else, since the chat box runs on Supabase, not on this computer.
 4. Name the key fabrik website, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
 
-The Turnstile secret key, in more detail:
+The Turnstile keys, in more detail:
 
 1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
 2. Choose Add widget manually.
-3. For Widget name, type fabrik chat. Under Hostname management, type the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
-4. Choose Create. Cloudflare shows a site key and a secret key. The secret key goes on the card, and the site key goes in the line of code in section 4.
+3. For Widget name, type fabrik chat. Under Hostname management, type the chat page's address without `https://`, such as fabrik-chat-abc.pages.dev. The owner's own website needs no entry, since the chat runs on the chat page. For Widget mode, leave Managed.
+4. Choose Create. Cloudflare shows a site key and a secret key. Both go on the card.
 
-This key is apart from the connections key. Saving one never turns the other on.
+The Anthropic API key is apart from the connections key. Saving one never turns the other on.
 
-## 3. The cap and the model
+## 4. The cap and the model
 
 Call `public_agent_settings` to read them. It gives `model`, `daily_cap_tokens`, `today_tokens` and `address`.
 
@@ -58,20 +68,19 @@ Call `public_agent_settings` to read them. It gives `model`, `daily_cap_tokens`,
 
 Change either with `public_agent_settings_change`, once the owner approves the new value.
 
-## 4. The box on the website
+## 5. The chat on the website
 
-1. Copy `chat.js` from the fabrik plugin's `public-agent` folder into the session's folder, for the owner to put on their website beside its pages.
-2. Give the owner this tag, with `address` from `public_agent_settings` and the Turnstile site key:
+Give the owner the two things `chat-page` printed:
 
-   ```html
-   <div id="fabrik-chat"></div>
-   <script src="chat.js" data-address="ADDRESS" data-sitekey="SITE_KEY"></script>
-   ```
+- The page's address. They can link to it from their website, an email or a social profile.
+- The line for the website, `<script src="https://fabrik-chat-<ref>.pages.dev/widget.js" async></script>`. Pasted into a page, it draws a round button in the brand's colour in the bottom right corner, which opens the chat in a panel.
 
-3. The box appears where the `div` is.
+Some website builders, such as Wix and Squarespace on lower plans, refuse a pasted script. The page's address then works as a link instead.
 
-Then ask the owner to try two questions on the website: one KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second says the assistant doesn't know and suggests contacting the owner.
+Then ask the owner to try two questions: one KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second says the assistant doesn't know and suggests contacting the owner.
 
-## 5. Turning it off
+The owner may want the chat page at their own domain, such as chat.example.com. They add it to the Pages project fabrik-chat-<ref> in Cloudflare. The Turnstile widget then needs that hostname too.
 
-The card's Turn off removes the Anthropic API key, and the box then tells visitors it can't answer. KNOWLEDGE.md and the Turnstile secret key stay. To remove the box itself, the owner takes the tag off the website.
+## 6. Turning it off
+
+The card's Turn off removes the Anthropic API key, and the box then tells visitors it can't answer. KNOWLEDGE.md and the Turnstile keys stay. To remove the button, the owner takes the line off the website.

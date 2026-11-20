@@ -10,6 +10,7 @@
 //   node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
 //   node fabrik.mjs upgrade <signed upgrade file> [--project <ref> --email <email>]
 //   node fabrik.mjs update --check | --apply
+//   node fabrik.mjs chat-page [--project <ref> --email <email>]
 //   node fabrik.mjs import maxy <export folder> [--project <ref> --email <email>] [--labels <label map>]
 //   node fabrik.mjs [--project <ref> --email <email>] <name> [<argument>=<value> ...]
 //
@@ -33,7 +34,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "n
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { accountEmail, PROJECT_REF, UPLOAD_LIMIT } from "./lib/session.mjs";
+import { accountEmail, PROJECT_REF, readSession, UPLOAD_LIMIT } from "./lib/session.mjs";
 import { createTools as databaseTools, TOOLS as DATABASE_TOOLS } from "./lib/tools.mjs";
 import { createTools as pageTools, TOOLS as PAGE_TOOLS } from "./lib/pages.mjs";
 import { readBrand } from "./lib/brand.mjs";
@@ -42,6 +43,8 @@ import { setup, SETUP_USAGE } from "./setup.mjs";
 import { update, UPDATE_USAGE } from "./update.mjs";
 import { connectorSettings, CONNECTOR_SETTINGS_USAGE } from "./connector-settings.mjs";
 import { importMaxy, reportLines, LABEL_MAP, REPORT_FILE } from "./lib/import-maxy.mjs";
+import { chatPage } from "./chat-page.mjs";
+import { askLine } from "./management.mjs";
 
 export const USAGE = `Usage: node fabrik.mjs setup [--folder <folder>] --email <email> [--url <project URL> --key <publishable key>] [--agent <plugin>:<agent>] [--new-password]
        node fabrik.mjs setup --owner [--folder <folder>]
@@ -50,6 +53,7 @@ export const USAGE = `Usage: node fabrik.mjs setup [--folder <folder>] --email <
        node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
        node fabrik.mjs upgrade <signed upgrade file> [--project <ref> --email <email>]
        node fabrik.mjs import maxy <export folder> [--project <ref> --email <email>] [--labels <label map>]
+       node fabrik.mjs chat-page [--project <ref> --email <email>]
        node fabrik.mjs [--project <ref> --email <email>] <name> [<argument>=<value> ...]
 
 setup sets up a folder for one person in their fabrik: the folder, ~/fabrik unless --folder
@@ -70,6 +74,10 @@ import maxy loads a maxy-code account, as scripts/maxy-export.mjs wrote it to a 
 its owner: each node a record in General, each relationship a link, each file into General's bucket, and a draft of the
 public agent's KNOWLEDGE.md. It writes import-report.json in the folder, and exits 1 when something was left out for a
 reason other than a label the import skips or a link with a missing end. Run again, it loads nothing twice.
+
+chat-page builds the website chat page in your brand, from the Brand record. It puts the page up on Cloudflare Pages,
+with the Cloudflare sign-in fabrik's sign-in page uses. It prints the page's address and the line that puts the chat button on
+any website.
 
 upgrade applies one signed upgrade to your fabrik, as you, when you are an administrator. The file is the request
 scripts/sign-upgrade.mjs writes. fabrik-upgrade applies it only when fabrik's upgrade key signed it, in order.
@@ -294,6 +302,29 @@ export async function updateCommand(argv, cwd = process.cwd(), home = homedir(),
   return update(argv, cwd, call, { say });
 }
 
+/** fabrik chat-page: the chat page built in the brand and put up, as the signed-in person. Returns { ok, site, widget }
+ * or { ok: false, problem }. */
+export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(), say = () => {}, ask = askLine) {
+  const options = {};
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--project" || argv[i] === "--email") {
+      if (argv[i + 1] === undefined) return { ok: false, problem: `${argv[i]} needs a value.` };
+      options[argv[i].slice(2)] = argv[++i];
+    } else return { ok: false, problem: `${argv[i]} is not an option. ${USAGE}` };
+  }
+  if ((options.project === undefined) !== (options.email === undefined)) return { ok: false, problem: "--project and --email go together." };
+  const who = account(options.project, options.email, home, cwd);
+  const { url } = readSession(who.ref, who.email);
+  const database = databaseTools({ ref: who.ref, email: who.email, agentFolder: cwd, defaultSchema: SCHEMA });
+  const readBrandHere = () => readBrand(async (fn, callArgs) => {
+    const out = JSON.parse((await database.callTool("rpc", { function: fn, schema: SCHEMA, args: callArgs })).content[0].text);
+    if (!out.ok) throw new Error(out.problem);
+    return out.result;
+  });
+  const { site, widget } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere }, { ask, say, home });
+  return { ok: true, site, widget };
+}
+
 /** fabrik import maxy <folder>: the import, as the signed-in owner. Returns { ok, report } or { ok: false, problem }. */
 export async function importCommand(argv, cwd = process.cwd(), home = homedir(), log = () => {}) {
   const options = {}, words = [];
@@ -348,6 +379,12 @@ if (process.argv[1] && real(fileURLToPath(import.meta.url)) === real(resolve(pro
       process.stdout.write(`${reportLines(out.report).join("\n")}\nThe report is in ${join(out.report.folder, REPORT_FILE)}.\n`);
       if (!out.report.ok) process.exitCode = 1;
     }
+  } else if (process.argv[2] === "chat-page") {
+    let out;
+    try { out = await chatPageCommand(process.argv.slice(3), process.cwd(), homedir(), line => process.stdout.write(`${line}\n`)); }
+    catch (err) { out = { ok: false, problem: err instanceof Error ? err.message : String(err) }; }
+    if (out.ok === false) { process.stderr.write(`${out.problem}\n`); process.exitCode = 1; }
+    else process.stdout.write(`Your chat page: ${out.site}\nTo put the chat button on a website, paste this line into its pages:\n${out.widget}\n`);
   } else if (process.argv[2] === "update") {
     let out;
     // --apply is run by the person in a Terminal tab, so it speaks in lines; --check answers the assistant in JSON.

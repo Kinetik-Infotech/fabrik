@@ -12,6 +12,7 @@
     <p class="fk-sub">The chat box on your website answers visitors from KNOWLEDGE.md alone. Anthropic charges your business's API key for each answer. Type the keys here, not in the chat.</p>
     <p id="pa-state"></p>
     <p id="pa-turnstile"></p>
+    <p id="pa-sitekey"></p>
     <p id="pa-knowledge"></p>
     <form class="pa-form" id="pa-form" autocomplete="off">
       <h3>Anthropic API key</h3>
@@ -23,13 +24,15 @@
       </ol>
       <label>Paste the Anthropic API key here
         <input id="pa-key" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
-      <h3>Turnstile secret key</h3>
+      <h3>Turnstile keys</h3>
       <ol>
         <li>Open dash.cloudflare.com/?to=/:account/turnstile and sign in. A free Cloudflare account is enough.</li>
         <li>Choose Add widget manually, not Set up with Spin.</li>
-        <li>For Widget name type fabrik chat. Under Hostname management add your website's address without https://, such as example.com. Leave Widget mode at Managed.</li>
-        <li>Choose Create, and copy the secret key. Keep the site key too: it goes in the line of code for your website.</li>
+        <li>For Widget name type fabrik chat. Under Hostname management add <span id="pa-host">your chat page's address, which Claude gave you, without https://</span>. Leave Widget mode at Managed.</li>
+        <li>Choose Create. Cloudflare shows a site key and a secret key. Copy each into its box below.</li>
       </ol>
+      <label>Paste the Turnstile site key here
+        <input id="pa-sitekey-in" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <label>Paste the Turnstile secret key here
         <input id="pa-secret" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
       <div class="pa-buttons">
@@ -41,31 +44,33 @@
   </div>
 </div>
 <script>
-// The public agent card: it shows whether the chat box has its Anthropic API key, its Turnstile secret key and its
-// KNOWLEDGE.md, from show_public_agent_setup's result. Save calls public_agent_setup_save with whichever keys are typed,
-// each kept only once Anthropic or Cloudflare takes it. Turn off calls public_agent_off, which removes the Anthropic
+// The public agent card: it shows whether the chat box has its Anthropic API key, its Turnstile secret key and site key,
+// and its KNOWLEDGE.md, from show_public_agent_setup's result. Save calls public_agent_setup_save with whichever keys
+// are typed, each kept only once Anthropic or Cloudflare takes it. Turn off calls public_agent_off, which removes the Anthropic
 // API key. Both send the pass from the result's _meta, which the model never sees.
 var SAID = {}, PASS = "";
-function showState(key, turnstile, knowledge) {
+function showState(key, turnstile, sitekey, knowledge) {
   $("pa-state").textContent = SAID[key] || "";
   $("pa-turnstile").textContent = turnstile === "set" ? "The Turnstile secret key is saved." : turnstile === "missing" ? "The Turnstile secret key isn't saved yet." : "";
+  $("pa-sitekey").textContent = sitekey === "set" ? "The Turnstile site key is saved." : sitekey === "missing" ? "The Turnstile site key isn't saved yet." : "";
   if (knowledge !== undefined) $("pa-knowledge").textContent = knowledge === true ? "KNOWLEDGE.md is saved." : knowledge === false ? "KNOWLEDGE.md isn't saved yet. Ask Claude to write it with you." : "";
   $("pa-off").hidden = key === "missing";
 }
 function say(text, refused) { var p = $("pa-said"); p.className = refused ? "fk-refused" : ""; p.textContent = text; }
 function busy(on) { $("pa-save").disabled = on; $("pa-off").disabled = on; }
-var KEY = "missing", TURNSTILE = "missing";
+var KEY = "missing", TURNSTILE = "missing", SITEKEY = "missing";
 
 $("pa-form").addEventListener("submit", function (e) {
   e.preventDefault();
   busy(true);
   say("Checking…", false);
-  card.call("public_agent_setup_save", { key: $("pa-key").value, secret: $("pa-secret").value, pass: PASS }).then(function (r) {
+  card.call("public_agent_setup_save", { key: $("pa-key").value, secret: $("pa-secret").value, sitekey: $("pa-sitekey-in").value, pass: PASS }).then(function (r) {
     if (r && !r.isError) {
       var kept = (r.structuredContent && r.structuredContent.kept) || [];
       if (kept.indexOf("key") >= 0) { KEY = "available"; $("pa-key").value = ""; }
       if (kept.indexOf("turnstile") >= 0) { TURNSTILE = "set"; $("pa-secret").value = ""; }
-      showState(KEY, TURNSTILE);
+      if (kept.indexOf("sitekey") >= 0) { SITEKEY = "set"; $("pa-sitekey-in").value = ""; }
+      showState(KEY, TURNSTILE, SITEKEY);
       say("Saved. Tell Claude the keys are saved.", false);
     } else say("Not kept: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not kept: " + (e && e.message || e), true); }).then(function () { busy(false); });
@@ -73,12 +78,13 @@ $("pa-form").addEventListener("submit", function (e) {
 $("pa-off").addEventListener("click", function () {
   busy(true);
   card.call("public_agent_off", { pass: PASS }).then(function (r) {
-    if (r && !r.isError) { KEY = "missing"; showState(KEY, TURNSTILE); say("The chat box is off. KNOWLEDGE.md and the Turnstile secret key stay.", false); }
+    if (r && !r.isError) { KEY = "missing"; showState(KEY, TURNSTILE, SITEKEY); say("The chat box is off. KNOWLEDGE.md and the Turnstile keys stay.", false); }
     else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });
 onResult(function (given, meta) {
-  SAID = given.said || {}; PASS = meta.pass || ""; KEY = given.key; TURNSTILE = given.turnstile;
-  showState(given.key, given.turnstile, given.knowledge);
+  SAID = given.said || {}; PASS = meta.pass || ""; KEY = given.key; TURNSTILE = given.turnstile; SITEKEY = given.sitekey;
+  if (given.page_host) $("pa-host").textContent = given.page_host;
+  showState(given.key, given.turnstile, given.sitekey, given.knowledge);
 });
 </script>

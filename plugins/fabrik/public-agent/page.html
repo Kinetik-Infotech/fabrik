@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- fabrik's chat page. fabrik chat-page fills in its title, style, logo, name and the public-agent function's address
+     from the Brand record and the project, writes it as index.html beside chat.js and widget.js, and Cloudflare Pages
+     hosts the three. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>{{TITLE}}</title>
+<style>
+{{STYLE}}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; color: var(--ink); background: var(--paper);
+  font: 16px/1.5 var(--body-font); -webkit-font-smoothing: antialiased; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 2px solid var(--accent); }
+header img { height: 36px; width: auto; max-width: 160px; object-fit: contain; }
+header h1 { margin: 0; font: 600 20px/1.2 var(--heading-font); }
+main { flex: 1; min-height: 0; display: flex; padding: 16px 20px 20px; }
+main .fabrik-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+main .fabrik-chat ol { flex: 1; min-height: 0; overflow-y: auto; align-content: start; gap: 10px; padding: 2px; }
+main .fabrik-chat li { max-width: 85%; padding: 10px 14px; border-radius: 14px; }
+main .fabrik-chat li.q { background: var(--accent); color: var(--on-accent); }
+main .fabrik-chat li.a { background: var(--card); border: 1px solid var(--rule); color: var(--ink); padding-left: 40px; }
+main .fabrik-chat li.a::before { left: 10px; top: 10px; }
+main .fabrik-chat li.problem { color: var(--refused); }
+main .fabrik-chat form { flex-wrap: nowrap; gap: 8px; }
+main .fabrik-chat input[type=text] { padding: 12px 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); color: var(--ink); }
+main .fabrik-chat input[type=text]:focus-visible { outline: 3px solid var(--accent); outline-offset: 0; }
+main .fabrik-chat button { padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+main .fabrik-chat button:disabled { opacity: 0.55; cursor: default; }
+main .fabrik-chat button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+@media (max-width: 480px) { header { padding: 10px 16px; } main { padding: 12px 16px 16px; } }
+</style>
+</head>
+<body>
+<header>{{LOGO}}<h1>{{NAME}}</h1></header>
+<main><div id="fabrik-chat"></div></main>
+<script src="chat.js" data-address="{{ADDRESS}}"></script>
+</body>
+</html>
