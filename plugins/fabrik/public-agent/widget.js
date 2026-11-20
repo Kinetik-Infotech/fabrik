@@ -1,20 +1,23 @@
 // fabrik's chat button for any website. One line puts it on a page:
 //
-//   <script src="https://<chat page>/widget.js" async></script>
+//   <script src="https://<chat page>/widget.js" data-agent="chat" async></script>
 //
-// It draws a round button in the bottom right corner, in the brand's accent colour. The button opens the chat page,
-// from the same address as this file, in a panel of 380 by 600 pixels, and closes it again. Under 480 pixels wide the
-// panel fills the screen. The chat page runs in an iframe, so the website's styles can't change it, and Turnstile checks
-// the chat page's own hostname. The panel is made at the first open and kept, so closing it keeps the conversation.
+// It draws a round button in the bottom right corner, in the brand's accent colour. The button opens the chat page of
+// the agent data-agent names in a panel of 380 by 600 pixels, and closes it again. The page is at the same address as
+// this file. With no data-agent, as on a line from before there were many agents, it opens the agent chat, or the list
+// of agents where there is no agent chat.
 //
-// fabrik chat-page writes the brand's accent and the colour on it into data-accent and data-on-accent below. A data-accent
-// on the script tag takes their place.
+// Under 480 pixels wide the panel fills the screen. The chat page runs in an iframe, so the website's styles can't
+// change it, and Turnstile checks the chat page's own hostname. The panel is made at the first open and kept, so closing it keeps the conversation.
+//
+// fabrik chat-page writes the brand's accent and the colour on it into data-accent and data-on-accent below, and the
+// agent a line with no data-agent opens into data-agent. A data-accent on the script tag takes the colours' place.
 (function () {
   "use strict";
   var script = document.currentScript;
   if (!script || !script.src || window.fabrikChatWidget) return;
   window.fabrikChatWidget = true;
-  var built = { "data-accent": "{{ACCENT}}", "data-on-accent": "{{ON_ACCENT}}" };
+  var built = { "data-accent": "{{ACCENT}}", "data-on-accent": "{{ON_ACCENT}}", "data-agent": "{{AGENT}}" };
   var COLOUR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   // The text colour that reads best on a colour, near black or white, as fabrik chat-page's onColour works it out.
   function onColour(hex) {
@@ -28,7 +31,10 @@
   var given = script.getAttribute("data-accent");
   var accent = given && COLOUR.test(given) ? given : built["data-accent"];
   var onAccent = given && COLOUR.test(given) ? onColour(given) : built["data-on-accent"];
-  var page = new URL(".", script.src).href;
+  var SLUG = /^[a-z0-9-]{1,40}$/;
+  var named = script.getAttribute("data-agent");
+  var agent = named && SLUG.test(named) ? named : built["data-agent"];
+  var page = new URL(agent && SLUG.test(agent) ? agent + "/" : ".", script.src).href;
 
   var CHAT = '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';
   var CLOSE = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>';

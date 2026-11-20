@@ -75,9 +75,9 @@ its owner: each node a record in General, each relationship a link, each file in
 public agent's KNOWLEDGE.md. It writes import-report.json in the folder, and exits 1 when something was left out for a
 reason other than a label the import skips or a link with a missing end. Run again, it loads nothing twice.
 
-chat-page builds the website chat page in your brand, from the Brand record. It puts the page up on Cloudflare Pages,
-with the Cloudflare sign-in fabrik's sign-in page uses. It prints the page's address and the line that puts the chat button on
-any website.
+chat-page builds a chat page for each public agent in your brand, from the Brand record, and a page that lists them. It
+puts the pages up on Cloudflare Pages, with the Cloudflare sign-in fabrik's sign-in page uses. It prints each agent's page
+and the line that puts its chat button on any website. Run it again after you add or remove an agent.
 
 upgrade applies one signed upgrade to your fabrik, as you, when you are an administrator. The file is the request
 scripts/sign-upgrade.mjs writes. fabrik-upgrade applies it only when fabrik's upgrade key signed it, in order.
@@ -302,7 +302,7 @@ export async function updateCommand(argv, cwd = process.cwd(), home = homedir(),
   return update(argv, cwd, call, { say });
 }
 
-/** fabrik chat-page: the chat page built in the brand and put up, as the signed-in person. Returns { ok, site, widget }
+/** fabrik chat-page: the chat pages built in the brand and put up, as the signed-in person. Returns { ok, site, agents }
  * or { ok: false, problem }. */
 export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(), say = () => {}, ask = askLine) {
   const options = {};
@@ -321,8 +321,17 @@ export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(
     if (!out.ok) throw new Error(out.problem);
     return out.result;
   }, { strict: true, wait: 30_000 });
-  const { site, widget } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere }, { ask, say, home });
-  return { ok: true, site, widget };
+  // public-agent's own answer to an administrator's action, or its refusal as an error.
+  const agentAction = async body => {
+    const out = JSON.parse((await database.callTool("call_function", { name: "public-agent", body })).content[0].text);
+    const got = out.ok ? out.result : out.body ?? { ok: false, problem: out.problem };
+    if (!got?.ok) throw new Error(got?.problem ?? "public-agent gave nothing back.");
+    return got;
+  };
+  const { site, agents } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere,
+    readAgents: async () => (await agentAction({ action: "agents_list" })).agents,
+    savePage: page => agentAction({ action: "settings", page }) }, { ask, say, home });
+  return { ok: true, site, agents };
 }
 
 /** fabrik import maxy <folder>: the import, as the signed-in owner. Returns { ok, report } or { ok: false, problem }. */
@@ -384,7 +393,7 @@ if (process.argv[1] && real(fileURLToPath(import.meta.url)) === real(resolve(pro
     try { out = await chatPageCommand(process.argv.slice(3), process.cwd(), homedir(), line => process.stdout.write(`${line}\n`)); }
     catch (err) { out = { ok: false, problem: err instanceof Error ? err.message : String(err) }; }
     if (out.ok === false) { process.stderr.write(`${out.problem}\n`); process.exitCode = 1; }
-    else process.stdout.write(`Your chat page: ${out.site}\nTo put the chat button on a website, paste this line into its pages:\n${out.widget}\n`);
+    else process.stdout.write(`Your chat pages: ${out.site}\n${out.agents.map(a => `\n${a.name}: ${a.page}\nTo put its chat button on a website, paste this line into its pages:\n${a.widget}\n`).join("")}`);
   } else if (process.argv[2] === "update") {
     let out;
     // --apply is run by the person in a Terminal tab, so it speaks in lines; --check answers the assistant in JSON.
