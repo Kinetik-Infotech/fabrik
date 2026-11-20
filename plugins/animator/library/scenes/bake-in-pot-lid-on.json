@@ -1,0 +1,84 @@
+{
+ "id": "s9",
+ "title": "Bake with the lid on",
+ "dur": 10,
+ "clock": [
+  [
+   0,
+   555
+  ],
+  [
+   1.6,
+   555
+  ],
+  [
+   9,
+   575
+  ]
+ ],
+ "vo": "Put the lid back on, and slide the pot into the oven. Bake for 20 minutes with the lid on.",
+ "voUS": "Put the lid back on, and slide the pot into the oven. Bake for 20 minutes with the lid on.",
+ "cap": [
+  [
+   0,
+   "Lid back on. Bake for 20 minutes at 250 °C (230 °C fan)."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Lid back on. Bake for 20 minutes at 480 °F (445 °F convection)."
+  ]
+ ],
+ "svg": "<rect x=\"500\" y=\"170\" width=\"600\" height=\"520\" rx=\"12\" class=\"f-w ln\"/>\n<line x1=\"500\" y1=\"230\" x2=\"1100\" y2=\"230\" class=\"ln\"/>\n<circle cx=\"550\" cy=\"200\" r=\"12\" class=\"ln\"/><circle cx=\"600\" cy=\"200\" r=\"12\" class=\"ln\"/>\n<rect x=\"540\" y=\"260\" width=\"520\" height=\"390\" rx=\"8\" class=\"f-s lt\"/>\n\n<rect x=\"620\" y=\"470\" width=\"360\" height=\"140\" class=\"f-w\"/>\n<rect x=\"580\" y=\"485\" width=\"20\" height=\"14\" class=\"f-g ln\"/><rect x=\"1000\" y=\"485\" width=\"20\" height=\"14\" class=\"f-g ln\"/>\n<rect x=\"600\" y=\"470\" width=\"20\" height=\"160\" class=\"f-g ln\"/><rect x=\"980\" y=\"470\" width=\"20\" height=\"160\" class=\"f-g ln\"/><rect x=\"600\" y=\"610\" width=\"400\" height=\"20\" class=\"f-g ln\"/>\n<line x1=\"560\" y1=\"632\" x2=\"1040\" y2=\"632\" class=\"lt\"/>\n<g id=\"s9-dg\" data-o=\"b\"><path d=\"M650 608 C650 520 950 520 950 608 Z\" class=\"f-d ln\"/><path d=\"M765 562 Q800 552 835 562\" class=\"ln\"/></g>\n<g id=\"s9-ld\"><path d=\"M590 470 Q800 420 1010 470 Z\" class=\"f-g ln\"/><rect x=\"785\" y=\"432\" width=\"30\" height=\"16\" rx=\"4\" class=\"f-i\"/></g>\n<text id=\"s9-m\" class=\"t-mono\" x=\"160\" y=\"330\">20 min</text>\n<g id=\"s9-c\" class=\"chip\"><rect/><text x=\"174\" y=\"400\">LID ON</text></g>\n<text id=\"s9-t\" class=\"t-mono\" x=\"1140\" y=\"330\" data-us=\"480 °F\">250 °C</text>\n<text id=\"s9-f\" class=\"t-sm\" x=\"1140\" y=\"375\" data-us=\"445 °F CONVECTION\">230 °C FAN</text>",
+ "tw": [
+  [
+   "s9-ld",
+   0.4,
+   1.4,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -60,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s9-m",
+   1.6
+  ],
+  [
+   "fadeUp",
+   "s9-c",
+   2
+  ],
+  [
+   "fadeUp",
+   "s9-t",
+   2.4
+  ],
+  [
+   "fadeUp",
+   "s9-f",
+   2.8
+  ],
+  [
+   "s9-dg",
+   2,
+   8.6,
+   {
+    "sy": [
+     1,
+     1.18
+    ]
+   }
+  ]
+ ],
+ "uses": []
+}

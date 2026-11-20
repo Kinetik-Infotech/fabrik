@@ -1,0 +1,261 @@
+{
+ "id": "s6",
+ "title": "A quiet spell",
+ "dur": 12,
+ "clock": [
+  [
+   0,
+   3428
+  ],
+  [
+   0.8,
+   3428
+  ],
+  [
+   11.6,
+   4860
+  ]
+ ],
+ "vo": "Over the next day it may rise quickly, then go flat and quiet for a day or two. That's normal. Keep going.",
+ "voUS": "Over the next day it may rise quickly, then go flat and quiet for a day or two. That's normal. Keep going.",
+ "cap": [
+  [
+   0,
+   "It may rise quickly, then go flat and quiet for a day or two."
+  ],
+  [
+   6.4,
+   "That is normal. Keep going."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "It may rise quickly, then go flat and quiet for a day or two."
+  ],
+  [
+   6.4,
+   "That is normal. Keep going."
+  ]
+ ],
+ "svg": "<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-s\"/>\n<circle id=\"s6-sn\" cx=\"240\" cy=\"360\" r=\"30\" class=\"f-sun\"/>\n<rect id=\"s6-nt\" x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-g\"/>\n<g id=\"s6-stars\" class=\"f-w\"><circle cx=\"210\" cy=\"230\" r=\"2.5\"/><circle cx=\"260\" cy=\"300\" r=\"2\"/><circle cx=\"350\" cy=\"240\" r=\"2\"/><circle cx=\"220\" cy=\"390\" r=\"2\"/><circle cx=\"355\" cy=\"380\" r=\"2.5\"/></g>\n<circle id=\"s6-mn\" cx=\"320\" cy=\"270\" r=\"22\" class=\"f-w\"/>\n<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"ln\"/>\n<line x1=\"280\" y1=\"200\" x2=\"280\" y2=\"420\" class=\"ln\"/>\n<line x1=\"180\" y1=\"310\" x2=\"380\" y2=\"310\" class=\"ln\"/>\n<text id=\"s6-h\" class=\"t-mono\" x=\"280\" y=\"480\" text-anchor=\"middle\">24 h</text>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300 Z\" class=\"f-w\"/>\n<rect id=\"s6-fill\" data-o=\"b\" x=\"648\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s6-u0\" cx=\"675\" cy=\"420\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s6-u1\" cx=\"710\" cy=\"380\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s6-u2\" cx=\"762\" cy=\"400\" r=\"8\" class=\"f-w lt\"/>\n<circle id=\"s6-u3\" cx=\"800\" cy=\"372\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s6-u4\" cx=\"690\" cy=\"520\" r=\"6\" class=\"f-w lt\"/>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300\" class=\"ln\"/>\n<line x1=\"620\" y1=\"477\" x2=\"860\" y2=\"477\" class=\"dash\"/>\n<text class=\"t-sm\" x=\"880\" y=\"484\">FED</text>\n<g id=\"s6-c1\" class=\"chip light\"><rect/><text x=\"1000\" y=\"330\">RISES, THEN GOES FLAT?</text></g>\n<g id=\"s6-c2\" class=\"chip\"><rect/><text x=\"1000\" y=\"400\">KEEP FEEDING</text></g>",
+ "tw": [
+  [
+   "s6-fill",
+   0.8,
+   4,
+   {
+    "sy": [
+     0.45,
+     0.78
+    ]
+   }
+  ],
+  [
+   "s6-fill",
+   5,
+   9,
+   {
+    "sy": [
+     0.78,
+     0.47
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s6-h",
+   1
+  ],
+  [
+   "pop",
+   "s6-u0",
+   1.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s6-u1",
+   2.1,
+   0.6
+  ],
+  [
+   "pop",
+   "s6-u2",
+   2.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s6-u3",
+   3.1,
+   0.6
+  ],
+  [
+   "pop",
+   "s6-u4",
+   3.6,
+   0.6
+  ],
+  [
+   "s6-u0",
+   5.6,
+   6.4,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-u1",
+   6,
+   6.8,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-u3",
+   6.4,
+   7.2,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-u2",
+   6.2,
+   7,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s6-c1",
+   4.4
+  ],
+  [
+   "fadeUp",
+   "s6-c2",
+   8.4
+  ],
+  [
+   "s6-nt",
+   5.4,
+   6.6000000000000005,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s6-nt",
+   8.6,
+   9.799999999999999,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-stars",
+   5.800000000000001,
+   6.6000000000000005,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s6-stars",
+   8.6,
+   9.4,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-mn",
+   5.800000000000001,
+   6.800000000000001,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     20,
+     0
+    ]
+   }
+  ],
+  [
+   "s6-mn",
+   8.6,
+   9.6,
+   {
+    "o": [
+     1,
+     0
+    ],
+    "y": [
+     0,
+     -20
+    ]
+   }
+  ],
+  [
+   "s6-sn",
+   5.4,
+   6.4,
+   {
+    "o": [
+     1,
+     0
+    ],
+    "y": [
+     0,
+     40
+    ]
+   }
+  ],
+  [
+   "s6-sn",
+   9.0,
+   10.2,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     40,
+     0
+    ]
+   },
+   "o"
+  ]
+ ],
+ "uses": []
+}

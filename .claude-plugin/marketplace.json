@@ -26,19 +26,12 @@
     {
       "name": "animator",
       "description": "Turns a recipe request into an animated, narrated recipe video you can cook along to, with a printable recipe card. It's the plugin behind animated.recipes.",
-      "source": {
-        "source": "git-subdir",
-        "url": "Kinetik-Infotech/kinetik-marketplace",
-        "path": "plugins/animator"
-      }
+      "source": "./plugins/animator"
     },
     {
       "name": "trip-agent",
       "description": "A trip planner that works like a travel agent across the desk. It learns your taste from pairs of hotel photos, then suggests countries, hotels and flights one at a time. It's the plugin behind tripagent.me.",
-      "source": {
-        "source": "github",
-        "repo": "Kinetik-Infotech/trip-agent-marketplace"
-      }
+      "source": "./plugins/trip-agent"
     }
   ]
 }

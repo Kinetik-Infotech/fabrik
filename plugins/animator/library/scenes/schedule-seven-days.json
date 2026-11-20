@@ -1,0 +1,85 @@
+{
+ "id": "s17",
+ "title": "The schedule",
+ "dur": 14,
+ "clock": null,
+ "vo": "So the schedule is: mix on day one, feed on day two, and keep 50 grams and feed on day three. On day four, switch to white flour and feed twice a day. By about day seven it doubles within 4 to 6 hours, and it's ready to bake with.",
+ "voUS": "So the schedule is: mix on day one, feed on day two, and keep three and a half tablespoons and feed on day three. On day four, switch to white flour and feed twice a day. By about day seven it doubles within 4 to 6 hours, and it's ready to bake with.",
+ "cap": [
+  [
+   0,
+   "Mix on day 1, feed on day 2, keep 50 g and feed on day 3."
+  ],
+  [
+   6.4,
+   "White flour twice a day from day 4. Ready at about day 7."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Mix on day 1, feed on day 2, keep 3½ tbsp and feed on day 3."
+  ],
+  [
+   6.4,
+   "White flour twice a day from day 4. Ready at about day 7."
+  ]
+ ],
+ "svg": "<line id=\"s17-ln\" data-o=\"l\" x1=\"200\" y1=\"430\" x2=\"1400\" y2=\"430\" class=\"ln\"/>\n<g id=\"s17-p0\"><circle cx=\"200\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"200\" y=\"395\" text-anchor=\"middle\">DAY 1</text><text class=\"t-sm\" x=\"200\" y=\"475\" text-anchor=\"middle\">MIX</text></g>\n<g id=\"s17-p1\"><circle cx=\"400\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"400\" y=\"395\" text-anchor=\"middle\">DAY 2</text><text class=\"t-sm\" x=\"400\" y=\"475\" text-anchor=\"middle\">FEED</text></g>\n<g id=\"s17-p2\"><circle cx=\"600\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"600\" y=\"395\" text-anchor=\"middle\">DAY 3</text><text class=\"t-sm\" x=\"600\" y=\"475\" text-anchor=\"middle\">KEEP + FEED</text></g>\n<g id=\"s17-p3\"><circle cx=\"800\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"800\" y=\"395\" text-anchor=\"middle\">DAY 4</text><text class=\"t-sm\" x=\"800\" y=\"475\" text-anchor=\"middle\">WHITE FLOUR</text></g>\n<g id=\"s17-p4\"><circle cx=\"1000\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1000\" y=\"395\" text-anchor=\"middle\">DAY 5</text><text class=\"t-sm\" x=\"1000\" y=\"475\" text-anchor=\"middle\">× 2 A DAY</text></g>\n<g id=\"s17-p5\"><circle cx=\"1200\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1200\" y=\"395\" text-anchor=\"middle\">DAY 6</text><text class=\"t-sm\" x=\"1200\" y=\"475\" text-anchor=\"middle\">× 2 A DAY</text></g>\n<g id=\"s17-p6\"><circle cx=\"1400\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1400\" y=\"395\" text-anchor=\"middle\">DAY 7</text><text class=\"t-sm\" x=\"1400\" y=\"475\" text-anchor=\"middle\">READY</text></g>\n<g id=\"s17-ti\"><text class=\"t-disp2\" x=\"800\" y=\"620\" text-anchor=\"middle\">ONE JAR · ABOUT A WEEK</text><text class=\"t-sm\" x=\"800\" y=\"670\" text-anchor=\"middle\" data-us=\"KEEP ABOUT 5 oz · FEED WEEKLY IN THE FRIDGE\">KEEP ABOUT 150 g · FEED WEEKLY IN THE FRIDGE</text></g>",
+ "tw": [
+  [
+   "s17-ln",
+   0.4,
+   2.8,
+   {
+    "sx": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "pop",
+   "s17-p0",
+   1.0
+  ],
+  [
+   "pop",
+   "s17-p1",
+   1.6
+  ],
+  [
+   "pop",
+   "s17-p2",
+   2.2
+  ],
+  [
+   "pop",
+   "s17-p3",
+   2.8
+  ],
+  [
+   "pop",
+   "s17-p4",
+   3.4
+  ],
+  [
+   "pop",
+   "s17-p5",
+   4.0
+  ],
+  [
+   "pop",
+   "s17-p6",
+   4.6
+  ],
+  [
+   "fadeUp",
+   "s17-ti",
+   6,
+   1.2
+  ]
+ ],
+ "uses": [],
+ "kit": "back"
+}

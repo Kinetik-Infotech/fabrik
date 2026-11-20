@@ -1,0 +1,94 @@
+{
+ "id": "s6",
+ "title": "Or prove in the fridge",
+ "dur": 13,
+ "clock": null,
+ "vo": "Or, for more flavour, cover the bowl and put it in the fridge for 8 to 16 hours. Bake it straight from the fridge.",
+ "voUS": "Or, for more flavour, cover the bowl and put it in the fridge for 8 to 16 hours. Bake it straight from the fridge.",
+ "cap": [
+  [
+   0,
+   "For more flavour, cover the bowl and put it in the fridge for 8 to 16 hours."
+  ],
+  [
+   7.6,
+   "Bake it straight from the fridge."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "For more flavour, cover the bowl and put it in the fridge for 8 to 16 hours."
+  ],
+  [
+   7.6,
+   "Bake it straight from the fridge."
+  ]
+ ],
+ "svg": "<rect x=\"1000\" y=\"150\" width=\"340\" height=\"560\" rx=\"10\" class=\"f-s ln\"/>\n<rect x=\"1020\" y=\"170\" width=\"300\" height=\"520\" class=\"f-w lt\"/>\n<line x1=\"1020\" y1=\"360\" x2=\"1320\" y2=\"360\" class=\"lt\"/>\n<line x1=\"1020\" y1=\"560\" x2=\"1320\" y2=\"560\" class=\"lt\"/>\n<g id=\"s6-bw\">\n  <path d=\"M330 470 Q330 640 490 640 Q650 640 650 470 Z\" class=\"f-w\"/>\n  <path d=\"M342 470 Q342 626 490 626 Q638 626 638 470 Z\" class=\"f-s2 lt\"/>\n  <path d=\"M372 520 Q372 612 490 612 Q608 612 608 520 Q490 500 372 520 Z\" class=\"f-d ln\"/>\n  <path d=\"M330 470 Q330 640 490 640 Q650 640 650 470\" class=\"ln\"/>\n  <line x1=\"318\" y1=\"470\" x2=\"662\" y2=\"470\" class=\"ln\"/>\n  <rect x=\"318\" y=\"450\" width=\"344\" height=\"20\" rx=\"6\" class=\"f-s ln\"/>\n</g>\n<g id=\"s6-door\" data-o=\"r\">\n  <rect x=\"1000\" y=\"150\" width=\"340\" height=\"560\" rx=\"10\" class=\"f-s2 ln\"/>\n  <rect x=\"1030\" y=\"330\" width=\"14\" height=\"120\" rx=\"7\" class=\"f-i\"/>\n</g>\n<g id=\"s6-c1\" class=\"chip\"><rect/><text x=\"244\" y=\"300\" data-us=\"8–16 H IN THE FRIDGE\">8–16 H IN THE FRIDGE</text></g>\n<g id=\"s6-c2\" class=\"chip light\"><rect/><text x=\"244\" y=\"370\">BAKE STRAIGHT FROM COLD</text></g>",
+ "tw": [
+  [
+   "s6-bw",
+   0.4,
+   1.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s6-door",
+   1.6,
+   1.8,
+   {
+    "sx": [
+     1,
+     0.05
+    ]
+   }
+  ],
+  [
+   "s6-bw",
+   2.4,
+   4.6,
+   {
+    "x": [
+     0,
+     680
+    ],
+    "y": [
+     0,
+     -80
+    ],
+    "s": [
+     1,
+     0.52
+    ]
+   }
+  ],
+  [
+   "s6-door",
+   4.8,
+   6,
+   {
+    "sx": [
+     0.05,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s6-c1",
+   2.4
+  ],
+  [
+   "fadeUp",
+   "s6-c2",
+   7.6
+  ]
+ ],
+ "uses": []
+}

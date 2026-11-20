@@ -1,0 +1,97 @@
+{
+ "id": "s11",
+ "title": "Cool",
+ "dur": 12,
+ "clock": [
+  [
+   0,
+   605
+  ],
+  [
+   3,
+   606
+  ],
+  [
+   11,
+   665
+  ]
+ ],
+ "vo": "With oven gloves, lift the loaf out by the paper, and peel the paper away. Let it cool on a wire rack for at least an hour before you cut it.",
+ "voUS": "With oven gloves, lift the loaf out by the paper, and peel the paper away. Let it cool on a wire rack for at least an hour before you cut it.",
+ "cap": [
+  [
+   0,
+   "Lift the loaf out by the paper and peel the paper away."
+  ],
+  [
+   5.4,
+   "Cool on a wire rack for at least an hour before cutting."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Lift the loaf out by the paper and peel the paper away."
+  ],
+  [
+   5.4,
+   "Cool on a wire rack for at least an hour before cutting."
+  ]
+ ],
+ "svg": "<line x1=\"420\" y1=\"600\" x2=\"1180\" y2=\"600\" class=\"ln\"/>\n<line x1=\"420\" y1=\"612\" x2=\"1180\" y2=\"612\" class=\"lt\"/>\n<line x1=\"460\" y1=\"600\" x2=\"460\" y2=\"612\" class=\"lt\"/>\n<line x1=\"500\" y1=\"600\" x2=\"500\" y2=\"612\" class=\"lt\"/>\n<line x1=\"540\" y1=\"600\" x2=\"540\" y2=\"612\" class=\"lt\"/>\n<line x1=\"580\" y1=\"600\" x2=\"580\" y2=\"612\" class=\"lt\"/>\n<line x1=\"620\" y1=\"600\" x2=\"620\" y2=\"612\" class=\"lt\"/>\n<line x1=\"660\" y1=\"600\" x2=\"660\" y2=\"612\" class=\"lt\"/>\n<line x1=\"700\" y1=\"600\" x2=\"700\" y2=\"612\" class=\"lt\"/>\n<line x1=\"740\" y1=\"600\" x2=\"740\" y2=\"612\" class=\"lt\"/>\n<line x1=\"780\" y1=\"600\" x2=\"780\" y2=\"612\" class=\"lt\"/>\n<line x1=\"820\" y1=\"600\" x2=\"820\" y2=\"612\" class=\"lt\"/>\n<line x1=\"860\" y1=\"600\" x2=\"860\" y2=\"612\" class=\"lt\"/>\n<line x1=\"900\" y1=\"600\" x2=\"900\" y2=\"612\" class=\"lt\"/>\n<line x1=\"940\" y1=\"600\" x2=\"940\" y2=\"612\" class=\"lt\"/>\n<line x1=\"980\" y1=\"600\" x2=\"980\" y2=\"612\" class=\"lt\"/>\n<line x1=\"1020\" y1=\"600\" x2=\"1020\" y2=\"612\" class=\"lt\"/>\n<line x1=\"1060\" y1=\"600\" x2=\"1060\" y2=\"612\" class=\"lt\"/>\n<line x1=\"1100\" y1=\"600\" x2=\"1100\" y2=\"612\" class=\"lt\"/>\n<line x1=\"1140\" y1=\"600\" x2=\"1140\" y2=\"612\" class=\"lt\"/>\n<line x1=\"450\" y1=\"612\" x2=\"450\" y2=\"650\" class=\"ln\"/>\n<line x1=\"1150\" y1=\"612\" x2=\"1150\" y2=\"650\" class=\"ln\"/>\n<g id=\"s11-lf\"><path d=\"M570 598 C570 440 1030 440 1030 598 Z\" class=\"f-b ln\"/><path d=\"M730 508 Q800 490 870 508\" class=\"ln\"/></g>\n<g id=\"s11-st\"><path d=\"M700 430 Q680 400 700 370 Q720 340 700 310\" class=\"lt\"/><path d=\"M800 410 Q780 380 800 350 Q820 320 800 290\" class=\"lt\"/><path d=\"M900 430 Q880 400 900 370 Q920 340 900 310\" class=\"lt\"/></g>\n<text id=\"s11-h\" class=\"t-mono\" x=\"290\" y=\"440\" text-anchor=\"middle\">1 h+</text>\n<text id=\"s11-b\" class=\"t-sm\" x=\"290\" y=\"485\" text-anchor=\"middle\">BEFORE CUTTING</text>",
+ "tw": [
+  [
+   "s11-lf",
+   0.6,
+   2,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -140,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "s11-st",
+   2.4,
+   4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s11-h",
+   5.4
+  ],
+  [
+   "fadeUp",
+   "s11-b",
+   5.8
+  ],
+  [
+   "s11-st",
+   8,
+   11,
+   {
+    "o": [
+     1,
+     0
+    ],
+    "y": [
+     0,
+     -30
+    ]
+   }
+  ]
+ ],
+ "uses": []
+}
