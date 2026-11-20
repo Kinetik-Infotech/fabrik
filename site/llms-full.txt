@@ -1,0 +1,734 @@
+# fabrik: the full text
+
+> The README and every guide for fabrik, a free, open-source Claude plugin that keeps a person's or a business's knowledge in a Supabase project they own. The summary is https://fabrik.tech/llms.txt.
+
+# fabrik
+
+**Everything an AI assistant promises. Nothing it shouldn't keep.**
+
+fabrik helps you run your life or business just like Grok Bot, Muse, Dots, Instinct or Duet. But all your valuable data remains under your sole control. It's free and open source.
+
+Most assistants keep your data on their makers' servers, for those companies to use and profit from. With fabrik you own it, control it and can take it anywhere.
+
+## What it does for you
+
+- **Memory.** Tell Claude about a person, meeting or decision once, and fabrik stores it. Ask for it months later, in your own words.
+- **Updates.** Ask what's new on LinkedIn or any site you're signed in to, and get the short version, with people you know picked out.
+- **Email.** Find that message from your accountant while you're out, and reply to it. fabrik reads your mail, and sends only what you approve.
+- **Content.** Posts, proposals and replies that sound like you, because they're drafted from what you've already written.
+- **Planning.** Tell Claude what you're working on and what's holding things up, and Claude lists what you can get on with next.
+- **Networking.** Before a call, ask who someone is and get everything you've noted about them.
+- **Research.** Claude reads the sources for you, and fabrik stores the ones the answer came from.
+- **Files.** Ask a question, and search finds the answer in your files by their words and meaning. With connections on, it also finds a file through the people and companies it names.
+- **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
+- **Analysis.** Prices, products or options weighed up across sites, with evidence.
+- **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
+- **Chatbot.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
+- **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
+- **Look.** The Claude desktop and mobile apps show fabrik's colours in every session: cream in light mode, navy in dark mode, and an amber accent.
+
+## Cards
+
+Claude shows your records, lists, boards and graphs as cards you can work with, as an app would. You make each decision in one click, as in the apps you already know. A business's cards and printed pages take its own brand.
+
+## Your routines
+
+Say "Let's get started" and Claude asks whether fabrik is for a business, your own life, or both. For a business, it reads the website for its profile and brand. It asks what you want from each routine, such as triaging your email or creating invoices. For one of them, it writes down how it runs today, and which applications must stay. Then it designs a better way with the connectors and plugins you have or could add. Once you approve the design, Claude follows it whenever it does that work for you.
+
+## What comes with it
+
+fabrik ships three plugins for Claude, on top of Claude's own connectors and plugins.
+
+| Plugin | What it does |
+|---|---|
+| fabrik | Tools and skills for your knowledge base: records, files and search, boards, graphs, printed PDFs, code and workbooks, projects, the glossary, and bringing in your LinkedIn, Notion, Obsidian, Substack and X exports. |
+| cloudflare | Deploys a folder from your computer as a website on Cloudflare Pages, with its form handlers. It adds your own domain and manages its DNS records. |
+| humanizer | Writing rules and checks, so what Claude writes for you reads as a person wrote it. |
+
+## With Claude's own features
+
+fabrik's connector makes your records available to everything else Claude does. Which of these you have depends on your Claude plan and what you turn on.
+
+- **Artifacts.** Spreadsheets, documents, slide decks, designs and dashboards, made from your records.
+- **Connectors.** Gmail, Google Calendar, Google Drive, Slack, Notion and the rest of Claude's directory, used alongside fabrik.
+- **Plugins and skills.** Anything in Claude's plugin directory, or your organisation's own.
+- **Claude in Chrome and computer use.** Claude works on sites you're signed in to, and in apps on your computer.
+- **Code.** Analysis, files and whole applications.
+
+## How it works
+
+**Supabase** is a service that hosts databases. fabrik stores all your data in a Supabase project you own: your records and their history, your files and the search index. The project also hosts the functions that run fabrik, including the connector Claude communicates with. You decide who sees your data, and you can export it or move it whenever you like.
+
+**Cloudflare** is a service that hosts websites. Claude puts your websites, forms and apps live on your own Cloudflare account, under your own web address. Cloudflare also hosts the page where you sign in to fabrik.
+
+**Claude** helps you think, create and get things done. It works in every app you connect, using the data fabrik stores.
+
+## Setting fabrik up
+
+Follow [Set up fabrik](https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR). You need a Claude plan, the Claude desktop app on a Mac, Windows or Linux computer, and free Supabase and Cloudflare accounts. Setup runs on macOS 15 or later, and on Windows 10 version 1809 or later. Setup takes about fifteen minutes. The page also explains the three sign-ins setup uses.
+
+## Updating fabrik
+
+Setup leaves a copy of fabrik's code in `~/fabrik-code`. Keep it: running setup again from it is how your project gets fabrik's newest version. In a Terminal tab, run:
+
+```sh
+cd ~/fabrik-code && git pull --ff-only
+node plugins/fabrik/cli/fabrik.mjs setup --owner
+claude plugin update fabrik@fabrik
+```
+
+The first two lines update what runs in your Supabase project. The last updates the fabrik plugin on this computer. The guide [Running setup again, and upgrades](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/13-setup-and-upgrades.md) gives each step.
+
+## Guides
+
+Each guide covers one thing fabrik does. In any Claude app, ask Claude how to do something, and it answers from the same guides.
+
+- [What fabrik is](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/01-what-fabrik-is.md)
+- [fabrik in each Claude app](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/02-claude-apps.md)
+- [Adding other connectors in Claude](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/03-other-connectors.md)
+- [Records and scopes](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/04-records-and-scopes.md)
+- [Files and search](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/05-files-and-search.md)
+- [Projects and tasks](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/06-projects-and-tasks.md)
+- [Contacts and groups](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/07-contacts-and-groups.md)
+- [Routines and their design](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/08-routines.md)
+- [Importing from other apps](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/09-importing.md)
+- [Reading email](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/10-email.md)
+- [Drawing boards and graphs, and printing](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/11-drawing-and-printing.md)
+- [Claude in Chrome and the built-in browser](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/12-browsers.md)
+- [Running setup again, and upgrades](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/13-setup-and-upgrades.md)
+- [A forgotten password](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/14-forgotten-password.md)
+- [Costs and limits](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/15-costs-and-limits.md)
+- [Getting help](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/16-getting-help.md)
+- [Chat on your website](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/17-website-chat.md)
+
+## Forgotten your fabrik password
+
+Your Supabase account has full access to your project, so you can always set a new fabrik password from it:
+
+1. Open your project in the [Supabase dashboard](https://supabase.com/dashboard), then **Authentication**, then **Users**.
+2. Choose your own user, and **Send password recovery**.
+3. Open the email's link. Your sign-in page opens with a field for a new password.
+
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/01-what-fabrik-is.md
+
+# What fabrik is
+
+fabrik is a knowledge base for one person, and the routines Claude follows to do your work. You describe how you do a piece of work, and Claude writes it down as a routine. When you ask for that work, Claude does it by the routine. It uses the connectors and plugins you have, such as your email, calendar or accounts.
+
+fabrik stores your routines, records and files in a Supabase project you own. Claude reads and changes them through fabrik's connector, as you, in the Claude desktop app, at claude.ai and in the Claude phone app.
+
+## What it does
+
+- **Your work, by your routines.** Claude finds the routine for the work you ask for, and names the version it follows. It does each step with the connector or plugin the step names. A step that is yours stays yours. See the routines guide.
+- **Records.** Notes, decisions, evidence, plans, tasks and models, each kept with every earlier version. See the records guide.
+- **Files and search.** PDFs, documents, spreadsheets and notes, found by their words and their meaning together with your records. See the files guide.
+- **Projects and tasks.** Work with several steps, planned, tracked and drawn as a board.
+- **Contacts and groups.** The people and organisations you deal with, and lists of them.
+- **Routines.** How you do a piece of work today, written down, and a better way designed with the connectors and plugins you have or could add.
+- **Imports.** Your LinkedIn, Notion, Obsidian, Substack and X exports, brought into fabrik.
+- **Email.** A mailbox you set up in fabrik, for a provider with no Claude connector. Claude reads and searches it, and drafts, sends and moves to Trash only what you approve.
+- **Drawing and printing.** Boards, graphs and PDFs made from what fabrik holds.
+- **Your writing voice.** Writing you mark as your own, so Claude drafts in your voice.
+
+## How it acts
+
+Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Nothing in fabrik runs unattended: Claude acts only while you are in a session, on what you asked for in it.
+
+## What it is made of
+
+Supabase hosts your database, your files and the functions that run fabrik, including the connector. Cloudflare hosts the page where you sign in. Claude is how you use it, through the connector in every app, and through the fabrik plugin in a Code session in the desktop app.
+
+Ask Claude "What can fabrik do?" for this guide, or name any other topic to read its guide.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/02-claude-apps.md
+
+# fabrik in each Claude app
+
+You add fabrik's connector once, in Claude's settings, and it then works in every Claude app signed in to the same Claude account.
+
+## The connector
+
+Setup ends with the connector's address. In Claude, open **Settings**, then **Connectors**, and add a custom connector named `fabrik` at that address. Claude opens your sign-in page. Sign in with your fabrik email and password, then choose **Allow**.
+
+The connector gives Claude fabrik's tools: records, files and search, projects, tasks, contacts, routines, email and the cards that draw records, boards and graphs.
+
+## claude.ai and the phone app
+
+At claude.ai and in the Claude phone app, ask in a chat, such as "What did I note about the Harbour survey?". Claude calls fabrik's tools and shows you each change before saving it. If Claude does not use fabrik, turn the connector on for that chat in the chat's tools menu.
+
+The phone app uses the connectors you added at claude.ai or in the desktop app. You add a custom connector from a computer.
+
+## The desktop app
+
+The desktop app has the same chats. Its **Code** tab also runs Claude Code in a folder on your computer. Setup made a `fabrik` folder in your home folder, signed in as you. A Code session in that folder has fabrik's assistant and the fabrik plugin, which add:
+
+- uploading files from the folder, and saving files fabrik holds into it
+- drawing boards and graphs as pages, and printing PDFs
+- analysis, charts and live Excel workbooks
+- imports from LinkedIn, Notion, Obsidian, Substack and X
+- the routine skills, getting started and support
+
+## A change to the connector
+
+When fabrik's tools change, Claude keeps the tool list it read when you connected. In **Settings**, then **Connectors**, disconnect fabrik and connect it again to read the new list.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/03-other-connectors.md
+
+# Adding other connectors in Claude
+
+A connector links Claude to another service, such as Gmail, Google Calendar, Google Drive, Slack or Notion. Once you add one, Claude can use it in the same chat or session as fabrik. It reads from one and saves to the other, such as tomorrow's meetings saved as a note in fabrik.
+
+This guide was written for the Claude desktop app 5.11492.5 and claude.ai. Claude's settings can move between versions.
+
+## A connector from Claude's directory
+
+1. In Claude, open **Settings**, then **Connectors**.
+2. Choose **Browse connectors**, and find the service, such as Google Calendar.
+3. Choose **Connect**, and sign in to the service in the window that opens. The service asks you what Claude may read and change.
+
+A connector you add at claude.ai or in the desktop app also works in the phone app. Some connectors need a paid Claude plan, and the directory says which.
+
+## A custom connector
+
+A service that is not in the directory may publish its own connector address, as fabrik does. In **Settings**, then **Connectors**, choose **Add custom connector**, give it a name and the address, and sign in when Claude asks.
+
+## What Claude can do with each
+
+What Claude can do with a connector depends on that service's tools, which its entry in the directory lists. With fabrik beside it, Claude can:
+
+- read your calendar, and save a meeting's notes or its actions as records and tasks
+- find an email or a document, and keep it as a file in fabrik with its record
+- read a shared drive's files, and save a summary of each in fabrik
+- answer a question from the service and fabrik together, naming which said what
+
+fabrik's assistant acts in another service only while you are in the session, and only for something you asked for. Before anything that sends, pays, books or deletes, it says exactly what it will do and waits for you to approve that one step.
+
+## A connector in a Code session
+
+A Code session in the desktop app reads your connectors when it opens. After you add one, open a new session in your `fabrik` folder to use it there.
+
+When you ask Claude to design a better way to run a routine, it suggests connectors that would fit your business. See the routines guide.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/04-records-and-scopes.md
+
+# Records and scopes
+
+A record is one thing fabrik holds, such as a note, a decision or a task. A scope is a part of fabrik that holds records and files, such as General.
+
+## Records
+
+Each record has a kind:
+
+- **activity:** a plan or a task, with its state, dates and the person it is assigned to
+- **decision:** a question, the choices, what was decided and why
+- **evidence:** a fact, a note or a statement, with where it came from and when
+- **model:** a structure drawn as nodes and links, such as a routine or a contacts list
+
+Ask Claude to keep something, such as "Note that the boiler was serviced today", and it saves a record. Ask for it later in your own words, and Claude finds it by search or by its title.
+
+## Versions and history
+
+Every save is a new version. The earlier versions stay, each with who saved it, when and why. Ask "What changed in the Harbour survey record?" to read its history. A deleted record is marked deleted, and Claude can bring it back.
+
+## Links
+
+A record can link to others, such as a decision to the evidence that supports it, or a task to its plan. Ask Claude to link two records, and it saves the link as a new version of the first.
+
+## Scopes
+
+Setup makes three scopes:
+
+- **General:** your everyday records and files
+- **Reference:** the glossary of your words and the data dictionary of your record kinds
+- **Administration:** fabrik's own records, such as the setup record
+
+You can ask Claude to add a scope, such as one for a client, or to move records into it. You hold every grant as fabrik's administrator.
+
+## Seeing your records
+
+Ask Claude to show your records, and it opens the records card, a list you can filter by kind, scope and title. In a Code session, Claude can also draw a plan's board or a model's graph as a page.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/05-files-and-search.md
+
+# Files and search
+
+fabrik keeps files in each scope, and search finds them by what they say, with your records, in one question.
+
+## Uploading a file
+
+- **In a chat:** attach the file and ask Claude to keep it in fabrik. Claude sends its bytes through the connector, up to 6 MB.
+- **In a Code session:** put the file in your `fabrik` folder and ask Claude to upload it. Claude shows you the file and where it goes before uploading.
+
+Ask Claude to keep a file as a document, and it also saves a record about it. The record holds the file's summary and where it is kept.
+
+## What search reads
+
+fabrik reads the text of PDF, Word (.docx), Excel (.xlsx and .xls), OpenDocument spreadsheet (.ods), Markdown and plain text files, soon after each upload. Until then, search says the file is waiting. A scanned page with no text in it cannot be read this way.
+
+When you replace or delete a file before search has finished reading it, fabrik stops reading the old content. The same happens to a record's older version once a newer one is saved. If the old content comes back, fabrik reads the rest of it.
+
+## Searching
+
+Ask a question in your own words, such as "What did the surveyor say about the harbour wall?". Search matches the words and the meaning together, and ranks your records and files in one list. Each answer names the record or the file, and the page or section the passage came from. Ask Claude how it found an answer, and it draws the search's graph: the sentences that matched, and what they name.
+
+Search covers only what you may read, in every scope or in the one you name.
+
+## Connections in your files
+
+Connections are the links between the people, companies, orders and other things your files name. With connections on, fabrik reads who and what each new file mentions, and how they're linked. Each kind of thing comes from a list in your glossary, such as customer, supplier or order.
+
+A search then follows those links. Ask about a customer, and search also finds the invoice that names the customer's director, though the invoice never names the customer.
+
+Connections need your business's own Anthropic API key, and Anthropic charges that key for each part of a file it reads. Claude tells you how many parts are waiting before you turn connections on. See anthropic.com/pricing for the rates.
+
+Connections are worth it when many of your files are about the same customers, suppliers, people or orders. For a handful of files, or a one-off lookup, words and meaning are enough. Without connections, search still finds files by their words and their meaning.
+
+To turn connections on, ask Claude. Claude suggests the kinds of things for your glossary from your business profile, and saves each one you approve. Then it shows a card where an administrator types the key. The key goes from the card into your project's Vault, and never into the chat. The same card turns connections off.
+
+To make the key:
+
+1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
+2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
+3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else. fabrik's reader runs on Supabase, not on your computer.
+4. Name the key fabrik, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
+5. Paste it on the card and choose Save.
+
+## Saving a file to your computer
+
+In a Code session, ask Claude to save a file from fabrik into your folder.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/06-projects-and-tasks.md
+
+# Projects and tasks
+
+A project is work with several steps, such as a client job, a launch or a renovation. Each step is a task.
+
+## A project
+
+Say "Let's run a project on the kitchen renovation". Claude asks what done looks like and the date it is due. It saves the project with its tasks, and which tasks wait on others.
+
+## Tasks
+
+A task has a state: pending, in progress, paused, completed or cancelled. It can have a due date, a priority and the deliverables that finish it. A task can wait on others, and fabrik refuses to complete it before them.
+
+Ask "What can I do next?" for the tasks no other task holds up. Ask "What is due this week?" for your tasks by date. Tell Claude when a task is done, and it marks it completed.
+
+## The board
+
+Ask for the project's board. Claude shows its tasks in columns by state, with their dates and what is overdue. In a Code session it can also draw the board as a page in your folder.
+
+## Finishing
+
+Claude completes the project once its tasks are done, and lists any still open. Ask for a retrospective, and Claude writes down what went well and what to change.
+
+A task can also stand alone, outside any project, in General.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/07-contacts-and-groups.md
+
+# Contacts and groups
+
+A contact is a person or an organisation you deal with. A group is a list of contacts, such as a client's team or a board.
+
+## Contacts
+
+Ask Claude to save a contact, such as "Save Ann Lee, the harbour surveyor, ann@example.com". Claude finds a contact by email, telephone or name, and changes one as a new version. A deleted contact drops out of lists and lookups.
+
+Ask "What do I hold on Ann Lee?" for everything fabrik has on one contact: the contact, its groups and the records that mention it and the records it wrote.
+
+## Groups
+
+Ask Claude to make a group, and to add or remove contacts. Ask for a group's members to list them.
+
+## Bringing contacts in
+
+Your LinkedIn connections and Substack subscribers come in as contacts. See the importing guide.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/08-routines.md
+
+# Routines and their design
+
+A routine is a piece of work you do again and again, such as invoicing or planning the week's meals. It can be for your business or your own life. fabrik writes down how you do it today, helps you design a better way, and Claude follows the design you choose.
+
+These need a Code session in your `fabrik` folder, where fabrik's assistant has the routine skills.
+
+## Getting started
+
+Say "Let's get started". Claude first asks whether fabrik is for a business, your own life, or both. For a business, it reads your website and social media profiles, then asks about your objectives. For the objective you pick, it writes down how its routine runs today, and which applications must stay. Then it designs a better way, and once you approve it, Claude does that work by the new routine.
+
+At the end, Claude lists the objectives and routines still to do, and you can pick one up in any later session. You can stop after any step, and Claude carries on from what it saved.
+
+## Your business
+
+Claude first reads your business profile: what you sell, your industry, your size, your customers and the applications you use. With none, it asks for your website and social media profiles, and fills the profile and your brand from what they say. You correct anything it read wrong. Then it asks only for what the pages didn't say, one question at a time, and saves each answer.
+
+## Your objectives
+
+An objective is the outcome you want from one routine, such as "triage my email", "plan the family's meals each week", "automate creating invoices" or "create content for my social channels". Claude saves each one as a record of its own, marked personal or business, with how you'll know it's achieved. Each objective names its routine, and the routine's purpose statement names the objective.
+
+## Writing down a routine
+
+Say "Let's write down how I do my invoicing". Claude asks one question per reply, and saves each answer as evidence. For each application you use, it asks whether it must stay or could be replaced. Once you confirm the steps, it saves the routine as a model of how it runs today, and draws it.
+
+## Why it exists
+
+Ask "Why do I do this?" Claude asks why five times over, and writes a purpose statement: who it is for, the real problem and how you will measure success.
+
+## A better way
+
+Say "Design a better way". Claude questions each step against your business and what is usual in your industry. It takes stock of the connectors and plugins you have or could add. It keeps each application you said must stay. It saves the design as a model, with each step assigned to you, to code, to a connector or to Claude.
+
+## The routine in force
+
+Once you choose a design, it becomes the version in force. Whenever Claude does that work for you, it finds the version in force, names it, and follows its steps. A step assigned to you stays yours: Claude prepares it and leaves it for you.
+
+A design never makes anything run on its own. Each step that sends, pays, books or deletes waits for your approval in the session.
+
+## A printed guide to a routine
+
+Ask for the routine's standard operating procedure as a PDF, and Claude prints its steps from the version in force.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/09-importing.md
+
+# Importing from other apps
+
+fabrik brings in exports from LinkedIn, Notion, Obsidian, Substack and X. Imports run in a Code session in your `fabrik` folder.
+
+## Getting your export
+
+Download your data from each service, and put the export in your `fabrik` folder:
+
+- **LinkedIn:** your data archive, the Basic_LinkedInDataExport folder or zip
+- **Notion:** an export as Markdown and CSV, the Export zip
+- **Obsidian:** your vault's folder
+- **Substack:** your publication's export, with posts.csv
+- **X:** your archive, with tweets.js
+
+## What comes in
+
+- **LinkedIn:** your profile, your connections as contacts, and your own posts
+- **Notion:** pages as documents, and people, companies, projects and tasks from databases
+- **Obsidian:** each note as a document, and its wikilinks as links
+- **Substack:** each post as a document marked as your writing, and subscribers as contacts
+- **X:** your posts as one document for each month, marked as your writing
+
+Say "Import my LinkedIn export". Claude reads the export, tells you what it will save, and saves it once you agree.
+
+Writing marked as yours teaches Claude your voice, so it can draft in it.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/10-email.md
+
+# Email
+
+fabrik connects to a mailbox you set up in it, for a provider Claude has no connector for, such as StartMail or Namecheap Private Email. It reads mail over IMAP and sends over SMTP, the standard ways mail programs do. Claude reads and searches the inbox, Sent and Drafts. It writes drafts, sends, replies and moves messages to Trash, each only once you approve it.
+
+Gmail and Microsoft 365 have Claude connectors of their own. See the guide to adding other connectors.
+
+## Setting a mailbox up
+
+Ask Claude to set up a mailbox. It shows the mail setup card. On the card, type the mailbox's name, your username, the address your email is sent from and the password. Then type the IMAP server and port for reading, and the SMTP server and port for sending. For a provider fabrik knows, such as iCloud or StartMail, the card fills in the servers from your address. Leave the SMTP server empty for a mailbox Claude only reads and drafts in.
+
+You can also type a signature. Claude adds it under every email it writes.
+
+## An HTML signature
+
+A signature can be an HTML file, with your logo, links and fonts. Give Claude the file and ask it to use it as the mailbox's signature. Claude shows you the signature and sets it once you approve.
+
+Each email then goes out in two versions, and the reader's mail program shows one. The HTML version has your text in the signature's own font, with the HTML signature under it. The plain-text version has the typed signature, or the HTML signature's text when you typed none. A signature with a script in it is refused.
+
+The logo stays on your website. Many mail programs show it only once the reader allows pictures.
+
+fabrik signs in to both servers to check them, and keeps the password in your project's Vault, where only the mail tools read it.
+
+Many providers need an app password in place of your usual one. Make it in your provider's account settings.
+
+Type the password on the card, never in the chat.
+
+## Reading
+
+Ask "What came in from Ann this week?" or "Find the email about the tide tables". Claude reads the newest messages or searches them, then reads a message's text or a text attachment, such as a CSV or a calendar invite.
+
+Ask Claude to keep a message in fabrik, and it saves it as a record.
+
+Ask Claude to save an attachment, such as a PDF invoice. It tells you the file's name and where it will go in fabrik, and saves the file once you approve. fabrik then reads a PDF's text, so Claude can read it and find it when you search. A saved file can go out again as an attachment.
+
+## Writing and sending
+
+Ask "Email Ann the October invoice". Claude writes it as a draft in the mailbox's Drafts folder and tells you it's there. You can open it in your own mail program. It sends the draft once you approve. To send without a draft, ask Claude to send it straight away. A file you attach comes from fabrik, so Claude uploads a file from your computer to a scope first.
+
+Before Claude sends, replies or moves a message to Trash, it shows you the From address, every recipient, the subject, the text and each attachment. It goes ahead only once you approve. A sent email is filed in Sent. When Claude changes or sends a draft, the old draft goes to Trash too. A message moved to Trash stays there until you empty it.
+
+## Which account Claude sends from
+
+Your business profile names the email account each business sends from: a mailbox in fabrik, or a Claude connector such as Gmail. Claude reads it before every draft. When a connector is signed in to another address, or the profile names no account, Claude stops and asks you which account to use.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/11-drawing-and-printing.md
+
+# Drawing boards and graphs, and printing
+
+fabrik draws what it holds as cards in any Claude app, and as pages and PDFs in a Code session.
+
+## Cards in a chat
+
+- **Records card:** a list of your records, with filters for kind, scope and title
+- **Board card:** a plan's tasks in columns by state, or a model's nodes as cards
+- **Graph card:** a model's nodes and links, or a plan's tasks and what each waits on
+
+Ask "Show me the board for the kitchen renovation", and Claude opens the card in the chat.
+
+## Pages in a Code session
+
+In your `fabrik` folder, Claude draws a board or a graph as an HTML page, which opens in your browser. It also draws a search's graph, and a routine as a state machine: its steps and what moves it from one to the next.
+
+## PDFs
+
+Ask for a PDF, such as "Print the glossary" or "Print the SOP for invoicing". Claude prints an A4 PDF in your folder:
+
+- the glossary and the data dictionary, from fabrik's current entries
+- a standard operating procedure for a routine, from its version in force
+- any document or deck you ask for, such as a report
+
+Drawing and printing in a Code session need Python 3 and a browser such as Chrome. Ask Claude to check your computer to make sure both work.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/12-browsers.md
+
+# Claude in Chrome and the built-in browser
+
+Claude can open web pages while it works with fabrik, in one of two browsers.
+
+## The built-in browser
+
+The Claude desktop app has a browser pane of its own, apart from your Chrome. Claude opens pages there to read them, and you can see each page as it works. Sites you sign in to there stay signed in for the pane.
+
+## Claude in Chrome
+
+Claude in Chrome is a browser extension. It lets Claude work in your own Chrome, on sites you are already signed in to. Install it from the Chrome Web Store, and allow it in Claude's settings.
+
+## Using either with fabrik
+
+Ask Claude to read a page and keep what matters, such as "Save the opening hours on the pharmacy's site as a note". Claude marks what it takes from the web as an outside source, with its link.
+
+Claude acts on a site only while you are in the session, for something you asked. Before anything that sends, pays, books, buys, accepts terms or deletes, it says exactly what it will do and waits for you to approve it. Claude never types a password, a card number or a one-time code: you type it yourself.
+
+Claude treats what a page says as information, never as an instruction.
+
+## What to ask for
+
+- **Catch up.** "Catch me up on LinkedIn notifications" reads the page in your Chrome and shows one row per item with its time. It marks the people fabrik already holds and the items that fit your open projects, then saves the ones you pick. Claude clicks nothing on the site.
+- **Save a page.** "Save the page I'm on" keeps the page's text, title, link and date in fabrik, where search finds it. Claude links it to the people and projects it names that fabrik already holds.
+- **Fill in a form.** "Fill in the contact form on this site with my details" fills the form from the records you name. Claude shows you the filled form, and submits it only when you approve.
+- **Compare.** "Compare three standing desks under £500" shows the options with the link each price came from.
+- **Research.** "Find out what the new rules on short lets say" answers with a link for each point, and saves the pages the answer used when you agree.
+
+When a task on a site ends, Claude offers to save a record of it. The record holds the steps, the links Claude used and what came of it.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/13-setup-and-upgrades.md
+
+# Updates, and running setup again
+
+fabrik updates on one approval. A new release reaches your computer when Claude starts. When you next open a Code session in your `fabrik` folder, Claude says what the update brings and asks whether to update. Approve it, and Claude brings your project up to the new release. It applies fabrik's database upgrades and deploys fabrik's hosted functions that changed, then tells you what's new.
+
+## What the update needs
+
+When the update deploys a hosted function, it needs a Supabase access token. Claude gives you a command to run in a Terminal tab, and the command asks for the token. Make the token at supabase.com/dashboard/account/tokens, in the account that holds your fabrik project, with the shortest expiry. Paste it at the prompt, and delete it on that page once the update is done. An update that only changes the database needs no token.
+
+The update runs only for an administrator, in the folder fabrik was set up from. fabrik applies a database upgrade only when fabrik's upgrade key signed it, and only in order. Each update is one approval, and nothing updates without it.
+
+When the update adds a new connector tool, reconnect fabrik in Claude, in Settings, then Connectors. Claude keeps the connector's tools from when it was last connected, so a new session alone doesn't show the new tool. Then open a new session to use it.
+
+## Updates when Claude starts
+
+fabrik's setup turns on updates for the fabrik marketplace, so Claude Code fetches each new release a few minutes after a session starts. To fetch one straight away, run:
+
+```sh
+claude plugin marketplace update fabrik
+claude plugin update fabrik@fabrik
+```
+
+## Running setup again
+
+Running setup again is safe. It deploys each hosted function whose files changed, and puts your sign-in page up again when its files changed. Bring fabrik's code up to date, then run setup in a Terminal tab:
+
+```sh
+cd ~/fabrik-code && git pull --ff-only
+node plugins/fabrik/cli/fabrik.mjs setup --owner
+```
+
+Setup asks for a Supabase access token, which you make at supabase.com/dashboard/account/tokens. Choose the shortest expiry. If the page asks for resource access, choose **Organization**, pick the organization that holds your project, and keep the **Full access** preset. If setup stops, it says why. Put that right, and run the same command again: it carries on from the step where it stopped. Delete the token on the tokens page once setup is done.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/14-forgotten-password.md
+
+# A forgotten password
+
+Your Supabase account has full access to your project, so you can always set a new fabrik password from it.
+
+1. Open your project in the Supabase dashboard, at supabase.com/dashboard, then **Authentication**, then **Users**.
+2. Choose your own user, and **Send password recovery**.
+3. Open the email's link. Your sign-in page opens with a field for a new password.
+
+Then sign in again where fabrik asks: in Claude's connector, and in your `fabrik` folder with:
+
+```sh
+node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs sign-in --folder ~/fabrik --email <your email>
+```
+
+Never give a password to Claude in a chat. Claude never asks for one.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/15-costs-and-limits.md
+
+# Costs and limits
+
+fabrik itself is free and open source. You pay for the services it runs on, on your own accounts.
+
+## What each service charges
+
+- **Supabase** hosts your database, files and functions. fabrik runs on its Free plan. A paid plan raises the limits on storage, file size and use. See supabase.com/pricing.
+- **Cloudflare** hosts your sign-in page on Cloudflare Pages, which has a free plan. See cloudflare.com/plans.
+- **Claude** is your Claude plan. Some connectors and features, such as Claude Code, need a paid plan. See claude.com/pricing.
+- **Anthropic**, only if you turn connections on, so fabrik reads the people and things your files name. Anthropic charges your own API key for each part of a file it reads. See anthropic.com/pricing.
+
+## Limits
+
+- A file sent through the connector in a chat is at most 6 MB. A larger one goes in from a Code session.
+- Supabase's Free plan takes files up to 50 MB each, and limits the database's size and the project's storage.
+- Supabase pauses a Free plan project after a week with no activity. Restore it from the Supabase dashboard, and your data is kept.
+- Search reads a file's text soon after its upload, not at once. A large file takes longer.
+- A tool gives at most 100 records in one answer, and Claude asks for the next page when there are more.
+
+Supabase's dashboard shows your project's use, under **Usage** in your organisation's settings.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/16-getting-help.md
+
+# Getting help
+
+## How to do something
+
+Ask Claude, such as "How do I add my calendar?". Claude answers from these guides, through fabrik's `guide` tool in any app. Ask "What guides does fabrik have?" for the list.
+
+## When something goes wrong
+
+In a Code session in your `fabrik` folder, say "Something's broken", and what happened. Claude writes the problem down with you:
+
+- what you did, step by step
+- what you got, each message quoted as it came
+- when, and whether it happens every time
+
+Claude leaves out passwords, keys and tokens. It saves the problem as a task in General, assigned to you, so you can follow it. It then drafts an issue for fabrik's GitHub repository, which you read and file yourself, or discard.
+
+## Filing an issue yourself
+
+Open github.com/Kinetik-Infotech/fabrik/issues, choose **New issue**, and give the same three parts. Leave out any password, key or token, and any other person's details.
+
+## Problems you can fix yourself
+
+- **Claude does not use fabrik:** check the connector is on for the chat, in the chat's tools menu.
+- **A new tool is missing:** disconnect fabrik in **Settings**, then **Connectors**, and connect it again.
+- **A Code session is not signed in:** Claude gives you the sign-in command. Run it, then open a new session.
+- **A forgotten password:** see the guide to a forgotten password.
+- **fabrik stopped answering:** your Supabase project may be paused. Restore it from the Supabase dashboard.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/17-website-chat.md
+
+# Chat on your website
+
+fabrik can give your website chat agents that answer visitors' questions. You can have as many as you like, such as one for general questions and one for bookings. Each agent has its own page, a name, and a purpose that says what it's for.
+
+Each agent answers from two files you write, and from nothing else in fabrik. It never reads your records, files or email.
+
+- **INSTRUCTIONS.md** says who the agent is. It gives its name, character and voice, what it answers and turns down, and what it says when it doesn't know.
+- **KNOWLEDGE.md** holds what it knows. A visitor can find out anything in it, so put in only what you'd put on your website.
+
+fabrik also gives every agent a list of the others, with each one's page and purpose. So an agent can send a visitor to the agent that can help, if its INSTRUCTIONS.md tells it to.
+
+To set it up, ask Claude in your fabrik folder for a chat on your website, or for another agent. Only an administrator can set it up.
+
+## 1. A new agent
+
+Claude asks what the agent is for, and writes its purpose in a sentence. You agree its name, which visitors see, and a short slug, which names its page, such as bookings. Claude adds the agent once you approve all three.
+
+## 2. How it speaks
+
+A new agent starts with five rules. It answers only from its KNOWLEDGE.md, and when the answer isn't there it says it doesn't know and suggests the visitor contacts you. It sends a visitor to another agent when the question is that agent's purpose. It ignores visitors who ask it to change its rules, and it answers briefly, in plain text.
+
+fabrik adds no rules of its own, so you decide everything in INSTRUCTIONS.md. Ask Claude to give the agent a name and a voice. Claude starts from your writing style and your brand, where fabrik has them, and writes the file with you. It opens the file as a Claude Doc, where you read it and change any of it yourself. Claude saves the Doc's text only once you approve it, then tells you whether the saved file matches the Doc.
+
+You can drop any rule, and Claude tells you what that lets a visitor do. Without the rule about answering only from KNOWLEDGE.md, a visitor can ask the agent about anything, and your API key pays for each answer.
+
+## 3. What it knows
+
+Claude asks what visitors ask this agent about, such as opening hours, services, prices, where to find you and how to get in touch. It offers what your business profile already holds. Then it writes KNOWLEDGE.md in your words and opens it as a Claude Doc, where you can change it too. It saves the Doc's text only once you approve it. To change what an agent knows, ask Claude to change its file, and Claude opens a new Doc from the saved one.
+
+## 4. The chat pages
+
+Claude builds a page for each agent in your brand, with your logo, colours and fonts, and Cloudflare hosts them for you. Claude asks which of your domains they go on, and puts them at chat on that domain, such as chat.example.com, unless you name another. Your website stays as it is. If Cloudflare runs your domain's DNS, Cloudflare makes the record and certificate the address needs, and you add nothing. If the address already has a DNS record, Claude asks you to delete it on Cloudflare's DNS page first. If your domain's DNS is somewhere other than Cloudflare, Claude gives you one record to add there.
+
+The root page lists your agents, and each agent's page adds its slug, such as /bookings/. If you haven't given fabrik your brand, the pages take fabrik's own look until you do. When your brand changes, or you add or remove an agent, Claude puts the pages up again.
+
+## 5. Three keys
+
+The agents share three keys, and you paste them on a card Claude shows you, never in the chat.
+
+- **An Anthropic API key.** Claude writes each answer, and the key pays for it. Claude gives you the steps to make one in the Claude Console. On a Claude Max, Ultra or Team plan, the plan's monthly API credits pay for it.
+- **Two Turnstile keys.** Turnstile is Cloudflare's free check that a visitor is a person and not a program. Claude gives you the steps to add a Turnstile widget in your Cloudflare account, for your chat pages' address. Cloudflare then shows you a site key and a secret key.
+
+The card checks each key before fabrik keeps it. It also lists your agents, and says for each whether its files are saved.
+
+## 6. The chat on your website
+
+Claude gives you one line of code for each agent. Paste it into your website's pages, and a round chat button in your brand's colour appears in the bottom right corner. It opens that agent in a panel. You can also link to an agent's page from your website, an email or a social profile. Some website builders, such as Wix and Squarespace on lower plans, refuse pasted code, and the link works there instead.
+
+Then try two questions on each agent: one its KNOWLEDGE.md answers, and one it doesn't.
+
+## What it costs
+
+Each answer uses some of your Anthropic API credits. Each agent has a daily limit, so no agent can run up a bill. Once a day's answers reach it, that agent tells visitors it's resting until tomorrow. Every agent uses the same key, so the limits add up. Every question sends the agent's files to Claude, so shorter files let it answer more questions a day. Ask Claude to raise or lower a limit.
+
+## What visitors asked
+
+Every question an agent answers is kept in your own Supabase project, with the answer the visitor got. fabrik's makers never see them. A conversation is known only by a random number the chat page makes when it opens, and a reload starts a new one. Nothing that identifies a visitor is kept: no IP address, no cookie and no browser details. Under the chat box, the page says your business keeps the conversation.
+
+Ask Claude what visitors asked this week, or about one agent, and it lists the conversations with each one's first question. Ask to see a conversation and Claude shows it whole. When visitors keep asking something an agent can't answer, Claude offers to add the answer to its KNOWLEDGE.md.
+
+Conversations are kept until you delete them. Ask Claude to delete one conversation, or every conversation of an agent before a date. Claude shows you what goes and deletes it once you approve.
+
+Visitors may type a name or an email address into a question, and that is kept too. So say in your website's privacy notice that you keep the chat's questions and answers. Claude offers you a line to adapt the first time your chat goes up.
+
+## Removing an agent, or turning them all off
+
+Ask Claude to remove an agent. Its files and its conversations go, and Claude takes its page down. Take its line off your website too.
+
+Ask Claude to turn the chat off. It removes the Anthropic API key, and every agent then tells visitors it can't answer. To remove a button, take its line off your website.
