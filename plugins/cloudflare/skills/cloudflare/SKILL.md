@@ -6,7 +6,7 @@ description: Operate Cloudflare Pages and DNS through one fail-closed profile. U
 # Cloudflare
 
 This plugin does Pages and DNS only, through the `pages-dns` profile: account identity, zones, DNS
-and Pages, including writes. There is no token-creation tool, and nothing can delete anything.
+and Pages, including writes. There is no token-creation tool, and no tool can delete anything.
 `CLOUDFLARE_PROFILE` may be left unset or set to `pages-dns`; any other name stops the server.
 
 A tool absent from your session means the server did not start. `cf_whoami` shows whether the token
@@ -75,7 +75,7 @@ observable state and rollback instructions after every mutation.
 When a domain is added to a second Cloudflare account, Cloudflare scans its old records and copies them. A CNAME that pointed at a `pages.dev` or `workers.dev` address comes back as proxied A and AAAA records holding Cloudflare's own addresses. Every site on it then answers 403, since its Pages project or Worker stays on the old account.
 
 1. Put each Pages project and Worker up again on the account that now holds the domain. A Worker's database is exported from the old account and loaded into a new one, and the Worker's settings name the new account and database.
-2. Add each address to its new Pages project as a custom domain. A Worker's custom domain makes its own record.
+2. Add each address to its new Pages project as a custom domain. For a Worker's address, delete the copied A and AAAA records first, then add the Worker's custom domain, which makes its own record.
 3. For each Pages address, delete the copied A and AAAA records and add one proxied CNAME to the new project's `pages.dev` address. The custom domain page in the dashboard shows that address.
 4. Fetch each address and check it serves the right page.
 
@@ -86,8 +86,10 @@ A Pages project's custom domain must be on the same account as the domain. A pro
 These tools can't delete a record. A sign-in made with Wrangler can't change DNS records at all. In both cases, do the step in the person's Cloudflare dashboard with Claude in Chrome, where they're already signed in:
 
 - Open `https://dash.cloudflare.com/<account id>/<domain>/dns/records`.
-- Say which records go and which come, and do it once the person approves. Leave mail records, such as MX and TXT, as they are.
+- Say which records go and which come, and do it once the person approves. Change only the records of the addresses being moved, and leave every other record as it is.
 - Read the records back on the same page, then fetch each address.
+
+Without Claude in Chrome, give the person that page's address and the records to delete and add. Fetch each address once they say it's done.
 
 ## Scope
 
