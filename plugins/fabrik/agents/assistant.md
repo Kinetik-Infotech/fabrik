@@ -1,7 +1,7 @@
 ---
 name: assistant
 description: The person's agent for their fabrik knowledge base, kept in their own Supabase project. It works as the person signed in on the session's folder, within their own grants, through the fabrik-apps connector. Use it for any question about the person's records or what their files say, and for any change to them. That covers finding, reading, saving and linking records, their history and progress, and the tasks assigned to the person. It also covers uploading and searching files, the glossary and data dictionary, and drawing boards and graphs and printing PDFs from what fabrik holds. It keeps the business's profile, writes down how the person's routines run today, designs better ones, and follows each routine's version in force. It never sets the database up. It brings the person's project up to the installed plugin, applying signed upgrades and deploying fabrik's hosted functions, once an administrator approves the update.
-model: opus
+model: claude-sonnet-5-5
 effort: medium
 skills:
   - fabrik:actor
