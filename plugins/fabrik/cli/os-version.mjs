@@ -28,13 +28,15 @@ export function osMismatch(platform = process.platform, read = () => readVersion
     let version;
     try { version = String(read() ?? "").trim(); } catch { version = ""; }
     const major = version.split(".")[0];
-    if (!/^\d+$/.test(major)) return "fabrik setup could not read this Mac's macOS version with sw_vers.";
+    if (!/^\d+$/.test(major)) return `fabrik setup could not read this Mac's macOS version with sw_vers. Check that this Mac runs macOS ${MIN_MACOS} or later, then run fabrik setup again.`;
     if (Number(major) < MIN_MACOS) return `This Mac runs macOS ${version}. Update to macOS ${MIN_MACOS} or later, then run fabrik setup again.`;
     return null;
   }
   if (platform === "win32") {
-    const build = Number(String(read() ?? "").trim().split(".")[2]);
-    if (build < MIN_WINDOWS_BUILD) return `This computer runs Windows build ${build}. Update to Windows 10 version 1809 or later, then run fabrik setup again.`;
+    let build;
+    try { build = String(read() ?? "").trim().split(".")[2] ?? ""; } catch { build = ""; }
+    if (!/^\d+$/.test(build)) return "fabrik setup could not read this computer's Windows build. Check that it runs Windows 10 version 1809 or later, then run fabrik setup again.";
+    if (Number(build) < MIN_WINDOWS_BUILD) return `This computer runs Windows build ${build}. Update to Windows 10 version 1809 or later, then run fabrik setup again.`;
   }
   return null;
 }

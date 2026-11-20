@@ -132,16 +132,21 @@ test("setup on another Node version with a mistyped option gives the usage first
   assert.doesNotMatch(ran.err, /Node is not version/);
 });
 
+const MAC_UNREAD = "fabrik setup could not read this Mac's macOS version with sw_vers. Check that this Mac runs macOS 15 or later, then run fabrik setup again.";
+const WINDOWS_UNREAD = "fabrik setup could not read this computer's Windows build. Check that it runs Windows 10 version 1809 or later, then run fabrik setup again.";
+
 test("setup stops on macOS before 15, and on a macOS version it cannot read", () => {
   assert.equal(osMismatch("darwin", () => "14.7.1\n"), "This Mac runs macOS 14.7.1. Update to macOS 15 or later, then run fabrik setup again.");
-  for (const version of ["", "beta", "15beta.1"]) assert.equal(osMismatch("darwin", () => version), "fabrik setup could not read this Mac's macOS version with sw_vers.", version);
-  assert.equal(osMismatch("darwin", () => { throw new Error("no sw_vers"); }), "fabrik setup could not read this Mac's macOS version with sw_vers.");
+  for (const version of ["", "beta", "15beta.1"]) assert.equal(osMismatch("darwin", () => version), MAC_UNREAD, version);
+  assert.equal(osMismatch("darwin", () => { throw new Error("no sw_vers"); }), MAC_UNREAD);
   for (const version of ["15.0", "26.6.2"]) assert.equal(osMismatch("darwin", () => version), null, version);
 });
 
 test("setup stops on Windows before build 17763, Windows 10 version 1809, and checks no Linux", () => {
   assert.equal(osMismatch("win32", () => "10.0.17134"), "This computer runs Windows build 17134. Update to Windows 10 version 1809 or later, then run fabrik setup again.");
   assert.equal(osMismatch("win32", () => "10.0.17763"), null);
+  for (const release of ["", "garbage", "10.0", "10.0.beta"]) assert.equal(osMismatch("win32", () => release), WINDOWS_UNREAD, release);
+  assert.equal(osMismatch("win32", () => { throw new Error("no release"); }), WINDOWS_UNREAD);
   assert.equal(osMismatch("linux", () => "1.0.0"), null);
 });
 
