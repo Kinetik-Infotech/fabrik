@@ -780,6 +780,9 @@ try {
     rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<a href="chat/"><strong>Chat</strong></a>')
       && rootHtml.includes('<a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a>') && !rootHtml.includes("<script") && !rootHtml.includes("{{"),
     rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
+  check("an agent's page links to the list of agents and to each other agent, and the list's own page has no such links",
+    bookingsHtml.includes('<nav aria-label="Other agents"><a href="../">All agents</a><a href="../chat/"') && !bookingsHtml.includes('<a href="../bookings/"')
+      && !rootHtml.includes("<nav"), bookingsHtml.slice(bookingsHtml.indexOf("<header>"), bookingsHtml.indexOf("</header>") + 9));
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
     widgetJs.slice(0, 1200));
 
