@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Files and search
 
 fabrik keeps files in each scope, and search finds them by what they say, with your records, in one question.

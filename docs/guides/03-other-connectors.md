@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Adding other connectors in Claude
 
 A connector links Claude to another service, such as Gmail, Google Calendar, Google Drive, Slack or Notion. Once you add one, Claude can use it in the same chat or session as fabrik. It reads from one and saves to the other, such as tomorrow's meetings saved as a note in fabrik.

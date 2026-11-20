@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # A forgotten password
 
 Your Supabase account has full access to your project, so you can always set a new fabrik password from it.

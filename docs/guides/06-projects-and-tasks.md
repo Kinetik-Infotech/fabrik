@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Projects and tasks
 
 A project is work with several steps, such as a client job, a launch or a renovation. Each step is a task.

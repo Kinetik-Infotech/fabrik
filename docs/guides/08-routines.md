@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Routines and their design
 
 A routine is a piece of work you do again and again, such as invoicing or planning the week's meals. It can be for your business or your own life. fabrik writes down how you do it today, helps you design a better way, and Claude follows the design you choose.

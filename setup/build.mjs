@@ -154,7 +154,8 @@ export function readGuides(folder = GUIDES_FOLDER) {
   return readdirSync(folder).filter(name => name.endsWith(".md")).sort().map(name => {
     const named = /^\d+-([a-z0-9-]+)\.md$/.exec(name);
     if (!named) throw new Error(`${name} in ${folder} is not named <number>-<topic>.md.`);
-    const text = readFileSync(join(folder, name), "utf8").replace(/\r\n?/g, "\n");
+    // A guide may open with fabrik's mark, a line of its own, for GitHub. The guide tool's text leaves it out.
+    const text = readFileSync(join(folder, name), "utf8").replace(/\r\n?/g, "\n").replace(/^<img [^>]*>\n+/, "");
     const title = /^# (.+)\n/.exec(text)?.[1];
     if (!title) throw new Error(`${name} does not open with a "# " title.`);
     return { topic: named[1], title, text };

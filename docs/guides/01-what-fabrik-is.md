@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # What fabrik is
 
 fabrik is a knowledge base for one person, and the routines Claude follows to do your work. You describe how you do a piece of work, and Claude writes it down as a routine. When you ask for that work, Claude does it by the routine. It uses the connectors and plugins you have, such as your email, calendar or accounts.

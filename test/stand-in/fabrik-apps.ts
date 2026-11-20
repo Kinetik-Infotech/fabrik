@@ -1447,7 +1447,7 @@ try {
   const hostileSaved = await tool(ownerToken, "save_record", { scope: "Connector granted", kind: "evidence", title: HOSTILE, reason: "Connector card test",
     fields: { summary: SCRIPT, standing: "observed" } });
   // deno-lint-ignore no-explicit-any
-  const markup = (c: Awaited<ReturnType<typeof openCard>>) => ({ img: c.doc.querySelectorAll("img").length, script: c.doc.querySelectorAll("#fk-body script, #fk-panel script").length, pwned: (c.w as any).pwned });
+  const markup = (c: Awaited<ReturnType<typeof openCard>>) => ({ img: c.doc.querySelectorAll("img:not(.fk-logo)").length, script: c.doc.querySelectorAll("#fk-body script, #fk-panel script").length, pwned: (c.w as any).pwned });
   const hostileList = await openCard(ownerToken, "show_records", { title: "hostile" });
   // Each card is waited on for the record, as text or as markup alike, so the checks below judge which it drew.
   const hostileRow = () => [...hostileList.doc.querySelectorAll("#fk-body [data-open]")].find((b) => (b.textContent ?? "").includes("Quayside hostile")) ?? null;
@@ -1663,6 +1663,9 @@ try {
   // background. A person who cannot read General gets the page as it was. A new version changes the next card. ----
   const plainPage = await tool(ownerToken, "card_page", { card: "records", shell: 1 });
   const { pageOf } = await import(new URL("../../setup/functions/fabrik-apps/cards.ts", import.meta.url).href);
+  const { FABRIK_MARK } = await import(new URL("../../setup/functions/fabrik-apps/brand-core.mjs", import.meta.url).href);
+  // The kit's page with fabrik's mark at the start of its first header, as a card with no brand logo is drawn.
+  const marked = (card: string) => { const p = pageOf(card); return { ...p, body: p.body.replace('<div class="fk-head">', `<div class="fk-head"><img class="fk-logo" alt="fabrik" src="${FABRIK_MARK}">`) }; };
   const BRAND_ATTRIBUTES = JSON.parse(Deno.readTextFileSync(new URL("../../plugins/fabrik/__tests__/widgets/brand-record.json", import.meta.url))).payload.graph.nodes[0].attributes;
   // deno-lint-ignore no-explicit-any
   const brandFields = (attributes: any) => ({ model_kind: "observed_current", source_version: "https://smith-joinery.example", source_status: "approved by Sam Smith",
@@ -1678,8 +1681,8 @@ try {
   const brandChanged = await tool(ownerToken, "save_record", { record: v(brandSaved)?.record_id, reason: "Connector brand test: a red accent",
     fields: brandFields({ ...BRAND_ATTRIBUTES, palette: { ...BRAND_ATTRIBUTES.palette, light: { ...BRAND_ATTRIBUTES.palette.light, accent: "#c0392b" } } }) });
   const changedPage = await tool(ownerToken, "card_page", { card: "records", shell: 1 });
-  check("with no Brand record, card_page gives the card's page as the kit draws it, with no logo",
-    JSON.stringify(v(plainPage)) === JSON.stringify(pageOf("records")) && !v(plainPage)?.body.includes("fk-logo"), v(plainPage)?.style.slice(0, 200));
+  check("with no Brand record, card_page gives the card's page as the kit draws it, with fabrik's mark at the header's start",
+    JSON.stringify(v(plainPage)) === JSON.stringify(marked("records")) && v(plainPage)?.body.includes('<div class="fk-head"><img class="fk-logo" alt="fabrik"'), v(plainPage)?.body.slice(0, 200));
   check("with a Brand record in General, card_page gives the brand's accent in light and dark, its fonts, and its logo at the header's start",
     ok(brandSaved) && v(brandPage)?.style.includes("--fk-accent: light-dark(#3fa66b, #5cc78a);") && v(brandPage)?.style.includes("--fk-accent-text: light-dark(#1f6b41, #7fd8a3);")
       && v(brandPage)?.style.includes('--fk-heading-font: "Fraunces", "Georgia", serif;') && v(brandPage)?.style.includes('--fk-body-font: "Inter", "Helvetica Neue", "Arial", sans-serif;')
@@ -1689,7 +1692,7 @@ try {
   check("the records card draws the brand's logo first in its header, and its style holds the accent",
     brandedCard.alt === "Smith Joinery" && brandedCard.first === "IMG" && brandedCard.style.includes("#3fa66b"), { ...brandedCard, style: brandedCard.style.slice(0, 200) });
   check("a card's address lets it load Google Fonts", JSON.stringify(brandedCard.csp?.resourceDomains) === JSON.stringify(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]), brandedCard.csp);
-  check("a person who cannot read General gets the card as the kit draws it", JSON.stringify(v(readerPage)) === JSON.stringify(pageOf("records")), v(readerPage)?.body.slice(0, 200));
+  check("a person who cannot read General gets the card as the kit draws it, with fabrik's mark", JSON.stringify(v(readerPage)) === JSON.stringify(marked("records")), v(readerPage)?.body.slice(0, 200));
   check("a new version of the brand with another accent changes the next card",
     ok(brandChanged) && v(changedPage)?.style.includes("--fk-accent: light-dark(#c0392b, #5cc78a);"), { changed: brandChanged, style: v(changedPage)?.style.slice(0, 300) });
 

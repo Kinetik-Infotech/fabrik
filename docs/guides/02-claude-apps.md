@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # fabrik in each Claude app
 
 You add fabrik's connector once, in Claude's settings, and it then works in every Claude app signed in to the same Claude account.

@@ -20,12 +20,15 @@
   if (!box) { box = document.createElement("div"); box.id = "fabrik-chat"; script.parentNode.insertBefore(box, script.nextSibling); }
   box.className = (box.className + " fabrik-chat").trim();
 
+  // fabrik's mark, the gold "f", beside each answer.
+  var MARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTEiIGZpbGw9IiNFM0E4MkIiLz48cGF0aCBkPSJNMjYuODcgMzUuNDhRMjYuODcgMzYuMDkgMjcuMDcgMzYuNDJRMjcuMjcgMzYuNzUgMjcuNzYgMzYuODFMMjkuODggMzcuMDlRMzAuMzcgMzcuMTQgMzAuNTggMzcuNDFRMzAuNzkgMzcuNjcgMzAuNzkgMzguMDVRMzAuNzkgMzkgMjkuNjQgMzlIMTcuNTlRMTcuMDggMzkgMTYuNzcgMzguNzZRMTYuNDYgMzguNTIgMTYuNDYgMzguMVExNi40NiAzNy43MSAxNi42NyAzNy40NlExNi44OSAzNy4yMiAxNy4zNiAzNy4wOEwxOC4xNSAzNi44N1ExOC43MSAzNi43IDE4LjkzIDM2LjRRMTkuMTQgMzYuMDkgMTkuMTQgMzUuNTVWMjMuNjdRMTkuMTQgMjMuMzMgMTguOTcgMjMuMDhRMTguNzkgMjIuODMgMTguMjkgMjIuNjNMMTcuMiAyMi4yM1ExNi41OCAyMS45NSAxNi4zNSAyMS42OVExNi4xMSAyMS40NCAxNi4xMSAyMS4xUTE2LjExIDIwLjczIDE2LjM5IDIwLjQ4UTE2LjY3IDIwLjI0IDE3LjI1IDIwLjI0SDIwLjU0TDE5LjE3IDIwLjgyVjIwLjNRMTkuMTcgMTkuODMgMTguODMgMTkuMzVRMTguNDggMTguODggMTguMDMgMTguM1ExNy41NyAxNy43MiAxNy4yMiAxNi45NFExNi44OCAxNi4xNSAxNi44OCAxNS4wNlExNi44OCAxMi4zIDE4LjkzIDEwLjY1UTIwLjk3IDkgMjQuNjcgOVEyNy4wNCA5IDI4LjY0IDkuNzRRMzAuMjUgMTAuNDcgMzEuMDcgMTEuNjlRMzEuODkgMTIuOSAzMS44OSAxNC4zM1EzMS44OSAxNS45MiAzMS4wMSAxNi43NFEzMC4xMyAxNy41NiAyOC43NSAxNy41NlEyNy4yMSAxNy41NiAyNi4yOCAxNi42M1EyNS4zNCAxNS43MSAyNS4zNCAxNC4xNVYxMi4zNVEyNS4zNCAxMS41IDI0Ljg5IDExLjFRMjQuNDMgMTAuNjkgMjMuNjcgMTAuNjlRMjIuNzMgMTAuNjkgMjIuMjUgMTEuMjhRMjEuNzYgMTEuODYgMjEuNzYgMTIuOTVRMjEuNzYgMTQuMDIgMjIuMjIgMTQuODhRMjIuNjggMTUuNzQgMjMuMzcgMTYuNDVRMjQuMDYgMTcuMTcgMjQuNzQgMTcuOFEyNS40MyAxOC40NCAyNS44OSAxOS4wN1EyNi4zNSAxOS42OSAyNi4zNSAyMC4zOFYyMS4yN0wyNS42MSAyMC4yNEgzMC4xMVEzMC42MiAyMC4yNCAzMC45MiAyMC40NVEzMS4yMSAyMC42NiAzMS4yMSAyMS4wNlEzMS4yMSAyMS42NyAzMC42MSAyMi4wOFEzMC4wMSAyMi40OSAyOC42NyAyMi40OUgyNi44N1oiIGZpbGw9IiMxQjI0MzMiLz48L3N2Zz4K";
   var style = document.createElement("style");
   style.textContent = ".fabrik-chat { font: inherit; color: inherit; display: grid; gap: 8px; }" +
     ".fabrik-chat ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }" +
     ".fabrik-chat li { padding: 6px 10px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }" +
     ".fabrik-chat li.q { justify-self: end; background: color-mix(in srgb, currentColor 10%, transparent); }" +
-    ".fabrik-chat li.a { justify-self: start; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }" +
+    ".fabrik-chat li.a { justify-self: start; position: relative; padding-left: 36px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }" +
+    ".fabrik-chat li.a::before { content: \"\"; position: absolute; left: 8px; top: 7px; width: 20px; height: 20px; background: url(" + MARK + ") center / contain no-repeat; }" +
     ".fabrik-chat li.problem { color: #b42318; }" +
     ".fabrik-chat form { display: flex; gap: 6px; flex-wrap: wrap; }" +
     ".fabrik-chat input[type=text] { flex: 1 1 12em; min-width: 0; padding: 6px 8px; font: inherit; }" +

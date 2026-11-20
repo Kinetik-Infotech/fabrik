@@ -19,6 +19,7 @@ export const brandOf = core.brandOf as (record: unknown) => Brand | null;
 export const cardStyle = core.cardStyle as (brand: Brand) => { imports: string; css: string };
 /** The brand's logo as the card's <img>, or nothing. */
 export const logoHtml = (brand: Brand) => core.logoHtml(brand, "fk-logo") as string;
+export const headLogoHtml = (brand: Brand | null) => core.headLogoHtml(brand, "fk-logo") as string;
 
 /** Each person's last read of the brand, by their account's id. Only the person's own reads go in their entry. */
 const CACHE = new Map<string, Record<string, unknown>>();
