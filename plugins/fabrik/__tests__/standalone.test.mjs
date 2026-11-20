@@ -3,7 +3,7 @@
 //
 // A request without a key gets the 401 `message` Supabase gave on 2026-09-25. A missing bucket
 // gets the body Supabase Storage gave on 2026-09-26. Other bodies follow Supabase's documented shapes.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/fabrik/__tests__/standalone.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
