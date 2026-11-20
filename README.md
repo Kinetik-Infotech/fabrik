@@ -21,7 +21,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
 - **Analysis.** Prices, products or options weighed up across sites, with evidence.
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
-- **Website chat.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
+- **Chatbot.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
 - **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
 
 ## Cards
@@ -62,7 +62,7 @@ fabrik's connector makes your records available to everything else Claude does. 
 
 ## Setting fabrik up
 
-Follow [Set up fabrik](https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR). You need a Claude plan, the Claude desktop app on a Mac, Windows or Linux computer, and free Supabase and Cloudflare accounts. Setup takes about fifteen minutes. The page also explains the three sign-ins setup uses.
+Follow [Set up fabrik](https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR). You need a Claude plan, the Claude desktop app on a Mac, Windows or Linux computer, and free Supabase and Cloudflare accounts. Setup runs on macOS 15 or later, and on Windows 10 version 1809 or later. Setup takes about fifteen minutes. The page also explains the three sign-ins setup uses.
 
 ## Updating fabrik
 

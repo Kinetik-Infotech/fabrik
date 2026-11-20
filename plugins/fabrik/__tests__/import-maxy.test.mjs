@@ -1,6 +1,6 @@
 // The import's own rules, beside the stand-in step that drives `fabrik import maxy` end to end: values decoded, the
 // drop list, labels refused, titles, relation codes, where the KNOWLEDGE.md draft goes, and when the import fails.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/fabrik/__tests__/import-maxy.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
