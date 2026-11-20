@@ -45,6 +45,9 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     const words = String(body.messages.at(-1).content).toLowerCase().match(/[a-z]{4,}/g) ?? [];
     const line = file.split("\n").find((l) => words.some((w) => l.toLowerCase().includes(w)));
     const text = line ? line.trim() : "I don't know. Please contact the owner.";
+    // A reply with no content list, which the function can't read after Claude has charged for it.
+    if (String(body.messages.at(-1).content).includes("broken reply")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
+      model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 600 } });
     return Response.json({
       id: "msg_standin", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null,
       content: [{ type: "text", text }],
@@ -207,8 +210,21 @@ try {
   const [usage] = await sql`select tokens from fabrik_private.public_agent_usage where day = (now() at time zone 'utc')::date`;
   check(`no row in any of ${tables.length} tables holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 2060, { holding, usage });
 
-  // remove_key stops the answers.
+  // The hold counts bytes, so a question in any language can't pass the cap. 2,000 Chinese characters are 6,000 bytes:
+  // with 2,060 spent, a cap of 6,060 leaves too little room for them.
+  res = await post({ action: "settings", daily_cap_tokens: 6060 }, admin);
+  const beforeChinese = sent.length;
+  const chinese = await ask("营".repeat(2000));
+  check("a 2,000-character question in Chinese is held at its 6,000 bytes, so it gets the resting message under a cap of 6,060",
+    chinese.body.answer === RESTING && sent.length === beforeChinese, chinese);
+  // A reply that breaks after Claude has charged for it still puts its own tokens in place of what was held.
   res = await post({ action: "settings", daily_cap_tokens: 500000 }, admin);
+  const broken = await ask("Tell me about the broken reply");
+  const afterBroken = await post({ action: "settings" }, admin);
+  check("a reply the function can't read gets the words a visitor reads, and today's tokens hold its 1,030, not what was held",
+    broken.status === 500 && broken.body.problem === UNAVAILABLE && afterBroken.body.today_tokens === 2060 + 1030, { broken, afterBroken });
+
+  // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
   const after = await ask("What are your opening hours?");
   check("remove_key deletes the key, and a visitor then gets 503", res.body.key === "removed" && after.status === 503 && after.body.problem === UNAVAILABLE, { res, after });
