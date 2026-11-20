@@ -1,7 +1,7 @@
 {
   "name": "fabrik",
   "description": "Lets a person work in their own fabrik knowledge base, in their own Supabase project: records, files and their search, the glossary and data dictionary, boards, graphs and printed PDFs.",
-  "version": "0.26.8",
+  "version": "0.27.1",
   "author": {
     "name": "Joel Smalley"
   },

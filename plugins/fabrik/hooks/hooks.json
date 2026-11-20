@@ -1,4 +1,7 @@
 {
+  "modules": [
+    "./look.ts"
+  ],
   "hooks": {
     "PreToolUse": [
       {
