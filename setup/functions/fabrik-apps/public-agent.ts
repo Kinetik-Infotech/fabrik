@@ -144,12 +144,20 @@ const knowledgeSave = tool({
 
 const settings = tool({
   name: "public_agent_settings",
-  description: "Read the public agent's settings, with today's tokens and the address the website's chat box posts to. Give model, " +
-    "a Claude model's id, or daily_cap_tokens, from 1,000 to 100,000,000, to change them first. Once a day's tokens reach the cap, " +
-    "the chat box answers that it's resting until the next day, in UTC. Administrators only.",
+  description: "Read the public agent's settings: its model, its daily cap, today's tokens and the address the website's chat " +
+    "box posts to. Once a day's tokens reach the cap, the chat box answers that it's resting until the next day, in UTC. " +
+    "Administrators only.",
+  input: z.object({}),
+  run: (ctx) => run(ctx, { action: "settings" }, { address: address() }),
+});
+
+const changeSettings = tool({
+  name: "public_agent_settings_change",
+  description: "Change the public agent's model, a Claude model's id, or its daily_cap_tokens, from 1,000 to 100,000,000, or " +
+    "both. Gives the settings after the change, as public_agent_settings does. Administrators only.",
   input: z.object({ model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
   run: (ctx, args) => run(ctx, { action: "settings", ...args }, { address: address() }),
 });
 
 /** The public agent's tools, in the order Claude lists them. */
-export const PUBLIC_AGENT_TOOLS: Tool[] = [showSetup, setupSave, turnOff, knowledgeGet, knowledgeSave, settings];
+export const PUBLIC_AGENT_TOOLS: Tool[] = [showSetup, setupSave, turnOff, knowledgeGet, knowledgeSave, settings, changeSettings];

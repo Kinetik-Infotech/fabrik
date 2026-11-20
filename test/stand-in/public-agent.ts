@@ -5,11 +5,13 @@
 // wrong key or secret is not kept.
 //
 // A visitor's question in the file gets the file's answer, and one outside it gets don't know. The request to
-// Claude holds the fixed instruction, then the file, cached, at most 10 turns of history and 1,000 tokens. A failed
-// Turnstile check gets 403 and calls nothing. Once today's tokens reach the cap, the answer is the resting message and
+// Claude holds the fixed instruction, then the file, cached, the latest turns that fit, at most 10, and 1,000 tokens. A
+// post with no Turnstile token is refused before a database connection opens, and a failed check gets 403 and calls
+// nothing. chat.js, run in a page, gets an answer to every question of a long conversation. Once today's tokens reach the cap, the answer is the resting message and
 // Claude isn't called. No row anywhere holds a question, and no reply holds the key or the secret. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
+import { Window } from "npm:happy-dom@20.0.10";
 
 const DB = Deno.env.get("STAND_IN_DB")!;
 const FUNCTION = new URL("../../setup/functions/public-agent/index.ts", import.meta.url);
@@ -28,7 +30,8 @@ function check(what: string, ok: boolean, seen: unknown) {
 const sql = postgres(DB, { max: 1, prepare: false, onnotice() {} });
 
 // Anthropic's Messages and Models APIs. An answer is the file's line that holds a word of the question, or don't know.
-// Every answer costs 1,030 tokens.
+// A question holding "long answer" gets 830 characters. Every answer reads 6,000 tokens from the cache, which count 600,
+// so it costs 1,030 tokens.
 const sent: any[] = [];
 const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const url = new URL(req.url);
@@ -44,14 +47,15 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     const file = String(body.system?.[1]?.text ?? "");
     const words = String(body.messages.at(-1).content).toLowerCase().match(/[a-z]{4,}/g) ?? [];
     const line = file.split("\n").find((l) => words.some((w) => l.toLowerCase().includes(w)));
-    const text = line ? line.trim() : "I don't know. Please contact the owner.";
+    const text = String(body.messages.at(-1).content).includes("long answer") ? `Long answer. ${"z".repeat(817)}`
+      : line ? line.trim() : "I don't know. Please contact the owner.";
     // A reply with no content list, which the function can't read after Claude has charged for it.
     if (String(body.messages.at(-1).content).includes("broken reply")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
-      model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 600 } });
+      model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
     return Response.json({
       id: "msg_standin", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null,
       content: [{ type: "text", text }],
-      usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 600 },
+      usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 },
     });
   }
   return Response.json({ type: "error", error: { type: "not_found_error", message: url.pathname } }, { status: 404 });
@@ -92,6 +96,9 @@ seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
 const users = new Set<string>();
 seam.user = (token: string) => Promise.resolve(users.has(token) ? token : null);
+let connections = 0;
+const connect = seam.connect;
+seam.connect = () => { connections++; return connect(); };
 
 const replies: string[] = [];
 const post = async (body: Record<string, unknown>, bearer?: string) => {
@@ -172,26 +179,31 @@ try {
   res = await post({ question: "When are you open?", turnstile_token: "forged" });
   const calls = sent.length;
   check("a failed Turnstile check gets 403 and calls nothing", res.status === 403 && res.body.problem === NOT_CHECKED && sent.length === calls, res);
+  const opened = connections;
   res = await post({ question: "When are you open?" });
-  check("a question with no Turnstile token gets 403", res.status === 403, res);
+  const tooLong = await post({ question: "When are you open?", turnstile_token: "t".repeat(2049) });
+  check("a question with no Turnstile token, or one over 2,048 characters, gets 403 and opens no database connection",
+    res.status === 403 && tooLong.status === 403 && connections === opened, { res, tooLong, connections, opened });
   res = await ask("Hi", { history: [{ role: "assistant", content: "Hello" }, { role: "assistant", content: "Again" }] });
   check("a history that doesn't alternate is refused", res.status === 400, res);
-  const callsNow = sent.length;
   const long = await ask("Hi", { history: [{ role: "user", content: "Hello" }, { role: "assistant", content: "x".repeat(4001) }] });
+  const longSent = sent.at(-1).messages.length;
   const many = await ask("Hi", { history: Array.from({ length: 10 }, (_, i) => [{ role: "user", content: `Question ${i}` }, { role: "assistant", content: "y".repeat(900) }]).flat() });
-  check("a history with an answer over 4,000 characters, or over 8,000 characters in all, is refused, and Claude isn't called",
-    long.status === 400 && many.status === 400 && sent.length === callsNow, { long, many });
+  const manySent = sent.at(-1).messages;
+  check("a history with an answer over 4,000 characters, or over 8,000 characters in all, loses its oldest turns, and the question is answered",
+    long.status === 200 && longSent === 1 && many.status === 200 && manySent.length === 17 && manySent[0].content === "Question 2", { long, longSent, many, manySent: manySent.map((m: any) => m.content.slice(0, 12)) });
 
-  // The daily cap. The most an answer can cost is held before Claude is called. With 2,060 spent and a cap of 3,000,
-  // there's less room than one answer's 1,000 tokens of output, so the answer is the resting message.
-  res = await post({ action: "settings", daily_cap_tokens: 3000 }, admin);
+  // The daily cap. The most an answer can cost is held before Claude is called. Four answers of 1,030 tokens make 4,120,
+  // with each one's 6,000 tokens of cache read counted at 600. Under a cap of 5,000 there's less room than one answer's
+  // 1,000 tokens of output, so the answer is the resting message.
+  res = await post({ action: "settings", daily_cap_tokens: 5000 }, admin);
   const held = sent.length;
   const short = await ask("What services do you offer?");
   const afterHold = await post({ action: "settings" }, admin);
   check("an answer whose most would pass the cap gets the resting message, Claude isn't called, and nothing stays held",
-    short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 2060, { short, afterHold });
-  res = await post({ action: "settings", daily_cap_tokens: 2000 }, admin);
-  check("settings counts today's tokens from Claude's usage, and sets the cap", res.body.today_tokens === 2060 && res.body.daily_cap_tokens === 2000, res);
+    short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 4120, { short, afterHold });
+  res = await post({ action: "settings", daily_cap_tokens: 4000 }, admin);
+  check("settings counts today's tokens from Claude's usage, a cache read at a tenth, and sets the cap", res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 4000, res);
   const before = sent.length;
   res = await ask("What services do you offer?");
   check("once today's tokens reach the cap, the answer is the resting message and Claude isn't called",
@@ -208,21 +220,52 @@ try {
     if (n) holding.push(t);
   }
   const [usage] = await sql`select tokens from fabrik_private.public_agent_usage where day = (now() at time zone 'utc')::date`;
-  check(`no row in any of ${tables.length} tables holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 2060, { holding, usage });
+  check(`no row in any of ${tables.length} tables holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 4120, { holding, usage });
 
   // The hold counts bytes, so a question in any language can't pass the cap. 2,000 Chinese characters are 6,000 bytes:
-  // with 2,060 spent, a cap of 6,060 leaves too little room for them.
-  res = await post({ action: "settings", daily_cap_tokens: 6060 }, admin);
+  // with 4,120 spent, a cap of 10,120 leaves too little room for them.
+  res = await post({ action: "settings", daily_cap_tokens: 10120 }, admin);
   const beforeChinese = sent.length;
   const chinese = await ask("营".repeat(2000));
-  check("a 2,000-character question in Chinese is held at its 6,000 bytes, so it gets the resting message under a cap of 6,060",
+  check("a 2,000-character question in Chinese is held at its 6,000 bytes, so it gets the resting message under a cap of 10,120",
     chinese.body.answer === RESTING && sent.length === beforeChinese, chinese);
   // A reply that breaks after Claude has charged for it still puts its own tokens in place of what was held.
   res = await post({ action: "settings", daily_cap_tokens: 500000 }, admin);
   const broken = await ask("Tell me about the broken reply");
   const afterBroken = await post({ action: "settings" }, admin);
   check("a reply the function can't read gets the words a visitor reads, and today's tokens hold its 1,030, not what was held",
-    broken.status === 500 && broken.body.problem === UNAVAILABLE && afterBroken.body.today_tokens === 2060 + 1030, { broken, afterBroken });
+    broken.status === 500 && broken.body.problem === UNAVAILABLE && afterBroken.body.today_tokens === 4120 + 1030, { broken, afterBroken });
+
+  // chat.js in a page, posting to the function. Each answer is 830 characters, so after nine of them the last 10 turns
+  // would pass 8,000 characters. chat.js sends the latest turns that fit, and every question gets its answer.
+  const page = new Window({ url: "https://bakery.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  const doc = page.document;
+  const tag = doc.createElement("script");
+  tag.setAttribute("data-address", "https://project.example/functions/v1/public-agent");
+  tag.setAttribute("data-sitekey", "1x00000000000000000000AA");
+  doc.body.appendChild(tag);
+  Object.defineProperty(doc, "currentScript", { get: () => tag, configurable: true });
+  const posted: any[] = [];
+  const pageFetch = (url: string, init: RequestInit) => {
+    posted.push(JSON.parse(String(init.body)));
+    return handler!(new Request(url, init));
+  };
+  (page as any).turnstile = { render: () => 0, getResponse: () => GOOD_TOKEN, reset() {} };
+  new Function("window", "document", "fetch", await Deno.readTextFile(new URL("../../plugins/fabrik/public-agent/chat.js", import.meta.url)))(page, doc, pageFetch);
+  (page as any).fabrikChatTurnstile();
+  const input = doc.querySelector("#fabrik-chat input") as any, send = doc.querySelector("#fabrik-chat button") as any;
+  for (let i = 1; i <= 12; i++) {
+    input.value = `Question ${i}: give me the long answer`;
+    doc.querySelector("#fabrik-chat form")!.dispatchEvent(new page.Event("submit", { cancelable: true }));
+    while (send.disabled) await new Promise((r) => setTimeout(r));
+  }
+  const answers = [...doc.querySelectorAll("#fabrik-chat li.a")].map((li: any) => li.className);
+  const lastHistory = posted.at(-1).history;
+  check("chat.js gets an answer to each of 12 questions with 830-character answers, sending the latest 9 turns once 10 would pass 8,000 characters",
+    answers.length === 12 && answers.every((c) => c === "a") && lastHistory.length === 18 && lastHistory[0].content.startsWith("Question 3:")
+      && lastHistory.reduce((n: number, t: any) => n + t.content.length, 0) <= 8000,
+    { answers, sizes: posted.map((p) => [p.history.length, p.history.reduce((n: number, t: any) => n + t.content.length, 0)]) });
+  await page.happyDOM.close();
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
