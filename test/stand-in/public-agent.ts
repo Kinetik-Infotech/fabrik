@@ -89,6 +89,8 @@ const customDomains = new Map<string, { project: string; asked: number; checkedA
 let flakyFailed = false;
 const cfCalls: string[] = [];
 const dnsRecords = new Set<string>();
+// Records Cloudflare's changeset misses and its PUT still refuses, as the live API did on 20 November 2026.
+const hiddenRecords = new Set<string>();
 const workerDomains = new Map<string, { id: string; service: string }>();
 const workerPuts: any[] = [];
 const workersApi = async (req: Request, url: URL) => {
@@ -113,7 +115,7 @@ const workersApi = async (req: Request, url: URL) => {
   }
   workerPuts.push({ script: m[1], ...body });
   for (const o of body.origins) {
-    if (dnsRecords.has(o.hostname) && !body.override_existing_dns_record)
+    if ((dnsRecords.has(o.hostname) || hiddenRecords.has(o.hostname)) && !body.override_existing_dns_record)
       return Response.json({ success: false, errors: [{ code: 100117, message: "Hostname already has externally managed DNS records." }] }, { status: 409 });
     workerDomains.set(o.hostname, { id: crypto.randomUUID().replaceAll("-", ""), service: m[1] });
   }
@@ -678,6 +680,17 @@ try {
     left === "https://fabrik-chat-mnopqrstuvwxyzabcdef.pages.dev" && dnsRecords.has("ask.joinery.example") && workerPuts.length === putsBefore && kept("mnopqrstuvwxyzabcdef")
       && leftSaid.includes(deleteAsk.replaceAll("help", "ask"))
       && leftSaid.includes("ask.joinery.example still has its DNS record. Once it's deleted, run chat-page again. Meanwhile the pages are at https://fabrik-chat-mnopqrstuvwxyzabcdef.pages.dev."), { left, leftSaid });
+  // An address on Pages, with a record the changeset misses: the Worker can't take it, so it goes back on Pages.
+  customDomains.set("hold.joinery.example", { project: chatProject("pqrstuvwxyzabcdefghi"), asked: 0 });
+  hiddenRecords.add("hold.joinery.example");
+  cfCalls.length = 0;
+  const heldSaid: string[] = [];
+  const heldSite = await putUpFor("pqrstuvwxyzabcdefghi", "hold.joinery.example", heldSaid);
+  check("an address the Worker can't take, after Pages let it go, goes back on Pages, stays the chat's address, and names the record",
+    heldSite === "https://hold.joinery.example" && customDomains.get("hold.joinery.example")?.project === chatProject("pqrstuvwxyzabcdefghi") && kept("pqrstuvwxyzabcdefghi")
+      && cfCalls.includes("DELETE /accounts/acc-1/pages/projects/fabrik-chat-pqrstuvwxyzabcdefghi/domains/hold.joinery.example")
+      && cfCalls.filter((c) => c === "POST /accounts/acc-1/pages/projects/fabrik-chat-pqrstuvwxyzabcdefghi/domains").length === 1
+      && heldSaid.some((l) => l.startsWith("hold.joinery.example already has a DNS record") && l.endsWith("fabrik put hold.joinery.example back on your chat pages on Pages, so the chat stays up there.")), { heldSite, heldSaid, cfCalls });
   const takenSaid: string[] = [];
   const taken = await putUpFor("nopqrstuvwxyzabcdefg", "chat.smithjoinery.example", takenSaid);
   check("an address another Worker has isn't taken from it, and isn't kept",

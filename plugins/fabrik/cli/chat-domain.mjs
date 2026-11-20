@@ -219,39 +219,59 @@ export async function ownDomain({ ref, project, pagesHost, accountId, token, giv
   if (!got.ok && !missing(got)) throw new DomainNotReady(`Cloudflare didn't say whether ${host} is on your chat pages: ${said(got.errors)}`);
 
   if (zone?.type === "full") {
-    // An earlier fabrik put the address on the Pages project. Pages lets it go, so the Worker can have it.
-    if (got.ok) {
+    // An earlier fabrik put the address on the Pages project. Pages lets it go, so the Worker can have it. Where the
+    // Worker can't take it, fabrik puts it back on Pages before it stops, so the chat stays up at the address.
+    const released = got.ok;
+    const putBack = async why => {
+      if (released) {
+        const back = await cf(pages, { method: "POST", body: { name: host } });
+        if (back.ok) {
+          keepChoice(ref, host, home);
+          const err = new DomainNotReady(`${why} fabrik put ${host} back on your chat pages on Pages, so the chat stays up there.`);
+          err.site = `https://${host}`;
+          return err;
+        }
+      }
+      return refused(why);
+    };
+    const name = host.slice(0, -(zone.name.length + 1));
+    const record = `${host} already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named ${name} on Cloudflare's DNS page for ${zone.name}, https://dash.cloudflare.com/${accountId}/${zone.name}/dns/records. fabrik never deletes a DNS record itself.`;
+    if (released) {
       got = await cf(onPages, { method: "DELETE" });
       if (!got.ok) throw new DomainNotReady(`Cloudflare didn't take ${host} off your chat pages on Pages: ${said(got.errors)}`);
       say(`Took ${host} off your chat pages on Pages, so the chat pages' Worker can have it.`);
     }
     try { deploy(writeWorkerConfig({ ref, name: project, accountId, folder, home }), "your chat pages' Worker"); }
-    catch (err) { throw new DomainNotReady(message(err)); }
+    catch (err) { throw await putBack(message(err)); }
     const domains = `/accounts/${enc(accountId)}/workers/scripts/${enc(project)}/domains`;
     const origins = [{ hostname: host, zone_name: zone.name }];
-    const name = host.slice(0, -(zone.name.length + 1));
     let held;
     for (;;) {
       // Cloudflare's changeset says what adding the address would change: an address another Worker has, or a DNS
       // record in its way, which Cloudflare would replace.
       got = await cf(`${domains}/changeset?replace_state=true`, { method: "POST", body: origins });
-      if (!got.ok) throw new DomainNotReady(`Cloudflare didn't say whether ${host} can be your chat pages' address: ${said(got.errors)}`);
+      if (!got.ok) throw await putBack(`Cloudflare didn't say whether ${host} can be your chat pages' address: ${said(got.errors)}`);
       const change = got.result ?? {};
       const taken = (change.updated ?? []).find(d => d.modified);
       if (taken) {
         const other = taken.id ? await cf(`/accounts/${enc(accountId)}/workers/domains/${enc(taken.id)}`) : { ok: false };
-        throw refused(`${host} is already the address of ${other.ok && other.result?.service ? `the Worker ${other.result.service}` : "another Worker"} on Cloudflare. Choose another address with --domain.`);
+        throw await putBack(`${host} is already the address of ${other.ok && other.result?.service ? `the Worker ${other.result.service}` : "another Worker"} on Cloudflare. Choose another address with --domain.`);
       }
       held = (change.updated ?? []).some(d => d.hostname === host);
       if (!(change.conflicting ?? []).length) break;
+      // With the address back on Pages, the chat stays up until the owner deletes the record and runs chat-page again.
+      if (released) throw await putBack(`${record} Then run chat-page again: the chat is off line from when the record goes until then.`);
       keepChoice(ref, host, home);
-      say(`${host} already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named ${name} on Cloudflare's DNS page for ${zone.name}, https://dash.cloudflare.com/${accountId}/${zone.name}/dns/records. fabrik never deletes a DNS record itself.`);
+      say(record);
       try { await ask(`Press Return once the record named ${name} is deleted: `); }
       catch { throw new DomainNotReady(`${host} still has its DNS record. Once it's deleted, run chat-page again.`); }
     }
     if (!held) {
       got = await cf(`${domains}/records`, { method: "PUT", body: { override_scope: true, override_existing_origin: false, override_existing_dns_record: false, origins } });
-      if (!got.ok) throw refused(`Cloudflare didn't make ${host} your chat pages' address: ${said(got.errors)}`);
+      // Cloudflare's changeset can miss a record that its PUT then refuses, as it did on 20 November 2026.
+      if (!got.ok) throw await putBack(got.errors.some(e => e.code === 100117 || /externally managed DNS/i.test(e.message ?? ""))
+        ? `${record} Then run chat-page again: the chat is off line from when the record goes until then.`
+        : `Cloudflare didn't make ${host} your chat pages' address: ${said(got.errors)}`);
       say(`Cloudflare is making the DNS record and certificate for ${host}.`);
     }
     keepChoice(ref, host, home);
