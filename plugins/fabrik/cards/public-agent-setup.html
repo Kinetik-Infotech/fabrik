@@ -3,6 +3,8 @@
 .pa-form label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
 .pa-form input { padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--fg); min-width: 0; font: inherit; }
 .pa-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.pa-form ol { margin: 4px 0 6px; padding-left: 20px; display: grid; gap: 2px; color: var(--fg); }
+.pa-form h3 { margin: 6px 0 0; font-size: 14px; }
 </style>
 <div class="fk">
   <div class="fk-head"><h2>Public agent</h2></div>
@@ -12,9 +14,23 @@
     <p id="pa-turnstile"></p>
     <p id="pa-knowledge"></p>
     <form class="pa-form" id="pa-form" autocomplete="off">
-      <label>Anthropic API key: in the Claude Console at platform.claude.com, start a new API key and choose Somewhere else. It starts sk-ant-
+      <h3>Anthropic API key</h3>
+      <ol>
+        <li>On a Claude Max, Ultra or Team plan, claim its API credits on claude.ai in Settings, then Billing, with Link organization. Otherwise buy credits in the Claude Console under Billing.</li>
+        <li>Open the Claude Console at platform.claude.com and start a new API key.</li>
+        <li>Where it asks "Where does your code run?", choose Somewhere else.</li>
+        <li>Name it fabrik website, create it and copy it. It starts sk-ant-, and the Console shows it only once.</li>
+      </ol>
+      <label>Paste the Anthropic API key here
         <input id="pa-key" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
-      <label>Turnstile secret key: open dash.cloudflare.com/?to=/:account/turnstile, then your fabrik chat widget, and copy its secret key
+      <h3>Turnstile secret key</h3>
+      <ol>
+        <li>Open dash.cloudflare.com/?to=/:account/turnstile and sign in. A free Cloudflare account is enough.</li>
+        <li>Choose Add widget manually, not Set up with Spin.</li>
+        <li>For Widget name type fabrik chat. Under Hostname management add your website's address without https://, such as example.com. Leave Widget mode at Managed.</li>
+        <li>Choose Create, and copy the secret key. Keep the site key too: it goes in the line of code for your website.</li>
+      </ol>
+      <label>Paste the Turnstile secret key here
         <input id="pa-secret" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false"></label>
       <div class="pa-buttons">
         <button class="fk-btn" id="pa-save" type="submit">Save</button>
