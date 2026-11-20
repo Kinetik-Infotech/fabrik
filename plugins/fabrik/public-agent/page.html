@@ -18,7 +18,7 @@ header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; bord
 header img { height: 36px; width: auto; max-width: 160px; object-fit: contain; }
 header h1 { margin: 0; font: 600 20px/1.2 var(--heading-font); }
 main { flex: 1; min-height: 0; display: flex; padding: 16px 20px 20px; }
-main .fabrik-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+main .fabrik-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 760px; margin: 0 auto; }
 main .fabrik-chat ol { flex: 1; min-height: 0; overflow-y: auto; align-content: start; gap: 10px; padding: 2px; }
 main .fabrik-chat li { max-width: 85%; padding: 10px 14px; border-radius: 14px; }
 main .fabrik-chat li.q { background: var(--accent); color: var(--on-accent); }
@@ -31,7 +31,7 @@ main .fabrik-chat input[type=text]:focus-visible { outline: 3px solid var(--acce
 main .fabrik-chat button { padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; background: var(--accent); color: var(--on-accent); font-weight: 600; }
 main .fabrik-chat button:disabled { opacity: 0.55; cursor: default; }
 main .fabrik-chat button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-main .agents { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; align-content: start; width: 100%; }
+main .agents { list-style: none; margin: 0 auto; padding: 0; display: grid; gap: 12px; align-content: start; width: 100%; max-width: 760px; }
 main .agents a { display: block; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--card); color: var(--ink); text-decoration: none; }
 main .agents a:hover, main .agents a:focus-visible { border-color: var(--accent); outline: none; }
 main .agents strong { display: block; font: 600 17px/1.3 var(--heading-font); }
