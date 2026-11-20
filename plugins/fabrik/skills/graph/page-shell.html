@@ -12,8 +12,8 @@
     --accent:#1A9FFF; --accent-dim:rgba(26,159,255,.12);
     --flag:#EF9F27; --flag-dim:rgba(239,159,39,.15); --stop:#C62828;
     --live:#1f1e1d;
-    --f-sans:"IBM Plex Mono",ui-monospace,Menlo,monospace;
-    --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --f-sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --f-mono:ui-monospace,"SF Mono",Menlo,monospace;
     color-scheme:light;
   }
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
@@ -446,7 +446,7 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
         title: tooltip(node),
         color: { background: tok('--canvas'), border: tok('--wire-soft') },
         borderWidth: 1,
-        font: { color: tok('--ink-faint'), size: GLYPH_PX, face: '"IBM Plex Mono", ui-monospace, Menlo, monospace', strokeWidth: 0 }
+        font: { color: tok('--ink-faint'), size: GLYPH_PX, face: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif', strokeWidth: 0 }
       };
     }
     var hue = node.fill;
@@ -468,8 +468,8 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
       shapeProperties: { borderDashes: dashesOf(node), borderRadius: 3 },
       font: isGroup
         ? { color: supporting(node) ? borderOf(hue, false) : labelOn(bg), size: fontSizeOf(node),
-            face: '"IBM Plex Mono", ui-monospace, Menlo, monospace', bold: !supporting(node), strokeWidth: 0 }
-        : { color: labelOn(bg), size: GLYPH_PX, face: '"IBM Plex Mono", ui-monospace, Menlo, monospace', strokeWidth: 0 }
+            face: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif', bold: !supporting(node), strokeWidth: 0 }
+        : { color: labelOn(bg), size: GLYPH_PX, face: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif', strokeWidth: 0 }
     };
   }
 
@@ -557,7 +557,7 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
       var a = part[1];
       if (part[0] === 'text') {
         ctx.fillStyle = a.fill;
-        ctx.font = '500 ' + a['font-size'] + 'px "IBM Plex Mono", ui-monospace, Menlo, monospace';
+        ctx.font = '500 ' + a['font-size'] + 'px "Inter", system-ui, -apple-system, "Segoe UI", sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(a.text, 0, 0.5);
         return;
@@ -1032,7 +1032,7 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
         /* The size on screen, not the size declared. A glyph declared at 11px
            and drawn at 2.2px is a 2.2px glyph, and reporting the declaration
            let an unreadable view call itself passed. */
-        font: (fontSizeOf(node || {}) * scale).toFixed(2) + 'px IBM Plex Mono',
+        font: (fontSizeOf(node || {}) * scale).toFixed(2) + 'px Inter, system-ui, sans-serif',
         left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y
       });
     });

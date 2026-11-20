@@ -3,22 +3,22 @@
   /* The chat's own theme variables, as fabrik's cards use them, so the card follows the app's light or dark setting. */
   --wk-page: transparent; --wk-plate: var(--color-background-secondary, rgba(128, 128, 128, .1));
   --wk-ink: var(--color-text-primary, CanvasText); --wk-muted: var(--color-text-secondary, GrayText);
-  --wk-rule: var(--color-border-primary, rgba(128, 128, 128, .4)); --wk-key: #2fe28a; --wk-accent: var(--color-text-info, LinkText);
+  --wk-rule: var(--color-border-primary, rgba(128, 128, 128, .4)); --wk-key: #E3A82B; --wk-accent: var(--color-text-info, LinkText);
   --wk-font: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  --wk-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --wk-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
   /* What the business's brand changes, after this style: the header's rule and the headings' font. */
-  --wk-head-rule: var(--wk-ink); --wk-heading-font: var(--wk-mono);
+  --wk-head-rule: var(--wk-key); --wk-heading-font: var(--wk-serif);
   display: grid; gap: 1rem; padding: 0.5rem 0; color: var(--wk-ink); font: 14px/1.5 var(--wk-font);
 }
 .wk-head { border-top: 1px solid var(--wk-head-rule); padding-top: 8px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
-.wk-head .wk-meta { flex: 1 1 200px; color: var(--wk-muted); font: 500 12px/1.4 var(--wk-mono); }
+.wk-head .wk-meta { flex: 1 1 200px; color: var(--wk-muted); font: 500 12px/1.4 var(--wk-font); }
 .wk-logo { height: 24px; width: auto; max-width: 160px; object-fit: contain; }
 .wk .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wk h2 { font: 600 16px/1.2 var(--wk-heading-font); margin: 0 0 4px; overflow-wrap: anywhere; }
 .wk .wk-lead { margin: 0 0 8px; font-size: 13px; color: var(--wk-muted); }
 .wk-row { border: 1px solid var(--wk-rule); border-left: 3px solid var(--wk-key); background: var(--wk-page); padding: 10px 12px; display: grid; gap: 6px; margin-bottom: 8px; min-width: 0; }
 .wk-row p { margin: 0; overflow-wrap: anywhere; }
-.wk-sub { font: 500 12px/1.4 var(--wk-mono); color: var(--wk-muted); }
+.wk-sub { font: 500 12px/1.4 var(--wk-font); color: var(--wk-muted); }
 .wk-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .wk-table th, .wk-table td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--wk-rule); overflow-wrap: anywhere; }
 .wk-table th { font-weight: 500; color: var(--wk-muted); }
