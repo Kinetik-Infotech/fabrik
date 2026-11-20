@@ -1,4 +1,4 @@
--- file_search checks 1.5.2
+-- file_search checks 1.5.3
 -- File search: checks that file-search.sql works as its skill says, installed as a stored
 -- function. Install this file as postgres, after file-search.sql, then run the checks with:
 --   select file_search.run_checks();
@@ -86,9 +86,10 @@ begin
  if (res->'stages'->>'words')::integer<>0 then raise exception 'FAIL a hyphenated word was found by one of its parts alone: %', res->'stages'; end if;
  execute format(in_bucket, 'spring -50 delivery', 'fs_check') into res;
  if (res->'stages'->>'words')::integer<>2 then raise exception 'FAIL a negative number was read as an exclusion: %', res->'stages'; end if;
- -- Each hit names its section, which comes back whole, once.
- if res->'sections'->((res->'hits'->0->>'section')::integer)->>'text'<>'Delivery charges apply to orders under fifty pounds.'
-  or res->'sections'->((res->'hits'->0->>'section')::integer)->>'truncated'<>'false'
+ -- Each hit names its section, which comes back whole, once. The two hits tie, so neither is first.
+ if not exists(select 1 from jsonb_array_elements(res->'hits') h
+   where res->'sections'->((h->>'section')::integer)->>'text'='Delivery charges apply to orders under fifty pounds.'
+    and res->'sections'->((h->>'section')::integer)->>'truncated'='false')
   or jsonb_array_length(res->'sections')<>(select count(distinct h->>'section') from jsonb_array_elements(res->'hits') h) then
   raise exception 'FAIL a hit''s section: %', res; end if;
  execute 'reset role';
@@ -787,4 +788,4 @@ end $checks$;
 
 revoke execute on function file_search.run_checks() from public, anon, authenticated, service_role;
 
-comment on function file_search.run_checks() is 'file_search checks 1.5.2';
+comment on function file_search.run_checks() is 'file_search checks 1.5.3';
