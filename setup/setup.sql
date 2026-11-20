@@ -8308,7 +8308,27 @@ begin
 end $$;
 reset role;
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents');
+-- The public agents' conversations, as upgrade 0015 keeps them: one row for each question an agent answered, with the
+-- conversation's id the chat page made, the agent, the time, the question, the answer shown and its tokens. Nothing
+-- that identifies a visitor is kept. Only the public-agent function reads or changes it.
+set role fabrik_owner;
+create table if not exists fabrik_private.public_exchange (
+ id bigint generated always as identity primary key,
+ conversation uuid not null,
+ slug text not null references fabrik_private.public_agent(slug) on delete cascade,
+ at timestamptz not null default now(),
+ question text not null,
+ answer text not null,
+ input_tokens integer not null default 0 check (input_tokens >= 0),
+ output_tokens integer not null default 0 check (output_tokens >= 0)
+);
+create index if not exists public_exchange_slug_at on fabrik_private.public_exchange (slug, at);
+create index if not exists public_exchange_conversation on fabrik_private.public_exchange (conversation);
+alter table fabrik_private.public_exchange enable row level security;
+revoke all on fabrik_private.public_exchange from public, anon, authenticated;
+reset role;
+
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

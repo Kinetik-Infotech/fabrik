@@ -174,7 +174,7 @@ const agentChange = tool({
 
 const agentRemove = tool({
   name: "public_agent_remove",
-  description: "Remove a public agent with its INSTRUCTIONS.md, its KNOWLEDGE.md and its count of tokens. Neither file is kept. Its page " +
+  description: "Remove a public agent with its INSTRUCTIONS.md, its KNOWLEDGE.md, its count of tokens and its kept conversations. None is kept. Its page " +
     "stays up until fabrik chat-page runs again. Administrators only.",
   input: z.object({ agent: AGENT }),
   run: (ctx, { agent }) => run(ctx, { action: "agent_remove", agent }),
@@ -231,6 +231,33 @@ const changeSettings = tool({
   run: (ctx, args) => run(ctx, { action: "settings", ...args }, { address: address() }),
 });
 
+const conversationsList = tool({
+  name: "public_conversations_list",
+  description: "List the conversations visitors had with the public agents, newest first. Each gives its id, its agent, its first question, " +
+    "its number of questions and its first and last times, in UTC. agent keeps one agent's, since keeps those with a question at or after " +
+    "a date or time, such as 2026-11-20, and limit gives at most that many, 50 when left out and 500 at most. Administrators only.",
+  input: z.object({ agent: AGENT.optional(), since: z.string().optional(), limit: z.number().int().optional() }),
+  run: (ctx, args) => run(ctx, { action: "conversations_list", ...args }),
+});
+
+const conversationGet = tool({
+  name: "public_conversation_get",
+  description: "Read one conversation a visitor had with a public agent: each question and the answer shown, in order, with its time and " +
+    "the answer's input and output tokens. id is the conversation's id, which public_conversations_list gives. Administrators only.",
+  input: z.object({ id: z.string().describe("The conversation's id, which public_conversations_list gives.") }),
+  run: (ctx, { id }) => run(ctx, { action: "conversation_get", id }),
+});
+
+const conversationsDelete = tool({
+  name: "public_conversations_delete",
+  description: "Delete conversations visitors had with the public agents, for good. id deletes that one conversation. agent with before " +
+    "deletes every conversation of that agent whose last question was before the date or time given, such as 2026-11-01. Give id, or " +
+    "agent and before. Gives how many conversations and questions were deleted. Administrators only.",
+  input: z.object({ id: z.string().optional(), agent: AGENT.optional(), before: z.string().optional() }),
+  run: (ctx, args) => run(ctx, { action: "conversations_delete", ...args }),
+});
+
 /** The public agent's tools, in the order Claude lists them. */
 export const PUBLIC_AGENT_TOOLS: Tool[] = [showSetup, setupSave, turnOff, agentsList, agentCreate, agentChange,
-  agentRemove, knowledgeGet, knowledgeSave, instructionsGet, instructionsSave, settings, changeSettings];
+  agentRemove, knowledgeGet, knowledgeSave, instructionsGet, instructionsSave, settings, changeSettings,
+  conversationsList, conversationGet, conversationsDelete];

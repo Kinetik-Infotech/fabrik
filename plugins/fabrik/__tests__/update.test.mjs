@@ -43,7 +43,7 @@ function upgrader(ledgers, { old = false, refuse = null } = {}) {
   return { call, sent, ledgers };
 }
 const fabrikUpTo = n => ["0001-baseline", "0002-set-based-lookups", "0003-second-factor", "0004-graph-reader", "0005-private-sessions",
-  "0006-record-source", "0007-ported-tools", "0008-mailbox", "0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents"].slice(0, n);
+  "0006-record-source", "0007-ported-tools", "0008-mailbox", "0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"].slice(0, n);
 const SEARCH = ["0001-baseline", "0002-sentence-claim", "0003-graph-reader", "0004-claim-once", "0005-worker-budget", "0006-claim-source", "0007-any-word"];
 
 test("update --check names the upgrades the project lacks, with what each brings, and the functions that changed, fabrik-upgrade first", async t => {
@@ -51,7 +51,7 @@ test("update --check names the upgrades the project lacks, with what each brings
   const out = await update(["--check"], project(t, ["fabrik-apps", "fabrik-upgrade"]), call);
   assert.equal(out.ok, true);
   assert.equal(out.behind, true);
-  assert.deepEqual(out.upgrades.map(u => u.id), ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents"]);
+  assert.deepEqual(out.upgrades.map(u => u.id), ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"]);
   assert.match(out.upgrades[1].about, /drafts and sending/);
   assert.match(out.upgrades[2].about, /HTML signature/);
   assert.deepEqual(out.functions, ["fabrik-upgrade", "fabrik-apps"]);
@@ -59,7 +59,7 @@ test("update --check names the upgrades the project lacks, with what each brings
 });
 
 test("update --check on an up-to-date project answers behind false, and never lists fabrik-setup", async t => {
-  const { call } = upgrader({ fabrik: fabrikUpTo(14), file_search: SEARCH });
+  const { call } = upgrader({ fabrik: fabrikUpTo(15), file_search: SEARCH });
   const out = await update(["--check"], project(t, ["fabrik-setup"]), call);
   assert.equal(out.behind, false);
   assert.deepEqual(out.upgrades, []);
@@ -69,12 +69,12 @@ test("update --check on an up-to-date project answers behind false, and never li
 test("update --apply with only upgrades missing asks for no token, applies them in order, and passes over what an old fabrik-upgrade says is applied", async t => {
   const fresh = upgrader({ fabrik: fabrikUpTo(8), file_search: SEARCH });
   const out = await update(["--apply"], project(t), fresh.call, { askHidden: noToken });
-  assert.deepEqual(out.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents"]);
+  assert.deepEqual(out.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"]);
   assert.deepEqual(out.deployed, []);
-  assert.deepEqual(out.ledgers.fabrik, fabrikUpTo(14));
+  assert.deepEqual(out.ledgers.fabrik, fabrikUpTo(15));
   const old = upgrader({ fabrik: fabrikUpTo(8), file_search: SEARCH }, { old: true });
   const fromOld = await update(["--apply"], project(t), old.call, { askHidden: noToken });
-  assert.deepEqual(fromOld.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents"]);
+  assert.deepEqual(fromOld.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"]);
   assert.ok(old.sent.filter(b => !b.list).every(b => typeof b.signature === "string" && b.signature.length > 40));
 });
 
@@ -109,8 +109,8 @@ test("update --apply deploys fabrik-upgrade from this computer's files before th
   const out = await update(["--apply"], folder, call, { askHidden: async () => TOKEN, say: l => lines.push(l), base: api.url });
   assert.equal(out.ok, true, out.problem);
   assert.deepEqual(out.deployed, ["fabrik-upgrade", "fabrik-apps"]);
-  assert.deepEqual(out.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents"]);
-  assert.deepEqual(seen, Array(6).fill("fabrik-upgrade"));
+  assert.deepEqual(out.applied, ["0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"]);
+  assert.deepEqual(seen, Array(7).fill("fabrik-upgrade"));
   const apps = api.state.functions.find(f => f.slug === "fabrik-apps");
   const made = FUNCTIONS.find(f => f.name === "fabrik-apps");
   assert.equal(apps.verify_jwt, made.verify_jwt);
@@ -125,7 +125,7 @@ test("update --apply with a token Supabase refuses says so, and records nothing"
   t.after(() => api.stop());
   const folder = project(t, ["fabrik-apps"]);
   const before = readFileSync(join(folder, PROJECT_FILE), "utf8");
-  const { call } = upgrader({ fabrik: fabrikUpTo(14), file_search: SEARCH });
+  const { call } = upgrader({ fabrik: fabrikUpTo(15), file_search: SEARCH });
   const out = await update(["--apply"], folder, call, { askHidden: async () => "sbp_wrong", base: api.url });
   assert.equal(out.ok, false);
   assert.match(out.problem, /^Supabase refused the token/);

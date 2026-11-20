@@ -16,7 +16,13 @@
 // once one is saved. fabrik chat-page builds a page for each agent and a list of them from a Brand record, in its colours
 // and with its logo. widget.js, run in a page on another website, opens the page of the agent data-agent names in a
 // panel, where a question gets that agent's answer. Once today's tokens reach the cap, the answer is the resting message
-// and Claude isn't called. No row anywhere holds a question, and no reply holds the key or the secret. run.sh runs it.
+// and Claude isn't called. No reply holds the key or the secret.
+//
+// Each question an agent answered, the resting answer included, is kept in public_exchange under the conversation id
+// chat.js made when the box was drawn, and nowhere else. A refused question is not kept, and no row holds the visitor's
+// IP address, Turnstile token or browser. An administrator lists the conversations, reads one whole, and deletes one or
+// every conversation of an agent before a date. The chat page says under the box that the business keeps the
+// conversation. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 import { Window } from "npm:happy-dom@20.0.10";
@@ -223,8 +229,8 @@ try {
 
   // The settings actions, for an administrator alone.
   for (const action of ["check", "set_key", "set_turnstile", "remove_key", "agents_list", "agent_create", "agent_change", "agent_remove",
-    "knowledge_get", "knowledge_save", "instructions_get", "instructions_save", "settings"]) {
-    res = await post({ action, agent: "chat", name: "Hijacked", key: KEY, secret: SECRET, text: KNOWLEDGE }, person);
+    "knowledge_get", "knowledge_save", "instructions_get", "instructions_save", "settings", "conversations_list", "conversation_get", "conversations_delete"]) {
+    res = await post({ action, agent: "chat", name: "Hijacked", key: KEY, secret: SECRET, text: KNOWLEDGE, id: crypto.randomUUID() }, person);
     if (res.status !== 403) check(`a person who isn't an administrator is refused ${action}`, false, res);
   }
   res = await post({ action: "check" });
@@ -349,16 +355,16 @@ try {
   const [{ p: pageAfter }] = await sql`select page_address as p from fabrik_private.public_agent_setting`;
   check("settings with a cap and no agent is refused, and the page's address it gave isn't saved", res.status === 400 && pageAfter === null, { res, pageAfter });
 
-  // Nothing holds a question.
+  // No table but public_exchange holds a question.
   const tables = await sql`select format('%I.%I', table_schema, table_name) as t from information_schema.tables
     where table_type = 'BASE TABLE' and table_schema not in ('pg_catalog', 'information_schema')`;
   const holding: string[] = [];
   for (const { t } of tables) {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like $1`, [`%${marker}%`]);
-    if (n) holding.push(t);
+    if (n && t !== "fabrik_private.public_exchange") holding.push(t);
   }
   const [usage] = await sql`select tokens from fabrik_private.public_agent_usage where slug = 'chat' and day = (now() at time zone 'utc')::date`;
-  check(`no row in any of ${tables.length} tables holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 4120, { holding, usage });
+  check(`no row in any of ${tables.length} tables but public_exchange holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 4120, { holding, usage });
 
   // The hold counts bytes, so a question in any language can't pass the cap. 2,000 Chinese characters are 6,000 bytes:
   // with 4,120 spent, a cap of 10,120 leaves too little room for them.
@@ -445,8 +451,9 @@ try {
   const renamed = files.get("agents.md");
   const removed = await post({ action: "agent_remove", agent: "cakes" }, admin);
   const afterRemove = files.get("agents.md");
-  const [{ n: cakesTokens }] = await sql`select count(*)::int as n from fabrik_private.public_agent_usage where slug = 'cakes'`;
-  check("AGENTS.md changes when an agent is renamed or removed, and a removed agent's files and tokens go",
+  const [{ n: cakesTokens }] = await sql`select ((select count(*) from fabrik_private.public_agent_usage where slug = 'cakes')
+    + (select count(*) from fabrik_private.public_exchange where slug = 'cakes'))::int as n`;
+  check("AGENTS.md changes when an agent is renamed or removed, and a removed agent's files, tokens and conversations go",
     renamed === AGENTS_MD.replace("- Cakes, https://fabrik-chat-abc.pages.dev/cakes/: Answers questions about celebration cakes.", "- Celebration cakes, https://fabrik-chat-abc.pages.dev/cakes/: Cakes for birthdays and weddings.")
       && removed.body.removed === true && afterRemove === "- Chat, https://fabrik-chat-abc.pages.dev/chat/\n- Bookings, https://fabrik-chat-abc.pages.dev/bookings/: Books a table.\n"
       && !files.has("agents/cakes/knowledge.md") && !files.has("agents/cakes/instructions.md") && cakesTokens === 0, { renamed, removed, afterRemove, cakesTokens });
@@ -476,10 +483,16 @@ try {
   }
   const answers = [...doc.querySelectorAll("#fabrik-chat li.a")].map((li: any) => li.className);
   const lastHistory = posted.at(-1).history;
+  const pageConversation = posted[0].conversation;
+  const [pageKept] = await sql`select count(*)::int as n, count(distinct conversation)::int as conversations from fabrik_private.public_exchange where conversation = ${pageConversation}::uuid`;
+  const keptLine = doc.querySelector("#fabrik-chat p.kept")?.textContent;
   check("chat.js gets an answer to each of 12 questions with 830-character answers, sending the latest 9 turns once 10 would pass 8,000 characters",
     answers.length === 12 && answers.every((c) => c === "a") && lastHistory.length === 18 && lastHistory[0].content.startsWith("Question 3:")
       && lastHistory.reduce((n: number, t: any) => n + t.content.length, 0) <= 8000,
     { answers, sizes: posted.map((p) => [p.history.length, p.history.reduce((n: number, t: any) => n + t.content.length, 0)]) });
+  check("chat.js makes one conversation id when the box is drawn and sends it with every question, the function keeps all 12 under it, and with no data-business the line under the box names no business",
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pageConversation) && posted.every((p) => p.conversation === pageConversation)
+      && pageKept.n === 12 && keptLine === "This conversation is kept to improve its answers.", { pageConversation, pageKept, keptLine, sentIds: posted.map((p) => p.conversation) });
   await page.happyDOM.close();
 
   // fabrik chat-page's build and put-up, with the Brand record, the project's address and Wrangler standing in.
@@ -612,11 +625,11 @@ try {
     /couldn't read the Brand record/.test(String(stopped)) && /no public agent yet/.test(String(noAgents)) && await Deno.readTextFile(`${tools}/wrangler-state.json`) === deployedBefore
       && await Deno.readTextFile(`${built.folder}/index.html`) === pageBefore, { stopped, noAgents });
   const logo = brandRecord.payload.graph.nodes[0].attributes.logo.data_address;
-  check("an agent's page takes the Brand record's colours in light and dark, its fonts and its logo, with the agent's name, and names the function's address and the agent",
+  check("an agent's page takes the Brand record's colours in light and dark, its fonts and its logo, with the agent's name, and names the function's address, the agent and the business",
     bookingsHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && bookingsHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
       && bookingsHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && bookingsHtml.includes('"Fraunces"') && bookingsHtml.includes(`src="${logo}"`)
       && bookingsHtml.includes("<title>Bookings | Smith Joinery</title>") && bookingsHtml.includes("<h1>Bookings</h1>")
-      && bookingsHtml.includes('<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings"></script>')
+      && bookingsHtml.includes('<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery"></script>')
       && !bookingsHtml.includes("{{") && !bookingsHtml.includes("data-sitekey"),
     bookingsHtml.slice(0, 1500));
   check("the root page, in the brand, lists the agents by name and purpose, each linked to its page",
@@ -682,9 +695,9 @@ try {
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
   const thought = Boolean(cdoc.querySelector("#fabrik-chat li.thinking"));
   while (!cdoc.querySelector("#fabrik-chat li.a:not(.thinking)")) await new Promise((r) => setTimeout(r, 5));
-  const answered = { methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
-  check("an agent's page gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer",
-    answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
+  const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
+  check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer",
+    answered.kept === "Smith Joinery keeps this conversation to improve its answers." && answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
       && answered.answer === "Tables: book by phone on 01234 567890." && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
   await chat.happyDOM.close();
 
@@ -700,6 +713,62 @@ try {
   check("before the site key is saved, the chat page says fabrik has no Turnstile site key", /no Turnstile site key/.test(String(earlyLine)), earlyLine);
   await early.happyDOM.close();
   await Deno.remove(home, { recursive: true });
+
+  // The conversations the owner keeps. Two questions in one conversation and one in another, from a visitor at a known
+  // address. A failed Turnstile check, a bad conversation id and a request with none.
+  const since = new Date().toISOString();
+  const [one, two] = [crypto.randomUUID(), crypto.randomUUID()];
+  const IP = "203.0.113.77";
+  const fromVisitor = async (body: Record<string, unknown>) => {
+    const r = await handler!(new Request("http://function/", { method: "POST", body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": IP, "User-Agent": "StandInBrowser/1.0" } }));
+    return { status: r.status, body: await r.json() };
+  };
+  const exchangesBefore = (await sql`select count(*)::int as n from fabrik_private.public_exchange`)[0].n;
+  const refusedVisitor = await fromVisitor({ conversation: one, question: "Refused question?", turnstile_token: "forged" });
+  const badId = await fromVisitor({ conversation: "not-a-uuid", question: "Hours?", turnstile_token: GOOD_TOKEN });
+  check("a failed Turnstile check and a conversation that isn't a UUID are refused, and nothing is kept",
+    refusedVisitor.status === 403 && badId.status === 400
+      && (await sql`select count(*)::int as n from fabrik_private.public_exchange`)[0].n === exchangesBefore, { refusedVisitor, badId });
+  await fromVisitor({ conversation: one, question: "What are your opening hours?", turnstile_token: GOOD_TOKEN });
+  await fromVisitor({ conversation: one, question: "Do you make cakes to order?", turnstile_token: GOOD_TOKEN,
+    history: [{ role: "user", content: "What are your opening hours?" }, { role: "assistant", content: "Opening hours: 8am to 4pm, Tuesday to Saturday." }] });
+  await fromVisitor({ conversation: two, question: "Do you sell wholesale?", turnstile_token: GOOD_TOKEN });
+  const listed = await post({ action: "conversations_list", agent: "chat", since }, admin);
+  const whole = await post({ action: "conversation_get", id: one }, admin);
+  check("conversations_list gives the two conversations newest first, each with its first question, its number of questions and its times",
+    listed.status === 200 && JSON.stringify(listed.body.conversations?.map((c: any) => [c.id, c.agent, c.questions, c.first_question])) === JSON.stringify([
+      [two, "chat", 1, "Do you sell wholesale?"], [one, "chat", 2, "What are your opening hours?"]])
+      && listed.body.conversations[1].first_at <= listed.body.conversations[1].last_at, listed.body);
+  check("conversation_get gives the first conversation's questions and answers in order, with each answer's tokens",
+    whole.status === 200 && whole.body.agent === "chat" && JSON.stringify(whole.body.exchanges?.map((e: any) => [e.question, e.answer, e.input_tokens, e.output_tokens])) === JSON.stringify([
+      ["What are your opening hours?", "Opening hours: 8am to 4pm, Tuesday to Saturday.", 6400, 30],
+      ["Do you make cakes to order?", "Services: bread, cakes to order, and wholesale for cafes.", 6400, 30]]), whole.body);
+  const noId = await fromVisitor({ question: "Opening hours?", turnstile_token: GOOD_TOKEN });
+  const noIdToo = await fromVisitor({ question: "Opening hours again?", turnstile_token: GOOD_TOKEN });
+  const unnamed = await sql`select distinct conversation::text as c from fabrik_private.public_exchange where question in ('Opening hours?', 'Opening hours again?')`;
+  check("a question with no conversation, from a page built before there was one, is kept under a new id of its own",
+    noId.status === 200 && noIdToo.status === 200 && unnamed.length === 2 && unnamed.every((r) => r.c !== one && r.c !== two), unnamed);
+  const identifying: string[] = [];
+  for (const { t } of tables) {
+    const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like any($1)`, [[`%${IP}%`, `%${GOOD_TOKEN}%`, "%StandInBrowser%"]]);
+    if (n) identifying.push(t);
+  }
+  check("no row in any table holds the visitor's IP address, Turnstile token or browser", identifying.length === 0, identifying);
+  const badDelete = await post({ action: "conversations_delete", id: one, agent: "chat" }, admin);
+  const deleted = await post({ action: "conversations_delete", id: two }, admin);
+  const left = await post({ action: "conversations_list", agent: "chat", since }, admin);
+  const gone = await post({ action: "conversation_get", id: two }, admin);
+  check("conversations_delete refuses an id with an agent, deletes the one conversation given, and the other stays whole",
+    badDelete.status === 400 && deleted.status === 200 && deleted.body.conversations === 1 && deleted.body.exchanges === 1 && gone.status === 404
+      && JSON.stringify(left.body.conversations?.map((c: any) => c.id).filter((c: string) => c === one || c === two)) === JSON.stringify([one])
+      && (await post({ action: "conversation_get", id: one }, admin)).body.exchanges?.length === 2, { badDelete, deleted, left: left.body, gone });
+  const bookingsBefore = (await post({ action: "conversations_list", agent: "bookings" }, admin)).body.conversations.length;
+  const byAgent = await post({ action: "conversations_delete", agent: "chat", before: new Date(Date.now() + 60_000).toISOString() }, admin);
+  const chatLeft = (await post({ action: "conversations_list", agent: "chat" }, admin)).body.conversations.length;
+  const bookingsLeft = (await post({ action: "conversations_list", agent: "bookings" }, admin)).body.conversations.length;
+  check("conversations_delete with an agent and a date deletes every conversation of that agent last asked before it, and leaves the other agents'",
+    byAgent.status === 200 && byAgent.body.conversations > 2 && chatLeft === 0 && bookingsBefore > 0 && bookingsLeft === bookingsBefore, { byAgent: byAgent.body, chatLeft, bookingsBefore, bookingsLeft });
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
