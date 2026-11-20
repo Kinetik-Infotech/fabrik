@@ -25,7 +25,7 @@ When the connector has no `public_agents_list` tool, Claude connected to fabrik 
 1. Call `public_agents_list`. An agent named Chat, with the slug `chat`, is the chat box the business had before there could be several. Tell the owner which agents there are.
 2. Ask what the new agent is for. Write its purpose as one sentence a visitor would understand, such as "Takes table bookings and cake orders." Every other agent reads it in AGENTS.md, so it says when to send a visitor there.
 3. Agree its name, which visitors see, and its slug, which names its page: `https://<chat page>/<slug>/`. A slug is 1 to 40 characters of a to z, 0 to 9 and hyphens.
-4. Show the slug, name and purpose. Call `public_agent_create` only once the owner approves them. A purpose that runs past one sentence goes in a Claude Doc for approval, as section 9 says, and is saved with `public_agent_create` or `public_agent_change`.
+4. Show the slug, name and purpose, and say what follows. Creating the agent saves only these three. Its INSTRUCTIONS.md and KNOWLEDGE.md come next, each as a Claude Doc for the owner to approve, and it answers no one until KNOWLEDGE.md is saved. Ask "Create the agent, then open its files?", not "Create the agent?". Call `public_agent_create` only once the owner approves. A purpose that runs past one sentence goes in a Claude Doc for approval, as section 9 says, and is saved with `public_agent_create` or `public_agent_change`.
 
 A new agent starts with fabrik's starting INSTRUCTIONS.md and no KNOWLEDGE.md, and answers no one until its KNOWLEDGE.md is saved. To change an agent's name or purpose, use `public_agent_change`, once the owner approves the new text. fabrik rewrites AGENTS.md each time.
 
