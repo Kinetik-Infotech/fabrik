@@ -4,9 +4,10 @@
 //   <script src="../chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-agent="chat"></script>
 //
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
-// Cloudflare's Turnstile script and draws its widget. Each question is posted with a new Turnstile token and the latest
+// Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
 // turns that fit the function's limits: at most 10 turns and 8,000 characters. The page keeps those turns in memory
-// alone, so a reload starts afresh. Each answer is shown as plain text.
+// alone, so a reload starts afresh. Three bouncing dots stand in the answer's place while the assistant thinks. Each
+// answer is shown as plain text.
 (function () {
   "use strict";
   var script = document.currentScript;
@@ -31,6 +32,13 @@
     ".fabrik-chat li.a { justify-self: start; position: relative; padding-left: 36px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }" +
     ".fabrik-chat li.a::before { content: \"\"; position: absolute; left: 8px; top: 7px; width: 20px; height: 20px; background: url(" + MARK + ") center / contain no-repeat; }" +
     ".fabrik-chat li.problem { color: #b42318; }" +
+    ".fabrik-chat li.thinking { display: flex; align-items: center; gap: 5px; min-height: 1.4em; }" +
+    ".fabrik-chat li.thinking span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.6; animation: fabrik-chat-bounce 1.2s ease-in-out infinite; }" +
+    ".fabrik-chat li.thinking span:nth-child(2) { animation-delay: 0.15s; }" +
+    ".fabrik-chat li.thinking span:nth-child(3) { animation-delay: 0.3s; }" +
+    "@keyframes fabrik-chat-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.6; } 30% { transform: translateY(-5px); opacity: 1; } }" +
+    "@media (prefers-reduced-motion: reduce) { .fabrik-chat li.thinking span { animation-name: fabrik-chat-fade; } }" +
+    "@keyframes fabrik-chat-fade { 0%, 60%, 100% { opacity: 0.35; } 30% { opacity: 1; } }" +
     ".fabrik-chat form { display: flex; gap: 6px; flex-wrap: wrap; }" +
     ".fabrik-chat input[type=text] { flex: 1 1 12em; min-width: 0; padding: 6px 8px; font: inherit; }" +
     ".fabrik-chat button { padding: 6px 12px; font: inherit; }";
@@ -57,10 +65,22 @@
     li.scrollIntoView({ block: "nearest" });
   }
 
+  // The answer's place while the assistant thinks: three dots, read out once as "Thinking".
+  function thinking() {
+    var li = document.createElement("li");
+    li.className = "a thinking";
+    li.setAttribute("role", "status");
+    li.setAttribute("aria-label", "Thinking");
+    for (var i = 0; i < 3; i++) li.appendChild(document.createElement("span"));
+    list.appendChild(li);
+    li.scrollIntoView({ block: "nearest" });
+    return li;
+  }
+
   if (!address) { line("This chat box needs data-address on its script tag.", "problem"); form.hidden = true; return; }
 
   window.fabrikChatTurnstile = function () {
-    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible" });
+    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible", appearance: "interaction-only" });
   };
   function loadTurnstile() {
     var api = document.createElement("script");
@@ -102,10 +122,11 @@
     var question = input.value.trim();
     if (!question) return;
     var token = widget !== null && window.turnstile ? window.turnstile.getResponse(widget) : "";
-    if (!token) { line("Wait for the check below to finish, then send again.", "problem"); return; }
+    if (!token) { line("Wait a moment for the security check, then send again.", "problem"); return; }
     line(question, "q");
     input.value = "";
     send.disabled = true;
+    var dots = thinking();
     var history = fitting();
     fetch(address, {
       method: "POST",
@@ -115,12 +136,14 @@
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) { return { ok: res.ok, body: body }; });
     }).then(function (r) {
+      dots.remove();
       if (r.ok && typeof r.body.answer === "string") {
         line(r.body.answer, "a");
         turns.push({ role: "user", content: question }, { role: "assistant", content: r.body.answer });
         turns = turns.slice(-TURNS * 2);
       } else line(r.body.problem || "The assistant can't answer right now. Try again later.", "a problem");
     }, function () {
+      dots.remove();
       line("The assistant can't be reached. Check your connection and try again.", "a problem");
     }).then(function () {
       send.disabled = false;
