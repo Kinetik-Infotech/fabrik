@@ -4,14 +4,15 @@
 //   <script src="chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-sitekey="0x4AAA..."></script>
 //
 // The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
-// Cloudflare's Turnstile script and draws its widget. Each question is posted with a new Turnstile token and the last 10
-// turns. The page keeps those turns in memory alone, so a reload starts afresh. Each answer is shown as plain text.
+// Cloudflare's Turnstile script and draws its widget. Each question is posted with a new Turnstile token and the latest
+// turns that fit the function's limits: at most 10 turns and 8,000 characters. The page keeps those turns in memory
+// alone, so a reload starts afresh. Each answer is shown as plain text.
 (function () {
   "use strict";
   var script = document.currentScript;
   var address = script && script.getAttribute("data-address");
   var sitekey = script && script.getAttribute("data-sitekey");
-  var TURNS = 10;
+  var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
   var widget = null;
 
@@ -62,6 +63,18 @@
   api.async = true; api.defer = true;
   document.head.appendChild(api);
 
+  // The latest turns that fit the function's limits. Older turns are left out.
+  function fitting() {
+    var kept = [], total = 0;
+    for (var i = turns.length - 2; i >= 0 && kept.length < TURNS * 2; i -= 2) {
+      var q = turns[i].content, a = turns[i + 1].content;
+      if (q.length > MAX_QUESTION || a.length > MAX_ANSWER || total + q.length + a.length > MAX_HISTORY) break;
+      total += q.length + a.length;
+      kept.unshift(turns[i], turns[i + 1]);
+    }
+    return kept;
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var question = input.value.trim();
@@ -71,7 +84,7 @@
     line(question, "q");
     input.value = "";
     send.disabled = true;
-    var history = turns.slice(-TURNS * 2);
+    var history = fitting();
     fetch(address, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -44,10 +44,11 @@ This key is apart from the connections key. Saving one never turns the other on.
 
 Call `public_agent_settings` to read them. It gives `model`, `daily_cap_tokens`, `today_tokens` and `address`.
 
-- The cap starts at 500,000 tokens a day, in UTC days. Once a day's tokens reach it, the box answers "The assistant is resting until tomorrow." and Claude isn't called. Each answer counts every token Claude read and wrote, KNOWLEDGE.md included. Point to anthropic.com/pricing for the rates. Never work out a price.
+- The cap starts at 500,000 tokens a day, in UTC days. Once a day's tokens reach it, the box answers "The assistant is resting until tomorrow." and Claude isn't called. Point to anthropic.com/pricing for the rates. Never work out a price.
+- Each answer counts every token Claude read and wrote, KNOWLEDGE.md included. When the last question came within five minutes, Claude reads the file from its cache. The cap counts that read at a tenth, as Anthropic charges it. Otherwise the file counts in full. So the bigger KNOWLEDGE.md is, the fewer questions a day the box answers under the cap. Tell the owner this when the file grows, or when they ask why the box rests early.
 - The model starts as `claude-haiku-5-5`. Change it only when the owner asks.
 
-Change either with `public_agent_settings`, once the owner approves the new value.
+Change either with `public_agent_settings_change`, once the owner approves the new value.
 
 ## 4. The box on the website
 
@@ -59,7 +60,7 @@ Change either with `public_agent_settings`, once the owner approves the new valu
    <script src="chat.js" data-address="ADDRESS" data-sitekey="SITE_KEY"></script>
    ```
 
-3. The box appears where the `div` is. A site builder that takes no script tags can show the plugin's `chat.html` instead, filled in the same way, in an embed block.
+3. The box appears where the `div` is.
 
 Then ask the owner to try two questions on the website: one KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second says the assistant doesn't know and suggests contacting the owner.
 

@@ -2,13 +2,16 @@
 // writes. It has no tools and reads no record. Deploy it with verify_jwt off, since a visitor has no sign-in. Cloudflare
 // Turnstile checks a visitor, and an administrator's own sign-in is the check for the settings actions.
 //
-// The chat box posts { question, history, turnstile_token }. The function checks the token with Cloudflare's siteverify,
+// The chat box posts { question, history, turnstile_token }. A post with no token, or one too long, is refused before the
+// function opens a database connection. The function checks the token with Cloudflare's siteverify,
 // using the Vault's turnstile_secret, and answers 403 when it fails. It holds the most this answer could cost against
 // the daily cap in fabrik_private.public_agent_setting. When that would pass the cap, it answers RESTING and calls
-// nothing. Else it sends Claude the fixed INSTRUCTION, then the file, cached, then the last 10 turns and the question.
+// nothing. Else it sends Claude the fixed INSTRUCTION, then the file, cached, then the latest turns that fit the history's
+// limits, at most 10, and the question.
 // It answers { answer } in plain text.
 //
-// After each answer it puts the answer's own tokens in place of what it held, in today's row of
+// After each answer it puts the answer's own tokens in place of what it held, a cache read counting a tenth as Anthropic
+// charges it, in today's row of
 // fabrik_private.public_agent_usage, in UTC days. It stores and logs no question, history or answer. The Anthropic API key is the Vault's public_agent_anthropic_key. It is
 // kept apart from the connections key, so turning one on never turns on the other.
 //
@@ -128,7 +131,8 @@ async function turnstile(secret: string, token: string, ip: string | null): Prom
 }
 
 type Turn = { role: "user" | "assistant"; content: string };
-/** The last TURNS turns of the history given, starting with a question and alternating, or null when it isn't one. */
+/** The latest turns of the history given that fit: at most TURNS, each question and answer within its limit, and at most
+ * MAX_HISTORY characters in all. Older turns are left out. null when the history isn't a list of questions and answers. */
 export function historyOf(given: unknown): Turn[] | null {
   if (given === undefined || given === null) return [];
   if (!Array.isArray(given)) return null;
@@ -136,26 +140,39 @@ export function historyOf(given: unknown): Turn[] | null {
   for (const t of given) {
     if (!t || (t.role !== "user" && t.role !== "assistant") || typeof t.content !== "string") return null;
     const content = t.content.trim();
-    if (!content || content.length > (t.role === "user" ? MAX_QUESTION : MAX_ANSWER)) return null;
+    if (!content) return null;
     turns.push({ role: t.role, content });
   }
   if (turns.some((t, i) => t.role !== (i % 2 ? "assistant" : "user")) || turns.length % 2) return null;
-  const kept = turns.slice(-TURNS * 2);
-  return kept.reduce((n, t) => n + t.content.length, 0) > MAX_HISTORY ? null : kept;
+  const kept: Turn[] = [];
+  let total = 0;
+  for (let i = turns.length - 2; i >= 0 && kept.length < TURNS * 2; i -= 2) {
+    const [q, a] = [turns[i].content, turns[i + 1].content];
+    if (q.length > MAX_QUESTION || a.length > MAX_ANSWER || total + q.length + a.length > MAX_HISTORY) break;
+    total += q.length + a.length;
+    kept.unshift(turns[i], turns[i + 1]);
+  }
+  return kept;
 }
 
-/** A visitor's question, answered from KNOWLEDGE.md. */
-async function ask(args: Record<string, unknown>, ip: string | null) {
+/** A visitor's post, checked before the function opens a database connection: the question, the history and a token. */
+function visitor(args: Record<string, unknown>) {
   const question = typeof args.question === "string" ? args.question.trim() : "";
   if (!question || question.length > MAX_QUESTION) throw refuse(400, `Ask a question of at most ${MAX_QUESTION} characters.`);
   const history = historyOf(args.history);
-  if (!history) throw refuse(400, `history is a list of turns, a question then its answer, each { role, content }, with at most ${MAX_HISTORY} characters in its last ${TURNS} turns.`);
+  if (!history) throw refuse(400, "history is a list of turns, a question then its answer, each { role, content }.");
   const token = typeof args.turnstile_token === "string" ? args.turnstile_token : "";
+  if (!token || token.length > 2048) throw refuse(403, NOT_CHECKED);
+  return { question, history, token };
+}
+
+/** A visitor's question, answered from KNOWLEDGE.md. */
+async function ask({ question, history, token }: ReturnType<typeof visitor>, ip: string | null) {
   let secret: string, key: string;
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
   if (!secret) throw refuse(503, UNAVAILABLE, { setup: "turnstile" });
-  if (!token || token.length > 2048 || !(await turnstile(secret, token, ip)).success) throw refuse(403, NOT_CHECKED);
+  if (!(await turnstile(secret, token, ip)).success) throw refuse(403, NOT_CHECKED);
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const file = await knowledge();
   if (!file?.trim()) throw refuse(503, UNAVAILABLE, { setup: "knowledge" });
@@ -187,7 +204,8 @@ async function ask(args: Record<string, unknown>, ip: string | null) {
       throw refuse(502, UNAVAILABLE);
     }
     const u = reply.usage;
-    spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
+    // Anthropic charges a cache read at a tenth of the input rate, so the cap counts it at a tenth of a token.
+    spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + Math.ceil((u?.cache_read_input_tokens ?? 0) / 10);
     const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim();
     return { answer: answer || UNAVAILABLE };
   } finally {
@@ -277,19 +295,24 @@ async function changeSettings(args: Record<string, unknown>) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== "POST") return json(405, { ok: false, problem: "Call this function with POST." });
+  const args = await req.json().catch(() => ({})) as Record<string, unknown>;
+  let given: ReturnType<typeof visitor> | null = null;
+  if (args.action === undefined) {
+    try { given = visitor(args); }
+    catch (err) { if (err instanceof Refusal) return json(err.status, err.body); throw err; }
+  }
   const db = seam.connect();
   try {
-    return await runs.run({ sql: db, secrets: [] }, () => serve(req));
+    return await runs.run({ sql: db, secrets: [] }, () => serve(req, args, given));
   } finally {
     await db.end();
   }
 });
 
-async function serve(req: Request): Promise<Response> {
-  if (req.method !== "POST") return json(405, { ok: false, problem: "Call this function with POST." });
+async function serve(req: Request, args: Record<string, unknown>, asked: ReturnType<typeof visitor> | null): Promise<Response> {
   try {
-    const args = await req.json().catch(() => ({})) as Record<string, unknown>;
-    if (args.action === undefined) return json(200, await ask(args, req.headers.get("CF-Connecting-IP") ?? req.headers.get("x-real-ip")));
+    if (asked) return json(200, await ask(asked, req.headers.get("CF-Connecting-IP") ?? req.headers.get("x-real-ip")));
     const given = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
     const user = given ? await seam.user(given, req.headers.get("apikey") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "") : null;
     if (!user) return json(401, { ok: false, problem: "Call this action with an administrator's sign-in." });

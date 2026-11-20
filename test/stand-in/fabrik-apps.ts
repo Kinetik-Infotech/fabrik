@@ -368,9 +368,9 @@ try {
   check("every tool's input in tools/list refuses an argument it does not name",
     listed.length > 0 && listed.every((t) => t.inputSchema?.additionalProperties === false), listed.filter((t) => t.inputSchema?.additionalProperties !== false).map((t) => t.name));
   const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save", "connections_setup_save", "connections_off",
-    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_agent_settings", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
+    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
   const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call", "show_connections_setup", "connections_setup_save",
-    "show_public_agent_setup", "public_agent_setup_save", "public_agent_settings", "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
+    "show_public_agent_setup", "public_agent_setup_save", "public_agent_settings_change", "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
   check("tools/list gives every tool a title and a hint: read-only tools, the show cards among them, readOnlyHint true; deleting, removing, replacing and sending tools destructiveHint true",
     listed.length > 0 && listed.every((t) => typeof t.title === "string" && t.title.length > 0 && typeof t.annotations?.readOnlyHint === "boolean"
       && (t.annotations.readOnlyHint || typeof t.annotations.destructiveHint === "boolean"))
@@ -1626,7 +1626,7 @@ try {
   const paOtherCard = await tool(ownerToken, "card_call", { card: "public-agent-setup", name: "public_agent_off", arguments: { pass: ownerPass } });
   const paSave = await tool(ownerToken, "public_knowledge_save", { text: "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" });
   const paGet = await tool(ownerToken, "public_knowledge_get", {});
-  const paSettings = await tool(ownerToken, "public_agent_settings", { daily_cap_tokens: 2000 });
+  const paSettings = await tool(ownerToken, "public_agent_settings_change", { daily_cap_tokens: 2000 });
   const paReader = [await tool(readerToken, "show_public_agent_setup", {}), await tool(readerToken, "public_knowledge_save", { text: "Hijacked" }),
     await tool(readerToken, "public_knowledge_get", {}), await tool(readerToken, "public_agent_settings", {})];
   paCard.press(paCard.doc.getElementById("pa-off"));
@@ -1647,7 +1647,7 @@ try {
     said(paWrong) === "Cloudflare refused the secret key. Nothing was kept." && await secretOf("turnstile_secret") === TURNSTILE
       && [paNoPass, paOtherCard].every((r) => said(r) === "Only the public agent card sets its keys, and this one has expired. Show the public agent card again."),
     { paWrong, paNoPass, paOtherCard });
-  check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings sets the cap and gives the chat box's address",
+  check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings_change sets the cap and gives the chat box's address",
     ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 2000
       && v(paSettings)?.model === "claude-haiku-5-5" && v(paSettings)?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, { paSave, paGet, paSettings });
   check("a person who isn't an administrator is refused the card, the knowledge and the settings, and the file stays",
