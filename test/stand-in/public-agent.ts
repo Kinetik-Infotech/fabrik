@@ -96,6 +96,8 @@ const customDomains = new Map<string, { project: string; asked: number; checkedA
 let flakyFailed = false;
 const cfCalls: string[] = [];
 const dnsRecords = new Set<string>();
+// Records Cloudflare's changeset misses and its PUT still refuses, as the live API did on 20 November 2026.
+const hiddenRecords = new Set<string>();
 const workerDomains = new Map<string, { id: string; service: string }>();
 const workerPuts: any[] = [];
 const workersApi = async (req: Request, url: URL) => {
@@ -120,7 +122,7 @@ const workersApi = async (req: Request, url: URL) => {
   }
   workerPuts.push({ script: m[1], ...body });
   for (const o of body.origins) {
-    if (dnsRecords.has(o.hostname) && !body.override_existing_dns_record)
+    if ((dnsRecords.has(o.hostname) || hiddenRecords.has(o.hostname)) && !body.override_existing_dns_record)
       return Response.json({ success: false, errors: [{ code: 100117, message: "Hostname already has externally managed DNS records." }] }, { status: 409 });
     workerDomains.set(o.hostname, { id: crypto.randomUUID().replaceAll("-", ""), service: m[1] });
   }
@@ -590,7 +592,8 @@ try {
   const dnsAnswers = new Map<string, boolean[]>(), reachAnswers = new Map<string, boolean[]>();
   const domains = { api: `http://127.0.0.1:${cloudflare.addr.port}/client/v4`, pause: () => Promise.resolve(), tries: 5,
     resolve: (host: string) => Promise.resolve(dnsAnswers.get(host)?.shift() ?? true), reach: (host: string) => Promise.resolve(reachAnswers.get(host)?.shift() ?? true),
-    isDomain: (host: string) => Promise.resolve(host === "outside.example") };
+    isDomain: (host: string) => Promise.resolve(host === "outside.example"),
+    onCloudflare: (domain: string) => Promise.resolve(domain === "elsewhere.example") };
   reachAnswers.set("chat.joinery.example", [false, false, true]);
   const domainAnswers = ["3", "1", ""], asked: string[] = [];
   const options = { ask: () => Promise.reject(new Error("This command needs an interactive terminal.")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject(), domains };
@@ -654,6 +657,13 @@ try {
       && cnameSaid.includes("fabrik sees the CNAME record for chat.outside.example.") && cnameSaid.includes("chat.outside.example is ready.")
       && !JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`)).workers?.["fabrik-chat-bcdefghijklmnopqrstu"], cnameSaid);
   cfCalls.length = 0;
+  const otherSaid: string[] = [];
+  const otherSite = await putUpFor("bcdefghijklmnopqrstw", "chat.elsewhere.example", otherSaid);
+  check("a domain whose DNS another Cloudflare account runs is refused, nothing is added or kept, and the pages are given at pages.dev",
+    otherSite === "https://fabrik-chat-bcdefghijklmnopqrstw.pages.dev" && !kept("bcdefghijklmnopqrstw") && !cfCalls.some((c) => c.startsWith("POST"))
+      && otherSaid.includes("elsewhere.example's DNS is on another Cloudflare account. Cloudflare keeps the chat's address only on the account that holds its domain, so a chat at chat.elsewhere.example would stop answering within minutes. Choose a domain on this account, or move elsewhere.example to this account first. Meanwhile the pages are at https://fabrik-chat-bcdefghijklmnopqrstw.pages.dev."),
+    { otherSite, otherSaid, cfCalls });
+  cfCalls.length = 0;
   const apex = [await putUpFor("cdefghijklmnopqrstuv", "joinery.example"), await putUpFor("cdefghijklmnopqrstuv", "outside.example")];
   check("a domain itself is refused, in Cloudflare or outside it, and nothing is added",
     apex[0] === "stopped: fabrik puts the chat on a subdomain, such as chat.joinery.example, so your website at joinery.example stays as it is."
@@ -714,7 +724,7 @@ try {
     dnsRecords.delete("help.joinery.example");
     return Promise.resolve("");
   });
-  const deleteAsk = "help.joinery.example already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named help on Cloudflare's DNS page for joinery.example, https://dash.cloudflare.com/acc-1/joinery.example/dns/records. fabrik never deletes a DNS record itself.";
+  const deleteAsk = "help.joinery.example already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named help on Cloudflare's DNS page for joinery.example, https://dash.cloudflare.com/acc-1/joinery.example/dns/records.";
   check("an address with a DNS record names the record and asks the owner to delete it, and once it's gone the Worker has the address",
     recordSite === "https://help.joinery.example" && recordSaid.includes(deleteAsk)
       && JSON.stringify(recordAsked) === JSON.stringify(["Press Return once the record named help is deleted: "])
@@ -728,6 +738,17 @@ try {
     left === "https://fabrik-chat-mnopqrstuvwxyzabcdef.pages.dev" && dnsRecords.has("ask.joinery.example") && workerPuts.length === putsBefore && kept("mnopqrstuvwxyzabcdef")
       && leftSaid.includes(deleteAsk.replaceAll("help", "ask"))
       && leftSaid.includes("ask.joinery.example still has its DNS record. Once it's deleted, run chat-page again. Meanwhile the pages are at https://fabrik-chat-mnopqrstuvwxyzabcdef.pages.dev."), { left, leftSaid });
+  // An address on Pages, with a record the changeset misses: the Worker can't take it, so it goes back on Pages.
+  customDomains.set("hold.joinery.example", { project: chatProject("pqrstuvwxyzabcdefghi"), asked: 0 });
+  hiddenRecords.add("hold.joinery.example");
+  cfCalls.length = 0;
+  const heldSaid: string[] = [];
+  const heldSite = await putUpFor("pqrstuvwxyzabcdefghi", "hold.joinery.example", heldSaid);
+  check("an address the Worker can't take, after Pages let it go, goes back on Pages, stays the chat's address, and names the record",
+    heldSite === "https://hold.joinery.example" && customDomains.get("hold.joinery.example")?.project === chatProject("pqrstuvwxyzabcdefghi") && kept("pqrstuvwxyzabcdefghi")
+      && cfCalls.includes("DELETE /accounts/acc-1/pages/projects/fabrik-chat-pqrstuvwxyzabcdefghi/domains/hold.joinery.example")
+      && cfCalls.filter((c) => c === "POST /accounts/acc-1/pages/projects/fabrik-chat-pqrstuvwxyzabcdefghi/domains").length === 1
+      && heldSaid.some((l) => l.startsWith("hold.joinery.example already has a DNS record") && l.endsWith("fabrik put hold.joinery.example back on your chat pages on Pages, so the chat stays up there.")), { heldSite, heldSaid, cfCalls });
   const takenSaid: string[] = [];
   const taken = await putUpFor("nopqrstuvwxyzabcdefg", "chat.smithjoinery.example", takenSaid);
   check("an address another Worker has isn't taken from it, and isn't kept",
@@ -818,10 +839,10 @@ try {
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
   const thought = Boolean(cdoc.querySelector("#fabrik-chat li.thinking"));
   while (!cdoc.querySelector("#fabrik-chat li.a:not(.thinking)")) await new Promise((r) => setTimeout(r, 5));
-  const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
-  check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer",
+  const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: [...(cdoc.querySelector("#fabrik-chat li.a")?.childNodes ?? [])].filter((n: any) => n.nodeName !== "TIME").map((n: any) => n.textContent).join(""), time: cdoc.querySelector("#fabrik-chat li.a time")?.getAttribute("datetime") ?? "", kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
+  check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer with its time",
     answered.kept === "Smith Joinery keeps this conversation to improve its answers." && answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
-      && answered.answer === "Tables: book by phone on 01234 567890." && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
+      && answered.answer === "Tables: book by phone on 01234 567890." && !Number.isNaN(Date.parse(answered.time)) && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
   await chat.happyDOM.close();
 
   // Before the site key is saved, the chat page says what is missing.

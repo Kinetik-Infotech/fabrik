@@ -10,7 +10,8 @@
 // with each question as conversation, so the business can read the conversation whole. The id too is kept in memory
 // alone, and the page stores nothing in the browser. A line under the box says the business keeps the conversation,
 // naming the business data-business gives. Three bouncing dots stand in the answer's place while the assistant thinks. Each
-// answer is shown as plain text.
+// answer is shown as plain text, with each web address and email address as a link, and each message with the time it
+// was sent.
 (function () {
   "use strict";
   var script = document.currentScript;
@@ -49,6 +50,9 @@
     ".fabrik-chat li.a { justify-self: start; position: relative; padding-left: 36px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }" +
     ".fabrik-chat li.a::before { content: \"\"; position: absolute; left: 8px; top: 7px; width: 20px; height: 20px; background: url(" + MARK + ") center / contain no-repeat; }" +
     ".fabrik-chat li.problem { color: #b42318; }" +
+    ".fabrik-chat li a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }" +
+    ".fabrik-chat li time { display: block; margin-top: 2px; font-size: 0.75em; opacity: 0.65; }" +
+    ".fabrik-chat li.q time { text-align: right; }" +
     ".fabrik-chat li.thinking { display: flex; align-items: center; gap: 5px; min-height: 1.4em; }" +
     ".fabrik-chat li.thinking span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.6; animation: fabrik-chat-bounce 1.2s ease-in-out infinite; }" +
     ".fabrik-chat li.thinking span:nth-child(2) { animation-delay: 0.15s; }" +
@@ -78,10 +82,33 @@
   form.appendChild(input); form.appendChild(send);
   box.appendChild(list); box.appendChild(form); box.appendChild(kept); box.appendChild(check);
 
+  // A web address or an email address in a message. Punctuation that ends a sentence stays outside the link.
+  var LINK = /(https?:\/\/[^\s<>"']+|[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/g;
+  function linked(li, text) {
+    var at = 0, m;
+    LINK.lastIndex = 0;
+    while ((m = LINK.exec(text))) {
+      var found = m[0].replace(/[.,;:!?)\]]+$/, "");
+      if (m.index > at) li.appendChild(document.createTextNode(text.slice(at, m.index)));
+      var a = document.createElement("a");
+      a.textContent = found;
+      if (found.indexOf("@") > 0 && !/^https?:/.test(found)) a.href = "mailto:" + found;
+      else { a.href = found; a.target = "_blank"; a.rel = "noopener noreferrer"; }
+      li.appendChild(a);
+      at = m.index + found.length;
+      LINK.lastIndex = at;
+    }
+    if (at < text.length) li.appendChild(document.createTextNode(text.slice(at)));
+  }
+
   function line(text, kind) {
     var li = document.createElement("li");
     li.className = kind;
-    li.textContent = text;
+    linked(li, text);
+    var now = new Date(), time = document.createElement("time");
+    time.dateTime = now.toISOString();
+    time.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    li.appendChild(time);
     list.appendChild(li);
     li.scrollIntoView({ block: "nearest" });
   }
@@ -101,7 +128,10 @@
   if (!address) { line("This chat box needs data-address on its script tag.", "problem"); form.hidden = true; return; }
 
   window.fabrikChatTurnstile = function () {
-    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible", appearance: "interaction-only" });
+    // The check shows only while Cloudflare needs the visitor, and goes once it passes.
+    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible", appearance: "interaction-only",
+      "before-interactive-callback": function () { check.hidden = false; },
+      callback: function () { setTimeout(function () { check.hidden = true; }, 1500); } });
   };
   function loadTurnstile() {
     var api = document.createElement("script");
