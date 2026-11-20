@@ -29,3 +29,5 @@ The stand-in's clusters write their messages in English whatever the computer's 
 `site/` is fabrik.tech. Cloudflare Pages hosts it as the project `fabrik-site`, at `fabrik-site-9qo.pages.dev`, on the Cloudflare account `39fedf2a4d187eb433a593ace0656637`, which also holds the fabrik.tech domain. Deploy with Wrangler's own sign-in and `CLOUDFLARE_ACCOUNT_ID` set to that account. Wrangler keeps the account it last used in `.wrangler/cache/pages.json`, and that wins over the variable, so check it names the same account.
 
 Deploy `site/` from `main` once its pull request merges, with `--project-name fabrik-site --branch main`, and read the live page back. When a stylesheet changes, raise the `?v=` number on its links in `site/index.html` and `site/privacy/index.html`. Browsers keep a stylesheet for four hours.
+
+`site/llms.txt` and `site/llms-full.txt` tell a language model what fabrik is. `node scripts/build-llms.mjs` builds them from `README.md` and `docs/guides/`, so run it whenever either changes. A test fails while they're out of date.
