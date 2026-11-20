@@ -1,0 +1,172 @@
+{
+ "id": "s2",
+ "title": "Day 1: mix",
+ "dur": 13,
+ "clock": [
+  [
+   0,
+   540
+  ],
+  [
+   13,
+   546
+  ]
+ ],
+ "vo": "Day one, at about 9 in the morning. In a clean jar, stir 50 grams of wholemeal rye flour with 50 grams of water at about 26 degrees Celsius, until no dry flour is left. Cover it loosely, and leave it somewhere around 24 degrees for a day.",
+ "voUS": "Day one, at about 9 in the morning. In a clean jar, stir half a cup of wholemeal rye flour with three and a half tablespoons of water at about 79 degrees Fahrenheit, until no dry flour is left. Cover it loosely, and leave it somewhere around 75 degrees for a day.",
+ "cap": [
+  [
+   0,
+   "Day 1, 9 am: stir 50 g wholemeal rye flour with 50 g water at about 26 °C."
+  ],
+  [
+   7.2,
+   "Cover loosely and leave it for 24 hours at about 24 °C."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Day 1, 9 am: stir ½ cup wholemeal rye flour with 3½ tbsp water at about 79 °F."
+  ],
+  [
+   7.2,
+   "Cover loosely and leave it for 24 hours at about 75 °F."
+  ]
+ ],
+ "svg": "<path d=\"M360 300 L360 600 Q360 620 380 620 L540 620 Q560 620 560 600 L560 300 Z\" class=\"f-w\"/>\n<rect id=\"s2-fill\" data-o=\"b\" x=\"368\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<path d=\"M360 300 L360 600 Q360 620 380 620 L540 620 Q560 620 560 600 L560 300\" class=\"ln\"/>\n<path id=\"s2-fl\" d=\"M410 200 Q460 140 510 200 Z\" class=\"f-s ln\"/>\n<path id=\"s2-wa\" d=\"M460 150 Q428 196 460 216 Q492 196 460 150 Z\" class=\"f-wa ln\"/>\n<g id=\"s2-r1\"><text class=\"t-mono\" x=\"680\" y=\"350\" data-us=\"½ cup\">50 g</text><text class=\"t-lbl\" x=\"820\" y=\"350\">WHOLEMEAL RYE FLOUR</text></g>\n<g id=\"s2-r2\"><text class=\"t-mono\" x=\"680\" y=\"430\" data-us=\"3½ tbsp\">50 g</text><text class=\"t-lbl\" x=\"820\" y=\"430\">WATER</text></g>\n<g id=\"s2-temp\" class=\"chip\"><rect/><text x=\"834\" y=\"490\" data-us=\"ABOUT 79 °F\">ABOUT 26 °C</text></g>\n<g id=\"s2-rest\" class=\"chip light\"><rect/><text x=\"694\" y=\"600\" data-us=\"24 H AT ABOUT 75 °F\">24 H AT ABOUT 24 °C</text></g>",
+ "tw": [
+  [
+   "s2-fill",
+   2.2,
+   3.2,
+   {
+    "sy": [
+     0,
+     0.15
+    ]
+   }
+  ],
+  [
+   "s2-fill",
+   5.2,
+   6.4,
+   {
+    "sy": [
+     0.15,
+     0.3
+    ]
+   }
+  ],
+  [
+   "s2-fl",
+   0.6,
+   1,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s2-fl",
+   1,
+   2.2,
+   {
+    "y": [
+     0,
+     300
+    ]
+   },
+   "i"
+  ],
+  [
+   "fadeOut",
+   "s2-fl",
+   2.1,
+   0.3
+  ],
+  [
+   "s2-wa",
+   3.6,
+   4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s2-wa",
+   4,
+   5.2,
+   {
+    "y": [
+     0,
+     300
+    ]
+   },
+   "i"
+  ],
+  [
+   "fadeOut",
+   "s2-wa",
+   5.1,
+   0.3
+  ],
+  [
+   "s2-r1",
+   1.8,
+   2.8,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "x": [
+     -20,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "s2-r2",
+   4.2,
+   5.2,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "x": [
+     -20,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s2-temp",
+   5
+  ],
+  [
+   "fadeUp",
+   "s2-rest",
+   7.6
+  ]
+ ],
+ "uses": [
+  {
+   "ingredient": "rye",
+   "grams": 50
+  },
+  {
+   "ingredient": "water",
+   "grams": 50
+  }
+ ]
+}

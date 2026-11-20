@@ -22,6 +22,16 @@
       "name": "humanizer",
       "description": "Writing rules and checks so what you send reads as a person wrote it, not a machine.",
       "source": "./plugins/humanizer"
+    },
+    {
+      "name": "animator",
+      "description": "Turns a recipe request into an animated, narrated recipe video you can cook along to, with a printable recipe card. It's the plugin behind animated.recipes.",
+      "source": "./plugins/animator"
+    },
+    {
+      "name": "trip-agent",
+      "description": "A trip planner that works like a travel agent across the desk. It learns your taste from pairs of hotel photos, then suggests countries, hotels and flights one at a time. It's the plugin behind tripagent.me.",
+      "source": "./plugins/trip-agent"
     }
   ]
 }

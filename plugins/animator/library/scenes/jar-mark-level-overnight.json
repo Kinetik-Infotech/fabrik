@@ -1,0 +1,226 @@
+{
+ "id": "s3",
+ "title": "Mark the level",
+ "dur": 12,
+ "clock": [
+  [
+   0,
+   546
+  ],
+  [
+   0.8,
+   546
+  ],
+  [
+   11.6,
+   1980
+  ]
+ ],
+ "vo": "Put a rubber band round the jar at the level of the paste, so you can see it rise. By the next morning there may be a few bubbles, or none. Both are normal.",
+ "voUS": "Put a rubber band round the jar at the level of the paste, so you can see it rise. By the next morning there may be a few bubbles, or none. Both are normal.",
+ "cap": [
+  [
+   0,
+   "Mark the level with a rubber band."
+  ],
+  [
+   5.2,
+   "By the next morning there may be a few bubbles, or none. Both are normal."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Mark the level with a rubber band."
+  ],
+  [
+   5.2,
+   "By the next morning there may be a few bubbles, or none. Both are normal."
+  ]
+ ],
+ "svg": "<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-s\"/>\n<circle id=\"s3-sn\" cx=\"240\" cy=\"360\" r=\"30\" class=\"f-sun\"/>\n<rect id=\"s3-nt\" x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-g\"/>\n<g id=\"s3-stars\" class=\"f-w\"><circle cx=\"210\" cy=\"230\" r=\"2.5\"/><circle cx=\"260\" cy=\"300\" r=\"2\"/><circle cx=\"350\" cy=\"240\" r=\"2\"/><circle cx=\"220\" cy=\"390\" r=\"2\"/><circle cx=\"355\" cy=\"380\" r=\"2.5\"/></g>\n<circle id=\"s3-mn\" cx=\"320\" cy=\"270\" r=\"22\" class=\"f-w\"/>\n<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"ln\"/>\n<line x1=\"280\" y1=\"200\" x2=\"280\" y2=\"420\" class=\"ln\"/>\n<line x1=\"180\" y1=\"310\" x2=\"380\" y2=\"310\" class=\"ln\"/>\n<text id=\"s3-h\" class=\"t-mono\" x=\"280\" y=\"480\" text-anchor=\"middle\">24 h</text>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300 Z\" class=\"f-w\"/>\n<rect id=\"s3-fill\" data-o=\"b\" x=\"648\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s3-u0\" cx=\"700\" cy=\"560\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s3-u1\" cx=\"770\" cy=\"580\" r=\"4\" class=\"f-w lt\"/>\n<circle id=\"s3-u2\" cx=\"740\" cy=\"540\" r=\"3\" class=\"f-w lt\"/>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300\" class=\"ln\"/>\n<rect id=\"s3-band\" x=\"632\" y=\"517\" width=\"216\" height=\"10\" class=\"f-i\"/>\n<text id=\"s3-bl\" class=\"t-sm\" x=\"870\" y=\"530\">RUBBER BAND</text>\n<g id=\"s3-c1\" class=\"chip light\"><rect/><text x=\"1000\" y=\"330\">A FEW BUBBLES, OR NONE</text></g>\n<g id=\"s3-c2\" class=\"chip\"><rect/><text x=\"1000\" y=\"400\">BOTH ARE NORMAL</text></g>",
+ "tw": [
+  [
+   "s3-fill",
+   0,
+   0.1,
+   {
+    "sy": [
+     0.3,
+     0.3
+    ]
+   }
+  ],
+  [
+   "s3-band",
+   0.6,
+   1.4,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "sx": [
+     1.3,
+     1
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s3-bl",
+   1.4
+  ],
+  [
+   "fadeUp",
+   "s3-h",
+   1
+  ],
+  [
+   "s3-fill",
+   5,
+   10,
+   {
+    "sy": [
+     0.3,
+     0.33
+    ]
+   }
+  ],
+  [
+   "pop",
+   "s3-u0",
+   8.4,
+   0.6
+  ],
+  [
+   "pop",
+   "s3-u1",
+   8.9,
+   0.6
+  ],
+  [
+   "pop",
+   "s3-u2",
+   9.4,
+   0.6
+  ],
+  [
+   "fadeUp",
+   "s3-c1",
+   9
+  ],
+  [
+   "fadeUp",
+   "s3-c2",
+   10
+  ],
+  [
+   "s3-nt",
+   5.4,
+   6.6000000000000005,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s3-nt",
+   8.6,
+   9.799999999999999,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s3-stars",
+   5.800000000000001,
+   6.6000000000000005,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s3-stars",
+   8.6,
+   9.4,
+   {
+    "o": [
+     1,
+     0
+    ]
+   }
+  ],
+  [
+   "s3-mn",
+   5.800000000000001,
+   6.800000000000001,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     20,
+     0
+    ]
+   }
+  ],
+  [
+   "s3-mn",
+   8.6,
+   9.6,
+   {
+    "o": [
+     1,
+     0
+    ],
+    "y": [
+     0,
+     -20
+    ]
+   }
+  ],
+  [
+   "s3-sn",
+   5.4,
+   6.4,
+   {
+    "o": [
+     1,
+     0
+    ],
+    "y": [
+     0,
+     40
+    ]
+   }
+  ],
+  [
+   "s3-sn",
+   9.0,
+   10.2,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     40,
+     0
+    ]
+   },
+   "o"
+  ]
+ ],
+ "uses": []
+}

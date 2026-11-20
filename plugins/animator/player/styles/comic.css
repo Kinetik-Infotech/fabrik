@@ -1,0 +1,24 @@
+/* C. Comic: heavy outlines, flat food colours, halftone ground, lettering and sound effects */
+.stage.st-comic { --sbg: #E9EBEE; --sink: #111111; --sgrey: #111111; --lw: 4.4px; --lt: 2.4px; border: 3px solid #111; }
+.st-comic svg .f-d { fill: #F4E9D2; } .st-comic svg .f-l { fill: #E4CFA0; } .st-comic svg .f-ww { fill: #D5B884; }
+.st-comic svg .f-wa { fill: #9CC3DE; } .st-comic svg .f-sa { fill: #C8382A; } .st-comic svg .f-b { fill: #3F8A3A; }
+.st-comic svg .f-c { fill: #E3B574; } .st-comic svg .f-ch, .st-comic svg .f-gr, .st-comic svg .f-i { fill: #111111; }
+.st-comic svg .f-o { fill: #E9CF4E; } .st-comic svg .f-wd { fill: #E8C98F; } .st-comic svg .f-g { fill: #2A2F38; }
+.st-comic svg .f-s, .st-comic svg .f-w { fill: #FFFFFF; } .st-comic svg .f-s2 { fill: #D3D7DD; }
+.st-comic svg .f-st { fill: #8E877F; } .st-comic svg .f-sun { fill: #F7D35C; }
+.st-comic svg .dash { stroke-width: 3; }
+.st-comic svg .heat { stroke: #C8382A; }
+.st-comic svg .wrapfilm { fill: rgba(156, 195, 222, .35); stroke: #111; }
+.st-comic svg.art text { font-family: 'Comic Neue', 'Comic Sans MS', sans-serif; font-weight: 700; fill: #111; }
+.st-comic svg.art text.t-disp, .st-comic svg.art text.t-disp2 { font-family: Bangers, Impact, sans-serif; font-weight: 400; letter-spacing: .05em; }
+.st-comic svg .t-disp { font-size: 112px; } .st-comic svg .t-disp2 { font-size: 80px; }
+.st-comic svg.art text.grey { fill: #C8382A; }
+.st-comic svg .chip rect { fill: #FFFFFF; stroke: #111; stroke-width: 3.5; }
+.st-comic svg .chip text { fill: #111; font-family: 'Comic Neue', 'Comic Sans MS', sans-serif; font-weight: 700; font-size: 24px; }
+.st-comic svg.art text.sfx { font-family: Bangers, Impact, sans-serif; font-weight: 400; fill: #FFFFFF; }
+.st-comic .cap { border-top: 3px solid #111; background: #FFFFFF; }
+.st-comic .cap p { font-family: 'Comic Neue', 'Comic Sans MS', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; font-size: 1.95cqw; }
+
+@media (max-width: 640px) {
+  .stage.st-comic .cap p { font-size: 14px; }
+}
