@@ -1,0 +1,194 @@
+{
+ "id": "s8",
+ "title": "Slash and load",
+ "dur": 20,
+ "clock": [
+  [
+   0,
+   553
+  ],
+  [
+   20,
+   555
+  ]
+ ],
+ "vo": "When the dough is ready, turn it out of the bowl onto a sheet of baking paper. Slash the top once, about 1 centimetre deep, with a razor or a sharp knife. With oven gloves on, take out the hot pot and lift off the lid. Lower the dough in by the paper.",
+ "voUS": "When the dough is ready, turn it out of the bowl onto a sheet of baking paper. Slash the top once, about three-eighths of an inch deep, with a razor or a sharp knife. With oven gloves on, take out the hot pot and lift off the lid. Lower the dough in by the paper.",
+ "cap": [
+  [
+   0,
+   "Turn the dough out onto baking paper."
+  ],
+  [
+   3.6,
+   "Slash the top once, about 1 cm deep."
+  ],
+  [
+   9.4,
+   "With oven gloves, take out the hot pot and lift off the lid."
+  ],
+  [
+   14.4,
+   "Lower the dough in by the paper."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Turn the dough out onto baking paper."
+  ],
+  [
+   3.6,
+   "Slash the top once, about ⅜ inch deep."
+  ],
+  [
+   9.4,
+   "With oven gloves, take out the hot pot and lift off the lid."
+  ],
+  [
+   14.4,
+   "Lower the dough in by the paper."
+  ]
+ ],
+ "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<rect x=\"902\" y=\"520\" width=\"336\" height=\"160\" class=\"f-w\"/>\n<rect x=\"858\" y=\"535\" width=\"22\" height=\"16\" class=\"f-g ln\"/><rect x=\"1260\" y=\"535\" width=\"22\" height=\"16\" class=\"f-g ln\"/>\n<rect x=\"880\" y=\"520\" width=\"22\" height=\"182\" class=\"f-g ln\"/><rect x=\"1238\" y=\"520\" width=\"22\" height=\"182\" class=\"f-g ln\"/><rect x=\"880\" y=\"680\" width=\"380\" height=\"22\" class=\"f-g ln\"/>\n<g id=\"s8-ld\"><path d=\"M868 520 Q1070 470 1272 520 Z\" class=\"f-g ln\"/><rect x=\"1055\" y=\"482\" width=\"30\" height=\"16\" rx=\"4\" class=\"f-i\"/></g>\n<text id=\"s8-lb\" class=\"t-sm\" x=\"440\" y=\"330\" text-anchor=\"middle\">ONTO BAKING PAPER</text>\n<g id=\"s8-dg\"><path d=\"M272 586 Q280 602 300 602 L580 602 Q600 602 608 586\" class=\"ln\"/><path d=\"M300 600 C300 480 580 480 580 600 Z\" class=\"f-d ln\"/><path id=\"s8-sl\" data-o=\"l\" d=\"M385 536 Q440 522 495 536\" class=\"ln\"/></g>\n<g id=\"s8-rz\"><rect x=\"356\" y=\"474\" width=\"48\" height=\"22\" rx=\"3\" class=\"f-i\"/></g>\n<g id=\"s8-c\" class=\"chip\"><rect/><text x=\"254\" y=\"400\" data-us=\"SLASH ONCE · ⅜ IN DEEP\">SLASH ONCE · 1 CM DEEP</text></g>\n<g id=\"s8-g\" class=\"chip light\"><rect/><text x=\"954\" y=\"330\">HOT POT · OVEN GLOVES</text></g>",
+ "tw": [
+  [
+   "s8-dg",
+   0.6,
+   1.8,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -120,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s8-lb",
+   0.8
+  ],
+  [
+   "s8-sl",
+   0,
+   0.1,
+   {
+    "sx": [
+     0,
+     0
+    ]
+   }
+  ],
+  [
+   "s8-rz",
+   4,
+   4.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s8-rz",
+   4.6,
+   6.2,
+   {
+    "x": [
+     0,
+     130
+    ]
+   }
+  ],
+  [
+   "s8-sl",
+   4.6,
+   6.2,
+   {
+    "sx": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s8-rz",
+   6.4
+  ],
+  [
+   "fadeUp",
+   "s8-c",
+   5
+  ],
+  [
+   "fadeUp",
+   "s8-g",
+   9.4
+  ],
+  [
+   "s8-ld",
+   10.6,
+   12,
+   {
+    "y": [
+     0,
+     -110
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s8-ld",
+   11.6,
+   0.6
+  ],
+  [
+   "fadeOut",
+   "s8-lb",
+   14
+  ],
+  [
+   "s8-dg",
+   14.4,
+   16.6,
+   {
+    "x": [
+     0,
+     630
+    ]
+   }
+  ],
+  [
+   "s8-dg",
+   14.4,
+   15.4,
+   {
+    "y": [
+     0,
+     -170
+    ]
+   },
+   "o"
+  ],
+  [
+   "s8-dg",
+   15.4,
+   16.6,
+   {
+    "y": [
+     -170,
+     78
+    ]
+   },
+   "i"
+  ]
+ ],
+ "uses": []
+}

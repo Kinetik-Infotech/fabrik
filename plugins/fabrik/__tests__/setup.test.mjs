@@ -282,10 +282,10 @@ test("setup with no --folder sets up ~/fabrik, for the owner and for the person"
 test("setup refuses an agent outside the marketplace, with the list of its agents", t => {
   const s = scratch(t);
   const folder = join(s.home, "other");
-  for (const agent of ["someone:else", "acme:database-operator"]) {
+  for (const agent of ["someone:else", "acme:database-operator", "trip-agent:travel-agent"]) {
     const ran = s.setup("--folder", folder, "--email", EMAIL, "--agent", agent);
     assert.equal(ran.status, 1);
-    assert.equal(ran.err, `${agent} is not an agent in the fabrik marketplace. Its agents are: fabrik:assistant.\n`);
+    assert.equal(ran.err, `${agent} is not an agent that works in fabrik. Its agents are: fabrik:assistant.\n`);
   }
   assert.equal(existsSync(folder), false);
 });

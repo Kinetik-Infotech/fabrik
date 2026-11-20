@@ -1,0 +1,140 @@
+{
+ "id": "s9",
+ "title": "Is it ready?",
+ "dur": 14,
+ "clock": [
+  [
+   0,
+   9180
+  ],
+  [
+   0.6,
+   9180
+  ],
+  [
+   9,
+   9480
+  ]
+ ],
+ "vo": "It's ready when it doubles within 4 to 6 hours of a feed, two days running. It should be domed and bubbly all through, and smell sour and fruity. This often takes about a week, but it can take two. If it's slow, keep feeding it twice a day.",
+ "voUS": "It's ready when it doubles within 4 to 6 hours of a feed, two days running. It should be domed and bubbly all through, and smell sour and fruity. This often takes about a week, but it can take two. If it's slow, keep feeding it twice a day.",
+ "cap": [
+  [
+   0,
+   "Ready when it doubles within 4 to 6 hours of a feed, two days running."
+  ],
+  [
+   7.2,
+   "Domed, bubbly all through, sour and fruity. Slow? Keep feeding it twice a day."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Ready when it doubles within 4 to 6 hours of a feed, two days running."
+  ],
+  [
+   7.2,
+   "Domed, bubbly all through, sour and fruity. Slow? Keep feeding it twice a day."
+  ]
+ ],
+ "svg": "<path d=\"M400 300 L400 600 Q400 620 420 620 L580 620 Q600 620 600 600 L600 300 Z\" class=\"f-w\"/>\n<rect id=\"s9-fill\" data-o=\"b\" x=\"408\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s9-u0\" cx=\"435\" cy=\"420\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s9-u1\" cx=\"470\" cy=\"380\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s9-u2\" cx=\"522\" cy=\"400\" r=\"8\" class=\"f-w lt\"/>\n<circle id=\"s9-u3\" cx=\"560\" cy=\"372\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s9-u4\" cx=\"450\" cy=\"520\" r=\"6\" class=\"f-w lt\"/>\n<circle id=\"s9-u5\" cx=\"545\" cy=\"470\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s9-u6\" cx=\"500\" cy=\"545\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s9-u7\" cx=\"490\" cy=\"450\" r=\"4\" class=\"f-w lt\"/>\n<path d=\"M400 300 L400 600 Q400 620 420 620 L580 620 Q600 620 600 600 L600 300\" class=\"ln\"/>\n<line x1=\"380\" y1=\"477\" x2=\"620\" y2=\"477\" class=\"dash\"/>\n<text class=\"t-sm\" x=\"370\" y=\"484\" text-anchor=\"end\">FED</text>\n<text id=\"s9-h\" class=\"t-mono\" x=\"500\" y=\"270\" text-anchor=\"middle\">4–6 h</text>\n<g id=\"s9-ar\"><line x1=\"660\" y1=\"470\" x2=\"660\" y2=\"350\" class=\"ln\"/><path d=\"M648.7 371.2 L660 350 L671.3 371.2\" class=\"ln\"/><text class=\"t-mono\" x=\"690\" y=\"420\">2×</text></g>\n<g id=\"s9-k0\"><path d=\"M880 288 L892 300 L914 274\" class=\"ln\"/><text class=\"t-body\" x=\"940\" y=\"300\">doubles within 4 to 6 hours</text></g>\n<g id=\"s9-k1\"><path d=\"M880 368 L892 380 L914 354\" class=\"ln\"/><text class=\"t-body\" x=\"940\" y=\"380\">two days running</text></g>\n<g id=\"s9-k2\"><path d=\"M880 448 L892 460 L914 434\" class=\"ln\"/><text class=\"t-body\" x=\"940\" y=\"460\">domed, bubbly all through</text></g>\n<g id=\"s9-k3\"><path d=\"M880 528 L892 540 L914 514\" class=\"ln\"/><text class=\"t-body\" x=\"940\" y=\"540\">smells sour and fruity</text></g>\n",
+ "tw": [
+  [
+   "s9-fill",
+   0.6,
+   7.6,
+   {
+    "sy": [
+     0.45,
+     0.9
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s9-h",
+   0.8
+  ],
+  [
+   "pop",
+   "s9-u0",
+   2.0,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u1",
+   2.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u2",
+   3.2,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u3",
+   3.8,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u4",
+   4.4,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u5",
+   5.0,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u6",
+   5.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s9-u7",
+   6.2,
+   0.6
+  ],
+  [
+   "s9-ar",
+   7.4,
+   8.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s9-k0",
+   1.2
+  ],
+  [
+   "fadeUp",
+   "s9-k1",
+   3.2
+  ],
+  [
+   "fadeUp",
+   "s9-k2",
+   5.2
+  ],
+  [
+   "fadeUp",
+   "s9-k3",
+   7.2
+  ]
+ ],
+ "uses": []
+}

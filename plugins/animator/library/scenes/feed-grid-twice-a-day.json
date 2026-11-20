@@ -1,0 +1,99 @@
+{
+ "id": "s8",
+ "title": "Feed twice a day",
+ "dur": 14,
+ "clock": [
+  [
+   0,
+   4868
+  ],
+  [
+   1,
+   4868
+  ],
+  [
+   12,
+   9180
+  ]
+ ],
+ "vo": "From now on, feed it twice a day, 12 hours apart, at about 9 in the morning and 9 at night. Each time, keep 50 grams and discard the rest. Add 50 grams of strong white flour and 50 grams of water, stir, and mark the level.",
+ "voUS": "From now on, feed it twice a day, 12 hours apart, at about 9 in the morning and 9 at night. Each time, keep three and a half tablespoons and discard the rest. Add a third of a cup plus a tablespoon of bread flour and three and a half tablespoons of water, stir, and mark the level.",
+ "cap": [
+  [
+   0,
+   "Feed twice a day, 12 hours apart: about 9 am and 9 pm."
+  ],
+  [
+   6.4,
+   "Each time keep 50 g, then add 50 g strong white flour and 50 g water."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Feed twice a day, 12 hours apart: about 9 am and 9 pm."
+  ],
+  [
+   6.4,
+   "Each time keep 3½ tbsp, then add ⅓ cup + 1 tbsp bread flour and 3½ tbsp water."
+  ]
+ ],
+ "svg": "<text class=\"t-sm\" x=\"480\" y=\"250\" text-anchor=\"middle\">DAY 4</text>\n<text class=\"t-sm\" x=\"700\" y=\"250\" text-anchor=\"middle\">DAY 5</text>\n<text class=\"t-sm\" x=\"920\" y=\"250\" text-anchor=\"middle\">DAY 6</text>\n<text class=\"t-sm\" x=\"1140\" y=\"250\" text-anchor=\"middle\">DAY 7</text>\n<text class=\"t-m24\" x=\"230\" y=\"348\">09:00</text>\n<text class=\"t-m24\" x=\"230\" y=\"458\">21:00</text>\n<line x1=\"370\" y1=\"280\" x2=\"1250\" y2=\"280\" class=\"lt\"/>\n<line x1=\"370\" y1=\"395\" x2=\"1250\" y2=\"395\" class=\"lt\"/>\n<line x1=\"370\" y1=\"510\" x2=\"1250\" y2=\"510\" class=\"lt\"/>\n<circle cx=\"480\" cy=\"340\" r=\"20\" class=\"f-i\"/>\n<circle id=\"s8-d0\" cx=\"480\" cy=\"450\" r=\"20\" class=\"f-l ln\"/>\n<circle id=\"s8-d1\" cx=\"700\" cy=\"340\" r=\"20\" class=\"f-l ln\"/>\n<circle id=\"s8-d2\" cx=\"700\" cy=\"450\" r=\"20\" class=\"f-l ln\"/>\n<circle id=\"s8-d3\" cx=\"920\" cy=\"340\" r=\"20\" class=\"f-l ln\"/>\n<circle id=\"s8-d4\" cx=\"920\" cy=\"450\" r=\"20\" class=\"f-l ln\"/>\n<circle id=\"s8-d5\" cx=\"1140\" cy=\"340\" r=\"20\" class=\"f-l ln\"/>\n<circle cx=\"1140\" cy=\"450\" r=\"20\" class=\"dash\"/>\n<g id=\"s8-c0\" class=\"chip\"><rect/><text x=\"230\" y=\"610\" data-us=\"KEEP 3½ TBSP\">KEEP 50 g</text></g>\n<g id=\"s8-c1\" class=\"chip light\"><rect/><text x=\"520\" y=\"610\" data-us=\"+ ⅓ CUP + 1 TBSP FLOUR\">+ 50 g WHITE FLOUR</text></g>\n<g id=\"s8-c2\" class=\"chip light\"><rect/><text x=\"960\" y=\"610\" data-us=\"+ 3½ TBSP WATER\">+ 50 g WATER</text></g>",
+ "tw": [
+  [
+   "pop",
+   "s8-d0",
+   1.4
+  ],
+  [
+   "pop",
+   "s8-d1",
+   3.0
+  ],
+  [
+   "pop",
+   "s8-d2",
+   4.6
+  ],
+  [
+   "pop",
+   "s8-d3",
+   6.200000000000001
+  ],
+  [
+   "pop",
+   "s8-d4",
+   7.800000000000001
+  ],
+  [
+   "pop",
+   "s8-d5",
+   9.4
+  ],
+  [
+   "fadeUp",
+   "s8-c0",
+   6.6
+  ],
+  [
+   "fadeUp",
+   "s8-c1",
+   7.4
+  ],
+  [
+   "fadeUp",
+   "s8-c2",
+   8.2
+  ]
+ ],
+ "uses": [
+  {
+   "ingredient": "flour",
+   "grams": 300
+  },
+  {
+   "ingredient": "water",
+   "grams": 300
+  }
+ ]
+}

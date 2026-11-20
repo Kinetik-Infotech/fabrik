@@ -1,0 +1,163 @@
+{
+ "id": "s3",
+ "title": "Pre-shape",
+ "dur": 14,
+ "clock": [
+  [
+   0,
+   422
+  ],
+  [
+   8,
+   423
+  ],
+  [
+   13.4,
+   442
+  ]
+ ],
+ "vo": "Pre-shape it. Fold the edges into the middle, to make a loose ball. Turn it over, seam side down, and leave it uncovered for 20 minutes.",
+ "voUS": "Pre-shape it. Fold the edges into the middle, to make a loose ball. Turn it over, seam side down, and leave it uncovered for 20 minutes.",
+ "cap": [
+  [
+   0,
+   "Fold the edges into the middle to make a loose ball."
+  ],
+  [
+   6.4,
+   "Turn it seam side down and leave it uncovered for 20 minutes."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Fold the edges into the middle to make a loose ball."
+  ],
+  [
+   6.4,
+   "Turn it seam side down and leave it uncovered for 20 minutes."
+  ]
+ ],
+ "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<text id=\"s3-lb\" class=\"t-sm\" x=\"800\" y=\"300\" text-anchor=\"middle\">FOLD IN · TURN SEAM SIDE DOWN</text>\n<rect id=\"s3-sl\" x=\"500\" y=\"480\" width=\"600\" height=\"200\" rx=\"90\" class=\"f-d ln\"/>\n<g id=\"s3-a1\"><line x1=\"430\" y1=\"580\" x2=\"580\" y2=\"580\" class=\"ln\"/><path d=\"M558.8 568.7 L580 580 L558.8 591.3\" class=\"ln\"/></g>\n<g id=\"s3-a2\"><line x1=\"1170\" y1=\"580\" x2=\"1020\" y2=\"580\" class=\"ln\"/><path d=\"M1041.2 591.3 L1020 580 L1041.2 568.7\" class=\"ln\"/></g>\n<g id=\"s3-a3\"><line x1=\"800\" y1=\"445\" x2=\"800\" y2=\"535\" class=\"ln\"/><path d=\"M811.3 513.8 L800 535 L788.7 513.8\" class=\"ln\"/></g>\n<g id=\"s3-a4\"><line x1=\"800\" y1=\"712\" x2=\"800\" y2=\"630\" class=\"ln\"/><path d=\"M788.7 651.2 L800 630 L811.3 651.2\" class=\"ln\"/></g>\n<g id=\"s3-bl\" data-o=\"b\"><ellipse cx=\"800\" cy=\"590\" rx=\"170\" ry=\"95\" class=\"f-d ln\"/></g>\n<path id=\"s3-sm\" d=\"M760 566 L800 596 L840 566 M800 596 L800 550\" class=\"lt\"/>\n<g id=\"s3-c\" class=\"chip light\"><rect/><text x=\"1104\" y=\"380\">LEAVE UNCOVERED 20 MIN</text></g>",
+ "tw": [
+  [
+   "fadeUp",
+   "s3-lb",
+   0.4
+  ],
+  [
+   "pop",
+   "s3-a1",
+   0.8
+  ],
+  [
+   "pop",
+   "s3-a2",
+   1.3
+  ],
+  [
+   "pop",
+   "s3-a3",
+   1.8
+  ],
+  [
+   "pop",
+   "s3-a4",
+   2.3
+  ],
+  [
+   "s3-sl",
+   3,
+   4,
+   {
+    "sx": [
+     1,
+     0.6
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s3-sl",
+   3.6,
+   0.6
+  ],
+  [
+   "s3-bl",
+   3.6,
+   4.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s3-a1",
+   3.8
+  ],
+  [
+   "fadeOut",
+   "s3-a2",
+   3.8
+  ],
+  [
+   "fadeOut",
+   "s3-a3",
+   3.8
+  ],
+  [
+   "fadeOut",
+   "s3-a4",
+   3.8
+  ],
+  [
+   "s3-sm",
+   4.2,
+   4.8,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s3-bl",
+   6.2,
+   6.6,
+   {
+    "sy": [
+     1,
+     0.2
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s3-sm",
+   6.2,
+   0.3
+  ],
+  [
+   "s3-bl",
+   6.6,
+   7.2,
+   {
+    "sy": [
+     0.2,
+     1
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s3-c",
+   7.6
+  ]
+ ],
+ "uses": []
+}

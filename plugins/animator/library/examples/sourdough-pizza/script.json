@@ -1,0 +1,532 @@
+{
+  "title": "Overnight Sourdough Pizza Dough",
+  "servings": 4,
+  "ingredients": [
+    {"id":"starter","name":"active starter","grams":40,"gPerTsp":4.5,"us":"3 tbsp","allergens":["gluten"]},
+    {"id":"feed-flour","name":"unfortified strong white flour","grams":80,"gPerCup":120,"us":"⅔ cup","allergens":["gluten"]},
+    {"id":"feed-water","name":"water at about 27 °C","grams":80,"gPerCup":236.6,"us":"⅓ cup","allergens":[]},
+    {"id":"flour","name":"unfortified 00 or strong white flour","grams":600,"gPerCup":120,"us":"4¾ cups","allergens":["gluten"]},
+    {"id":"water","name":"water at about 27 °C","grams":390,"gPerCup":236.6,"us":"1⅔ cups","allergens":[]},
+    {"id":"levain","name":"levain from the morning","grams":120,"gPerCup":240,"us":"½ cup","allergens":["gluten"]},
+    {"id":"salt","name":"fine sea salt","grams":15,"gPerTsp":6,"us":"2½ tsp","allergens":[]},
+    {"id":"olive-oil","name":"olive oil, for the container","grams":null,"us":"a little","allergens":[]},
+    {"id":"dusting-flour","name":"unfortified flour, for dusting","grams":null,"us":"a little","allergens":["gluten"]}
+  ],
+  "equipment": ["digital scale","thermometer","clean jar, for the starter","4-litre tub or large bowl, for the dough","dough scraper","lidded container, for the balls"],
+  "scenes": [
+    {
+      "id": "s1",
+      "title": "Overnight sourdough pizza dough",
+      "dur": 10,
+      "clock": null,
+      "vo": "Overnight sourdough pizza dough. It makes four dough balls of about 280 grams, each one a pizza about 30 centimetres across.",
+      "voUS": "Overnight sourdough pizza dough. It makes four dough balls of about 10 ounces, each one a pizza about 12 inches across.",
+      "cap": [
+        [0,"Four pizzas, one overnight rise. Start the morning before you want to eat."]
+      ],
+      "capUS": [
+        [0,"Four pizzas, one overnight rise. Start the morning before you want to eat."]
+      ],
+      "svg": "<text id=\"s1-t1\" class=\"t-disp\" x=\"800\" y=\"320\" text-anchor=\"middle\">OVERNIGHT SOURDOUGH</text>\n<text id=\"s1-t2\" class=\"t-disp grey\" x=\"800\" y=\"410\" text-anchor=\"middle\">PIZZA DOUGH</text>\n<line id=\"s1-rule\" x1=\"660\" y1=\"462\" x2=\"940\" y2=\"462\" class=\"lt\"/>\n<circle id=\"s1-b0\" cx=\"620\" cy=\"580\" r=\"46\" class=\"f-d ln\"/>\n<circle id=\"s1-b1\" cx=\"740\" cy=\"580\" r=\"46\" class=\"f-d ln\"/>\n<circle id=\"s1-b2\" cx=\"860\" cy=\"580\" r=\"46\" class=\"f-d ln\"/>\n<circle id=\"s1-b3\" cx=\"980\" cy=\"580\" r=\"46\" class=\"f-d ln\"/>\n<text id=\"s1-y\" class=\"t-m24\" x=\"800\" y=\"685\" text-anchor=\"middle\" data-us=\"4 × 10 oz\">4 × 280 g</text>",
+      "tw": [
+        ["fadeUp","s1-t1",0.4,2],
+        ["fadeUp","s1-t2",1.2,2],
+        ["s1-rule",2,3.6,{"sx":[0,1]}],
+        ["pop","s1-b0",3.2],
+        ["pop","s1-b1",3.5],
+        ["pop","s1-b2",3.8],
+        ["pop","s1-b3",4.1],
+        ["fadeUp","s1-y",5.2,1.2]
+      ],
+      "uses": []
+    },
+    {
+      "id": "si",
+      "title": "What you need",
+      "dur": 20,
+      "clock": null,
+      "vo": "Here's what you need. To feed the starter: 40 grams of active starter, 80 grams of strong white flour, and 80 grams of water at about 27 degrees Celsius. For the dough: 600 grams of 00 or strong white flour, 390 grams of water at about 27 degrees, 120 grams of the levain you made that morning, and 15 grams of fine sea salt. You'll also need a little olive oil for the container, and flour for dusting. Choose unfortified flour, with no added folic acid. Small mills sell it.",
+      "voUS": "Here's what you need. To feed the starter: 3 tablespoons of active starter, two-thirds of a cup of bread flour, and a third of a cup of water at about 80 degrees Fahrenheit. For the dough: four and three-quarter cups of 00 or bread flour, one and two-thirds cups of water at about 80 degrees, half a cup of the levain you made that morning, and two and a half teaspoons of fine sea salt. You'll also need a little olive oil for the container, and flour for dusting. Choose unfortified flour, with no added folic acid. Small mills sell it.",
+      "cap": [
+        [0,"Ingredients for four 280 g dough balls."],
+        [10,"Use unfortified flour, with no added folic acid. Small mills sell it."]
+      ],
+      "capUS": [
+        [0,"Ingredients for four 10 oz dough balls."],
+        [10,"Use unfortified flour, with no added folic acid. Small mills sell it."]
+      ],
+      "svg": "<g id=\"si-h0\"><text class=\"t-lbl\" x=\"230\" y=\"160\">STARTER FEED · MORNING</text><line x1=\"230\" y1=\"178\" x2=\"820\" y2=\"178\" class=\"lt\"/></g>\n<g id=\"si-a0\"><text class=\"t-m24 t-list\" x=\"350\" y=\"226\" text-anchor=\"end\" data-us=\"\">40 g</text><text class=\"t-body t-list\" x=\"375\" y=\"226\" data-us=\"3 tbsp active starter\" data-usx=\"230\">active starter</text></g>\n<g id=\"si-a1\"><text class=\"t-m24 t-list\" x=\"350\" y=\"270\" text-anchor=\"end\" data-us=\"\">80 g</text><text class=\"t-body t-list\" x=\"375\" y=\"270\" data-us=\"⅔ cup bread flour\" data-usx=\"230\">strong white flour</text></g>\n<g id=\"si-a2\"><text class=\"t-m24 t-list\" x=\"350\" y=\"314\" text-anchor=\"end\" data-us=\"\">80 g</text><text class=\"t-body t-list\" x=\"375\" y=\"314\" data-us=\"⅓ cup water at about 80 °F\" data-usx=\"230\">water at about 27 °C</text></g>\n<g id=\"si-h1\"><text class=\"t-lbl\" x=\"230\" y=\"440\">DOUGH · EVENING</text><line x1=\"230\" y1=\"458\" x2=\"820\" y2=\"458\" class=\"lt\"/></g>\n<g id=\"si-b0\"><text class=\"t-m24 t-list\" x=\"350\" y=\"506\" text-anchor=\"end\" data-us=\"\">600 g</text><text class=\"t-body t-list\" x=\"375\" y=\"506\" data-us=\"4¾ cups 00 or bread flour\" data-usx=\"230\">00 or strong white flour</text></g>\n<g id=\"si-b1\"><text class=\"t-m24 t-list\" x=\"350\" y=\"550\" text-anchor=\"end\" data-us=\"\">390 g</text><text class=\"t-body t-list\" x=\"375\" y=\"550\" data-us=\"1⅔ cups water at about 80 °F\" data-usx=\"230\">water at about 27 °C</text></g>\n<g id=\"si-b2\"><text class=\"t-m24 t-list\" x=\"350\" y=\"594\" text-anchor=\"end\" data-us=\"\">120 g</text><text class=\"t-body t-list\" x=\"375\" y=\"594\" data-us=\"½ cup levain from the morning\" data-usx=\"230\">levain from the morning</text></g>\n<g id=\"si-b3\"><text class=\"t-m24 t-list\" x=\"350\" y=\"638\" text-anchor=\"end\" data-us=\"\">15 g</text><text class=\"t-body t-list\" x=\"375\" y=\"638\" data-us=\"2½ tsp fine sea salt\" data-usx=\"230\">fine sea salt</text></g>\n<g id=\"si-h2\"><text class=\"t-lbl\" x=\"940\" y=\"160\">TO FINISH</text><line x1=\"940\" y1=\"178\" x2=\"1470\" y2=\"178\" class=\"lt\"/></g>\n<g id=\"si-c0\"><text class=\"t-body t-list\" x=\"940\" y=\"226\">olive oil, for the container</text></g>\n<g id=\"si-c1\"><text class=\"t-body t-list\" x=\"940\" y=\"270\">flour for dusting</text></g>\n<g id=\"si-h3\"><text class=\"t-lbl\" x=\"940\" y=\"340\">THE FLOUR</text><line x1=\"940\" y1=\"358\" x2=\"1470\" y2=\"358\" class=\"lt\"/></g>\n<g id=\"si-d0\"><text class=\"t-body t-list\" x=\"940\" y=\"406\">unfortified: no added folic acid</text></g>\n<g id=\"si-d1\"><text class=\"t-body t-list\" x=\"940\" y=\"450\">look for small-mill flour</text></g>\n<g id=\"si-y\" class=\"chip\"><rect/><text x=\"954\" y=\"560\" data-us=\"MAKES 4 × 10 oz\">MAKES 4 × 280 g</text></g>\n",
+      "tw": [
+        ["fadeUp","si-h0",0.4],
+        ["fadeUp","si-a0",1],
+        ["fadeUp","si-a1",1.7],
+        ["fadeUp","si-a2",2.4],
+        ["fadeUp","si-h1",4],
+        ["fadeUp","si-b0",4.6],
+        ["fadeUp","si-b1",5.3],
+        ["fadeUp","si-b2",6],
+        ["fadeUp","si-b3",6.7],
+        ["fadeUp","si-h2",7.6],
+        ["fadeUp","si-c0",8.2],
+        ["fadeUp","si-c1",8.9],
+        ["fadeUp","si-h3",9.8],
+        ["fadeUp","si-d0",10.4],
+        ["fadeUp","si-d1",11.1],
+        ["pop","si-y",12]
+      ],
+      "uses": [],
+      "kit": "none"
+    },
+    {
+      "id": "se",
+      "title": "Equipment",
+      "dur": 12,
+      "clock": null,
+      "vo": "And the equipment: a digital scale and a thermometer, a clean jar for the starter, a 4-litre tub or large bowl for the dough, a dough scraper, and a lidded container for the dough balls.",
+      "voUS": "And the equipment: a digital scale and a thermometer, a clean jar for the starter, a 4-quart tub or large bowl for the dough, a dough scraper, and a lidded container for the dough balls.",
+      "cap": [
+        [0,"The equipment you need."]
+      ],
+      "capUS": [
+        [0,"The equipment you need."]
+      ],
+      "svg": "<g id=\"se-h0\"><text class=\"t-lbl\" x=\"230\" y=\"160\">TO MIX</text><line x1=\"230\" y1=\"178\" x2=\"820\" y2=\"178\" class=\"lt\"/></g>\n<g id=\"se-a0\"><rect x=\"230\" y=\"224\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"264\" y=\"240\">digital scale</text></g>\n<g id=\"se-a1\"><rect x=\"230\" y=\"288\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"264\" y=\"304\">thermometer</text></g>\n<g id=\"se-a2\"><rect x=\"230\" y=\"352\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"264\" y=\"368\">clean jar, for the starter</text></g>\n<g id=\"se-a3\"><rect x=\"230\" y=\"416\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"264\" y=\"432\" data-us=\"4-quart tub or large bowl, for the dough\">4-litre tub or large bowl, for the dough</text></g>\n<g id=\"se-h1\"><text class=\"t-lbl\" x=\"940\" y=\"160\">TO DIVIDE AND STORE</text><line x1=\"940\" y1=\"178\" x2=\"1470\" y2=\"178\" class=\"lt\"/></g>\n<g id=\"se-b0\"><rect x=\"940\" y=\"224\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"974\" y=\"240\">dough scraper</text></g>\n<g id=\"se-b1\"><rect x=\"940\" y=\"288\" width=\"14\" height=\"14\" class=\"f-i\"/><text class=\"t-body t-list\" x=\"974\" y=\"304\">lidded container, for the balls</text></g>",
+      "tw": [
+        ["fadeUp","se-h0",0.4],
+        ["fadeUp","se-a0",1],
+        ["fadeUp","se-a1",1.6],
+        ["fadeUp","se-a2",2.2],
+        ["fadeUp","se-a3",2.8],
+        ["fadeUp","se-h1",4],
+        ["fadeUp","se-b0",4.6],
+        ["fadeUp","se-b1",5.2]
+      ],
+      "uses": [],
+      "kit": "none"
+    },
+    {
+      "id": "s2",
+      "title": "Weigh the starter",
+      "dur": 10,
+      "clock": [
+        [0,600],
+        [10,602]
+      ],
+      "vo": "Start at about 10 on the morning of day one. Weigh 40 grams of active, bubbly starter into a clean jar.",
+      "voUS": "Start at about 10 on the morning of day one. Weigh 3 tablespoons of active, bubbly starter into a clean jar.",
+      "cap": [
+        [0,"At about 10 am on day one, weigh 40 g of active starter into a clean jar."]
+      ],
+      "capUS": [
+        [0,"At about 10 am on day one, weigh 3 tbsp of active starter into a clean jar."]
+      ],
+      "svg": "<path d=\"M540 300 L540 600 Q540 620 560 620 L720 620 Q740 620 740 600 L740 300 Z\" class=\"f-w\"/>\n<rect id=\"s2-fill\" data-o=\"b\" x=\"548\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<path d=\"M540 300 L540 600 Q540 620 560 620 L720 620 Q740 620 740 600 L740 300\" class=\"ln\"/>\n<text class=\"t-sm\" x=\"640\" y=\"665\" text-anchor=\"middle\">CLEAN JAR</text>\n<ellipse id=\"s2-blob\" cx=\"640\" cy=\"200\" rx=\"56\" ry=\"30\" class=\"f-l ln\"/>\n<g id=\"s2-keep\" class=\"chip\"><rect/><text x=\"790\" y=\"560\" data-us=\"3 TBSP ACTIVE STARTER\">40 g ACTIVE STARTER</text></g>",
+      "tw": [
+        ["s2-fill",0,0.2,{"sy":[0,0]}],
+        ["s2-blob",0.8,1.4,{"o":[0,1]}],
+        ["s2-blob",1.4,2.8,{"y":[0,330]},"i"],
+        ["fadeOut","s2-blob",2.7,0.3],
+        ["s2-fill",2.7,3.6,{"sy":[0,0.2]},"o"],
+        ["fadeUp","s2-keep",3.8,1.2]
+      ],
+      "uses": [
+        {"ingredient":"starter","grams":40}
+      ]
+    },
+    {
+      "id": "s3",
+      "title": "Feed the starter",
+      "dur": 12,
+      "clock": [
+        [0,602],
+        [12,610]
+      ],
+      "vo": "Add 80 grams of strong white flour and 80 grams of water at about 27 degrees Celsius. Stir until smooth, with no dry flour left. Cover it loosely and leave it for 6 to 8 hours, somewhere around 24 degrees.",
+      "voUS": "Add two-thirds of a cup of bread flour and a third of a cup of water at about 80 degrees Fahrenheit. Stir until smooth, with no dry flour left. Cover it loosely and leave it for 6 to 8 hours, somewhere around 75 degrees.",
+      "cap": [
+        [0,"Add 80 g strong white flour and 80 g water at about 27 °C."],
+        [7.2,"Stir until smooth. Cover loosely and leave 6 to 8 hours at about 24 °C."]
+      ],
+      "capUS": [
+        [0,"Add ⅔ cup bread flour and ⅓ cup water at about 80 °F."],
+        [7.2,"Stir until smooth. Cover loosely and leave 6 to 8 hours at about 75 °F."]
+      ],
+      "svg": "<path d=\"M360 300 L360 600 Q360 620 380 620 L540 620 Q560 620 560 600 L560 300 Z\" class=\"f-w\"/>\n<rect id=\"s3-fill\" data-o=\"b\" x=\"368\" y=\"312\" width=\"184\" height=\"300\" rx=\"10\" class=\"f-d\"/>\n<rect x=\"368\" y=\"556\" width=\"184\" height=\"56\" rx=\"10\" class=\"f-l\"/>\n<path d=\"M360 300 L360 600 Q360 620 380 620 L540 620 Q560 620 560 600 L560 300\" class=\"ln\"/>\n<path id=\"s3-fl\" d=\"M410 200 Q460 140 510 200 Z\" class=\"f-s ln\"/>\n<path id=\"s3-wa\" d=\"M460 150 Q428 196 460 216 Q492 196 460 150 Z\" class=\"f-wa ln\"/>\n<g id=\"s3-r1\"><text class=\"t-mono\" x=\"680\" y=\"350\" data-us=\"⅔ cup\">80 g</text><text class=\"t-lbl\" x=\"820\" y=\"350\">STRONG WHITE FLOUR</text></g>\n<g id=\"s3-r2\"><text class=\"t-mono\" x=\"680\" y=\"430\" data-us=\"⅓ cup\">80 g</text><text class=\"t-lbl\" x=\"820\" y=\"430\">WATER</text></g>\n<g id=\"s3-temp\" class=\"chip\"><rect/><text x=\"834\" y=\"490\" data-us=\"ABOUT 80 °F\">ABOUT 27 °C</text></g>\n<g id=\"s3-rest\" class=\"chip light\"><rect/><text x=\"694\" y=\"600\" data-us=\"6–8 H AT ABOUT 75 °F\">6–8 H AT ABOUT 24 °C</text></g>",
+      "tw": [
+        ["s3-fill",2.2,3.2,{"sy":[0.19,0.45]}],
+        ["s3-fill",5.2,6.4,{"sy":[0.45,0.62]}],
+        ["s3-fl",0.6,1,{"o":[0,1]}],
+        ["s3-fl",1,2.2,{"y":[0,300]},"i"],
+        ["fadeOut","s3-fl",2.1,0.3],
+        ["s3-wa",3.6,4,{"o":[0,1]}],
+        ["s3-wa",4,5.2,{"y":[0,300]},"i"],
+        ["fadeOut","s3-wa",5.1,0.3],
+        ["s3-r1",1.8,2.8,{"o":[0,1],"x":[-20,0]},"o"],
+        ["s3-r2",4.2,5.2,{"o":[0,1],"x":[-20,0]},"o"],
+        ["fadeUp","s3-temp",5],
+        ["fadeUp","s3-rest",7.6]
+      ],
+      "uses": [
+        {"ingredient":"feed-flour","grams":80},
+        {"ingredient":"feed-water","grams":80}
+      ]
+    },
+    {
+      "id": "s4",
+      "title": "Let it ripen",
+      "dur": 10,
+      "clock": [
+        [0,610],
+        [0.6,610],
+        [8.8,1080]
+      ],
+      "vo": "Through the day, the levain rises, domes and fills with bubbles. It's ready when it has roughly doubled.",
+      "voUS": "Through the day, the levain rises, domes and fills with bubbles. It's ready when it has roughly doubled.",
+      "cap": [
+        [0,"Over 6 to 8 hours it roughly doubles, domes and fills with bubbles."]
+      ],
+      "capUS": [
+        [0,"Over 6 to 8 hours it roughly doubles, domes and fills with bubbles."]
+      ],
+      "svg": "<path d=\"M700 300 L700 600 Q700 620 720 620 L880 620 Q900 620 900 600 L900 300 Z\" class=\"f-w\"/>\n<rect id=\"s4-fill\" data-o=\"b\" x=\"708\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s4-u0\" cx=\"735\" cy=\"420\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s4-u1\" cx=\"770\" cy=\"380\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s4-u2\" cx=\"822\" cy=\"400\" r=\"8\" class=\"f-w lt\"/>\n<circle id=\"s4-u3\" cx=\"860\" cy=\"372\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s4-u4\" cx=\"750\" cy=\"520\" r=\"6\" class=\"f-w lt\"/>\n<circle id=\"s4-u5\" cx=\"845\" cy=\"470\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s4-u6\" cx=\"800\" cy=\"545\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s4-u7\" cx=\"790\" cy=\"450\" r=\"4\" class=\"f-w lt\"/>\n<path d=\"M700 300 L700 600 Q700 620 720 620 L880 620 Q900 620 900 600 L900 300\" class=\"ln\"/>\n<line x1=\"680\" y1=\"477\" x2=\"920\" y2=\"477\" class=\"dash\"/>\n<text class=\"t-sm\" x=\"940\" y=\"484\">FED</text>\n<text id=\"s4-h\" class=\"t-mono\" x=\"620\" y=\"420\" text-anchor=\"end\">6–8 h</text>",
+      "tw": [
+        ["s4-fill",0.6,7.6,{"sy":[0.45,0.93]}],
+        ["fadeUp","s4-h",0.8],
+        ["pop","s4-u0",2,0.6],
+        ["pop","s4-u1",2.6,0.6],
+        ["pop","s4-u2",3.2,0.6],
+        ["pop","s4-u3",3.8,0.6],
+        ["pop","s4-u4",4.4,0.6],
+        ["pop","s4-u5",5,0.6],
+        ["pop","s4-u6",5.6,0.6],
+        ["pop","s4-u7",6.2,0.6]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s5",
+      "title": "Mix flour and water",
+      "dur": 14,
+      "clock": [
+        [0,1080],
+        [14,1085]
+      ],
+      "vo": "At about 6 in the evening, start the dough. In your tub, combine 600 grams of flour with 390 grams of water at about 27 degrees Celsius. Mix just until no dry flour is left. Cover, and rest for 30 minutes.",
+      "voUS": "At about 6 in the evening, start the dough. In your tub, combine four and three-quarter cups of flour with one and two-thirds cups of water at about 80 degrees Fahrenheit. Mix just until no dry flour is left. Cover, and rest for 30 minutes.",
+      "cap": [
+        [0,"At about 6 pm, combine 600 g flour with 390 g water at about 27 °C."],
+        [7.6,"Mix just until no dry flour is left. Cover and rest 30 minutes."]
+      ],
+      "capUS": [
+        [0,"At about 6 pm, combine 4¾ cups flour with 1⅔ cups water at about 80 °F."],
+        [7.6,"Mix just until no dry flour is left. Cover and rest 30 minutes."]
+      ],
+      "svg": "<path d=\"M520 380 L545 618 Q548 640 570 640 L1030 640 Q1052 640 1055 618 L1080 380 Z\" class=\"f-w\"/>\n<rect id=\"s5-fs\" data-o=\"t\" x=\"788\" y=\"140\" width=\"24\" height=\"320\" class=\"f-s lt\"/>\n<rect id=\"s5-ws\" data-o=\"t\" x=\"900\" y=\"140\" width=\"16\" height=\"430\" class=\"f-wa\"/>\n<path id=\"s5-fm\" data-o=\"b\" d=\"M570 638 Q800 440 1030 638 Z\" class=\"f-s ln\"/>\n<path id=\"s5-dg\" d=\"M560 638 Q800 470 1040 638 Z\" class=\"f-d ln\"/>\n<path d=\"M520 380 L545 618 Q548 640 570 640 L1030 640 Q1052 640 1055 618 L1080 380\" class=\"ln\"/>\n<line x1=\"505\" y1=\"380\" x2=\"1095\" y2=\"380\" class=\"ln\"/>\n<g id=\"s5-l1\"><text class=\"t-mono\" x=\"120\" y=\"300\" data-us=\"4¾ cups\">600 g</text><text class=\"t-lbl\" x=\"120\" y=\"340\">FLOUR</text></g>\n<g id=\"s5-l2\"><text class=\"t-mono\" x=\"120\" y=\"430\" data-us=\"1⅔ cups\">390 g</text><text class=\"t-lbl\" x=\"120\" y=\"470\">WATER</text></g>\n<g id=\"s5-temp\" class=\"chip\"><rect/><text x=\"134\" y=\"530\" data-us=\"ABOUT 80 °F\">ABOUT 27 °C</text></g>\n<g id=\"s5-rest\" class=\"chip light\"><rect/><text x=\"1144\" y=\"330\">REST 30 MIN</text></g>",
+      "tw": [
+        ["s5-fs",0.6,1.4,{"sy":[0,1]}],
+        ["fadeOut","s5-fs",3.4],
+        ["s5-fm",1,3.6,{"sy":[0,1]}],
+        ["s5-ws",4,4.8,{"sy":[0,1]}],
+        ["fadeOut","s5-ws",6],
+        ["s5-dg",6.6,8.4,{"o":[0,1]}],
+        ["s5-fm",6.6,8.4,{"o":[1,0]}],
+        ["fadeUp","s5-l1",1.2],
+        ["fadeUp","s5-l2",4.2],
+        ["fadeUp","s5-temp",4.6],
+        ["fadeUp","s5-rest",8.6]
+      ],
+      "uses": [
+        {"ingredient":"flour","grams":600},
+        {"ingredient":"water","grams":390}
+      ]
+    },
+    {
+      "id": "s6",
+      "title": "Salt and levain",
+      "dur": 14,
+      "clock": [
+        [0,1110],
+        [14,1112]
+      ],
+      "vo": "Sprinkle 15 grams of fine sea salt over the dough. Then weigh out 120 grams of levain and add it to the tub. Stir the leftover levain back into your starter jar, ready for next time.",
+      "voUS": "Sprinkle two and a half teaspoons of fine sea salt over the dough. Then weigh out 120 grams of levain, about half a cup, and add it to the tub. Stir the leftover levain back into your starter jar, ready for next time.",
+      "cap": [
+        [0,"Sprinkle 15 g fine sea salt over the dough."],
+        [4.4,"Weigh out 120 g of levain and add it to the dough."],
+        [10,"Stir the leftover levain back into your starter jar."]
+      ],
+      "capUS": [
+        [0,"Sprinkle 2½ tsp fine sea salt over the dough."],
+        [4.4,"Weigh out 120 g (about ½ cup) of levain and add it to the dough."],
+        [10,"Stir the leftover levain back into your starter jar."]
+      ],
+      "svg": "<ellipse cx=\"560\" cy=\"450\" rx=\"330\" ry=\"190\" class=\"f-s ln\"/>\n<ellipse cx=\"560\" cy=\"450\" rx=\"285\" ry=\"155\" class=\"f-d ln\"/>\n<g id=\"s6-salt\" class=\"f-gr\">\n  <circle cx=\"420\" cy=\"400\" r=\"4\"/><circle cx=\"470\" cy=\"360\" r=\"4\"/><circle cx=\"530\" cy=\"420\" r=\"4\"/>\n  <circle cx=\"600\" cy=\"380\" r=\"4\"/><circle cx=\"660\" cy=\"430\" r=\"4\"/><circle cx=\"700\" cy=\"390\" r=\"4\"/>\n  <circle cx=\"450\" cy=\"470\" r=\"4\"/><circle cx=\"520\" cy=\"500\" r=\"4\"/><circle cx=\"590\" cy=\"470\" r=\"4\"/>\n  <circle cx=\"650\" cy=\"510\" r=\"4\"/><circle cx=\"720\" cy=\"470\" r=\"4\"/><circle cx=\"380\" cy=\"450\" r=\"4\"/>\n  <circle cx=\"560\" cy=\"340\" r=\"4\"/><circle cx=\"620\" cy=\"550\" r=\"4\"/><circle cx=\"480\" cy=\"540\" r=\"4\"/>\n  <circle cx=\"740\" cy=\"420\" r=\"4\"/>\n</g>\n<g id=\"s6-sl\"><text class=\"t-mono\" x=\"960\" y=\"200\" data-us=\"2½ tsp\">15 g</text><text class=\"t-lbl\" x=\"1060\" y=\"200\" data-usx=\"1110\">FINE SEA SALT</text></g>\n<path d=\"M1100 590 L1115 520 L1345 520 L1360 590 Z\" class=\"f-w\"/>\n<path d=\"M1100 590 L1115 520 L1345 520 L1360 590 Z\" class=\"ln\"/>\n<rect x=\"1070\" y=\"590\" width=\"320\" height=\"64\" rx=\"10\" class=\"f-s ln\"/>\n<rect x=\"1160\" y=\"602\" width=\"140\" height=\"40\" class=\"f-w lt\"/>\n<text id=\"s6-n\" class=\"t-m24\" x=\"1230\" y=\"631\" text-anchor=\"middle\" data-suffix=\" g\">0 g</text>\n<ellipse id=\"s6-bl\" cx=\"1230\" cy=\"420\" rx=\"70\" ry=\"34\" class=\"f-l ln\"/>\n<g id=\"s6-card\">\n  <rect x=\"940\" y=\"250\" width=\"520\" height=\"130\" class=\"f-s\"/>\n  <text class=\"t-sm\" x=\"970\" y=\"295\">LEFTOVER LEVAIN?</text>\n  <text class=\"t-body\" x=\"970\" y=\"345\">Stir it back into your starter jar.</text>\n</g>",
+      "tw": [
+        ["s6-salt",0.6,2,{"o":[0,1],"y":[-30,0]},"o"],
+        ["fadeUp","s6-sl",1],
+        ["s6-bl",4.4,4.8,{"o":[0,1]}],
+        ["s6-bl",4.8,6,{"y":[0,120]},"i"],
+        ["s6-n",5.2,6.6,{"n":[0,120]},"o"],
+        ["s6-bl",7.6,9.4,{"x":[0,-670]}],
+        ["s6-bl",7.6,9.4,{"y":[120,-10]}],
+        ["fadeUp","s6-card",10,1.2]
+      ],
+      "uses": [
+        {"ingredient":"salt","grams":15},
+        {"ingredient":"levain","grams":120}
+      ]
+    },
+    {
+      "id": "s7",
+      "title": "Mix by hand",
+      "dur": 16,
+      "clock": [
+        [0,1112],
+        [16,1118]
+      ],
+      "vo": "With a wet hand, fold the dough over onto itself, then squeeze it through between your thumb and fingers. Keep folding and squeezing for 3 to 5 minutes, until you can't feel any grains of salt or streaks of levain. The mixed dough should be about 24 degrees Celsius.",
+      "voUS": "With a wet hand, fold the dough over onto itself, then squeeze it through between your thumb and fingers. Keep folding and squeezing for 3 to 5 minutes, until you can't feel any grains of salt or streaks of levain. The mixed dough should be about 75 degrees Fahrenheit.",
+      "cap": [
+        [0,"With a wet hand, fold the dough over onto itself."],
+        [5.2,"Squeeze it through between thumb and fingers, then fold again, for 3 to 5 minutes."],
+        [10,"The mixed dough should be about 24 °C."]
+      ],
+      "capUS": [
+        [0,"With a wet hand, fold the dough over onto itself."],
+        [5.2,"Squeeze it through between thumb and fingers, then fold again, for 3 to 5 minutes."],
+        [10,"The mixed dough should be about 75 °F."]
+      ],
+      "svg": "<path d=\"M420 380 L445 618 Q448 640 470 640 L1010 640 Q1032 640 1035 618 L1060 380 Z\" class=\"f-w\"/>\n<path id=\"s7-dg\" data-o=\"b\" d=\"M460 638 Q740 450 1020 638 Z\" class=\"f-d ln\"/>\n<path d=\"M420 380 L445 618 Q448 640 470 640 L1010 640 Q1032 640 1035 618 L1060 380\" class=\"ln\"/>\n<line x1=\"405\" y1=\"380\" x2=\"1075\" y2=\"380\" class=\"ln\"/>\n<g id=\"s7-a1\"><path d=\"M560 520 Q 740 380 920 520\" class=\"ln\"/><path d=\"M910 498 L920 520 L896 516\" class=\"ln\"/></g>\n<g id=\"s7-a2\"><path d=\"M920 500 Q 740 340 560 500\" class=\"ln\"/><path d=\"M583 494 L560 500 L568 478\" class=\"ln\"/></g>\n<g id=\"s7-pn\"><path d=\"M690 560 L726 578 L690 596\" class=\"ln\"/><path d=\"M790 560 L754 578 L790 596\" class=\"ln\"/></g>\n<text id=\"s7-pl\" class=\"t-sm\" x=\"1100\" y=\"300\">SQUEEZE + FOLD</text>\n<g id=\"s7-th\">\n  <rect x=\"1200\" y=\"290\" width=\"26\" height=\"270\" rx=\"13\" class=\"f-w\"/>\n  <rect id=\"s7-col\" data-o=\"b\" x=\"1207\" y=\"310\" width=\"12\" height=\"250\" class=\"f-sa\"/>\n  <rect x=\"1200\" y=\"290\" width=\"26\" height=\"270\" rx=\"13\" class=\"ln\"/>\n  <circle cx=\"1213\" cy=\"580\" r=\"26\" class=\"f-sa ln\"/>\n</g>\n<g id=\"s7-tr\"><text class=\"t-mono\" x=\"1270\" y=\"420\" data-us=\"75 °F\">24 °C</text></g>",
+      "tw": [
+        ["s7-a1",0.6,1.2,{"o":[0,1]}],
+        ["s7-a1",0.6,2.8,{"x":[-20,20]}],
+        ["fadeOut","s7-a1",2.8],
+        ["s7-a2",3,3.6,{"o":[0,1]}],
+        ["s7-a2",3,5.2,{"x":[20,-20]}],
+        ["fadeOut","s7-a2",5.2],
+        ["s7-pn",5.4,6,{"o":[0,1]}],
+        ["s7-pn",6,6.6,{"sx":[1,0.6]}],
+        ["s7-pn",6.6,7.2,{"sx":[0.6,1]}],
+        ["s7-pn",7.2,7.8,{"sx":[1,0.6]}],
+        ["s7-pn",7.8,8.4,{"sx":[0.6,1]}],
+        ["fadeOut","s7-pn",8.6],
+        ["s7-dg",1.8,2.4,{"sy":[1,0.86]}],
+        ["s7-dg",2.4,3.2,{"sy":[0.86,1.05]}],
+        ["s7-dg",3.2,3.8,{"sy":[1.05,1]}],
+        ["s7-pl",5.2,6,{"o":[0,1]}],
+        ["fadeOut","s7-pl",9],
+        ["s7-th",9.6,10.4,{"o":[0,1]}],
+        ["s7-col",10.4,12.4,{"sy":[0.15,0.58]}],
+        ["fadeUp","s7-tr",11.2,1.2]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s8",
+      "title": "Stretch and fold",
+      "dur": 14,
+      "clock": [
+        [0,1140],
+        [14,1200]
+      ],
+      "vo": "Over the next hour and a half, give the dough three sets of stretch-and-folds, 30 minutes apart. Lift one side, stretch it up, and fold it across. Turn the tub and repeat, until you've gone all the way round.",
+      "voUS": "Over the next hour and a half, give the dough three sets of stretch-and-folds, 30 minutes apart. Lift one side, stretch it up, and fold it across. Turn the tub and repeat, until you've gone all the way round.",
+      "cap": [
+        [0,"Give it three sets of stretch-and-folds, 30 minutes apart."],
+        [7.2,"Lift a side, stretch it up and fold it across. Turn the tub and repeat all the way round."]
+      ],
+      "capUS": [
+        [0,"Give it three sets of stretch-and-folds, 30 minutes apart."],
+        [7.2,"Lift a side, stretch it up and fold it across. Turn the tub and repeat all the way round."]
+      ],
+      "svg": "<ellipse cx=\"640\" cy=\"440\" rx=\"330\" ry=\"190\" class=\"f-s ln\"/>\n<ellipse cx=\"640\" cy=\"440\" rx=\"285\" ry=\"155\" class=\"f-d ln\"/>\n<ellipse id=\"s8-f1\" cx=\"640\" cy=\"575\" rx=\"110\" ry=\"34\" class=\"f-d ln\"/>\n<ellipse id=\"s8-f2\" cx=\"905\" cy=\"440\" rx=\"34\" ry=\"100\" class=\"f-d ln\"/>\n<g id=\"s8-l1\"><text class=\"t-lbl\" x=\"1040\" y=\"300\">FOLD 1</text><text class=\"t-sm\" x=\"1040\" y=\"340\">30 MIN AFTER MIXING</text></g>\n<g id=\"s8-l2\"><text class=\"t-lbl\" x=\"1040\" y=\"420\">FOLDS 2 AND 3</text><text class=\"t-sm\" x=\"1040\" y=\"460\">30 MIN APART</text></g>\n<g id=\"s8-l3\"><text class=\"t-lbl\" x=\"1040\" y=\"560\">ALL FOUR SIDES</text><text class=\"t-sm\" x=\"1040\" y=\"600\">TURN THE TUB EACH TIME</text></g>",
+      "tw": [
+        ["s8-f1",0.6,0.8,{"o":[0,1]}],
+        ["s8-f1",0.8,1.8,{"y":[0,40],"sy":[1,1.6]}],
+        ["s8-f1",1.8,3.2,{"y":[40,-270],"sy":[1.6,1]}],
+        ["fadeOut","s8-f1",3],
+        ["s8-f2",4.4,4.6,{"o":[0,1]}],
+        ["s8-f2",4.6,5.6,{"x":[0,40],"sx":[1,1.6]}],
+        ["s8-f2",5.6,7,{"x":[40,-540],"sx":[1.6,1]}],
+        ["fadeOut","s8-f2",6.8],
+        ["fadeUp","s8-l1",0.6],
+        ["fadeUp","s8-l2",4.4],
+        ["fadeUp","s8-l3",7.6]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s9",
+      "title": "Rise overnight",
+      "dur": 14,
+      "clock": [
+        [0,1200],
+        [0.8,1200],
+        [11.6,1860]
+      ],
+      "vo": "Cover it and leave it overnight, at around 20 degrees Celsius, for 10 to 12 hours. It's ready when it has risen by half to three-quarters, with bubbles on the top and at the sides.",
+      "voUS": "Cover it and leave it overnight, at around 68 degrees Fahrenheit, for 10 to 12 hours. It's ready when it has risen by half to three-quarters, with bubbles on the top and at the sides.",
+      "cap": [
+        [0,"Cover and leave it overnight at about 20 °C, for 10 to 12 hours."],
+        [8.4,"It is ready when it has risen by half to three-quarters, with bubbles on top."]
+      ],
+      "capUS": [
+        [0,"Cover and leave it overnight at about 68 °F, for 10 to 12 hours."],
+        [8.4,"It is ready when it has risen by half to three-quarters, with bubbles on top."]
+      ],
+      "svg": "<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-s\"/>\n<circle id=\"s9-sn\" cx=\"240\" cy=\"360\" r=\"30\" class=\"f-sun\"/>\n<rect id=\"s9-nt\" x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"f-g\"/>\n<g id=\"s9-stars\" class=\"f-w\"><circle cx=\"210\" cy=\"230\" r=\"2.5\"/><circle cx=\"260\" cy=\"300\" r=\"2\"/><circle cx=\"350\" cy=\"240\" r=\"2\"/><circle cx=\"220\" cy=\"390\" r=\"2\"/><circle cx=\"355\" cy=\"380\" r=\"2.5\"/></g>\n<circle id=\"s9-mn\" cx=\"320\" cy=\"270\" r=\"22\" class=\"f-w\"/>\n<rect x=\"180\" y=\"200\" width=\"200\" height=\"220\" class=\"ln\"/>\n<line x1=\"280\" y1=\"200\" x2=\"280\" y2=\"420\" class=\"ln\"/>\n<line x1=\"180\" y1=\"310\" x2=\"380\" y2=\"310\" class=\"ln\"/>\n<text id=\"s9-h\" class=\"t-mono\" x=\"280\" y=\"480\" text-anchor=\"middle\">10–12 h</text>\n<path d=\"M600 220 L615 622 Q617 640 635 640 L965 640 Q983 640 985 622 L1000 220 Z\" class=\"f-w\"/>\n<path id=\"s9-dg\" data-o=\"b\" d=\"M622 634 L622 545 Q800 505 978 545 L978 634 Z\" class=\"f-d ln\"/>\n<path d=\"M600 220 L615 622 Q617 640 635 640 L965 640 Q983 640 985 622 L1000 220\" class=\"ln\"/>\n<line x1=\"580\" y1=\"515\" x2=\"1020\" y2=\"515\" class=\"dash\"/>\n<text class=\"t-sm\" x=\"1040\" y=\"522\">START</text>\n<g id=\"s9-ar\">\n  <line x1=\"1110\" y1=\"510\" x2=\"1110\" y2=\"445\" class=\"ln\"/>\n  <path d=\"M1096 462 L1110 442 L1124 462\" class=\"ln\"/>\n  <text class=\"t-mono\" x=\"1140\" y=\"490\">1½–1¾×</text>\n</g>",
+      "tw": [
+        ["s9-dg",0.8,11.2,{"sy":[1,1.7]}],
+        ["fadeUp","s9-h",1],
+        ["fadeOut","s9-stars",4.8,2],
+        ["s9-mn",5.2,7.2,{"o":[1,0],"y":[0,-20]}],
+        ["fadeOut","s9-nt",5.6,3.2],
+        ["s9-sn",6.8,9.2,{"o":[0,1],"y":[40,0]},"o"],
+        ["s9-ar",8.6,9.8,{"o":[0,1]}]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s10",
+      "title": "Divide",
+      "dur": 14,
+      "clock": [
+        [0,1860],
+        [14,1865]
+      ],
+      "vo": "At about 7 the next morning, lightly flour your work surface and tip the dough out onto it. Using your scraper, cut it into four pieces of about 280 grams each.",
+      "voUS": "At about 7 the next morning, lightly flour your work surface and tip the dough out onto it. Using your scraper, cut it into four pieces of about 10 ounces each.",
+      "cap": [
+        [0,"Lightly flour the bench and tip the dough out."],
+        [6,"Cut it into 4 pieces of about 280 g each."]
+      ],
+      "capUS": [
+        [0,"Lightly flour the bench and tip the dough out."],
+        [6,"Cut it into 4 pieces of about 10 oz each."]
+      ],
+      "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<g id=\"s10-fl\" class=\"f-w lt\">\n  <circle cx=\"200\" cy=\"470\" r=\"4\"/><circle cx=\"260\" cy=\"560\" r=\"3\"/><circle cx=\"330\" cy=\"660\" r=\"4\"/><circle cx=\"380\" cy=\"480\" r=\"3\"/>\n  <circle cx=\"1230\" cy=\"470\" r=\"4\"/><circle cx=\"1290\" cy=\"590\" r=\"3\"/><circle cx=\"1360\" cy=\"680\" r=\"4\"/><circle cx=\"1400\" cy=\"500\" r=\"3\"/>\n  <circle cx=\"1210\" cy=\"690\" r=\"3\"/><circle cx=\"240\" cy=\"690\" r=\"3\"/>\n</g>\n<rect id=\"s10-sl\" x=\"430\" y=\"490\" width=\"740\" height=\"170\" rx=\"70\" class=\"f-d ln\"/>\n<g id=\"s10-du\" class=\"f-w\"><circle cx=\"520\" cy=\"540\" r=\"4\"/><circle cx=\"640\" cy=\"600\" r=\"3\"/><circle cx=\"760\" cy=\"530\" r=\"4\"/><circle cx=\"880\" cy=\"610\" r=\"3\"/><circle cx=\"1000\" cy=\"545\" r=\"4\"/><circle cx=\"1100\" cy=\"600\" r=\"3\"/></g>\n<line id=\"s10-c1\" data-o=\"t\" x1=\"615\" y1=\"495\" x2=\"615\" y2=\"655\" class=\"ln\"/>\n<line id=\"s10-c2\" data-o=\"t\" x1=\"800\" y1=\"495\" x2=\"800\" y2=\"655\" class=\"ln\"/>\n<line id=\"s10-c3\" data-o=\"t\" x1=\"985\" y1=\"495\" x2=\"985\" y2=\"655\" class=\"ln\"/>\n<g id=\"s10-p0\"><rect x=\"433\" y=\"490\" width=\"179\" height=\"170\" rx=\"40\" class=\"f-d ln\"/><text class=\"t-m24\" x=\"522\" y=\"584\" text-anchor=\"middle\" data-us=\"10 oz\">280 g</text></g>\n<g id=\"s10-p1\"><rect x=\"618\" y=\"490\" width=\"179\" height=\"170\" rx=\"40\" class=\"f-d ln\"/><text class=\"t-m24\" x=\"707\" y=\"584\" text-anchor=\"middle\" data-us=\"10 oz\">280 g</text></g>\n<g id=\"s10-p2\"><rect x=\"803\" y=\"490\" width=\"179\" height=\"170\" rx=\"40\" class=\"f-d ln\"/><text class=\"t-m24\" x=\"892\" y=\"584\" text-anchor=\"middle\" data-us=\"10 oz\">280 g</text></g>\n<g id=\"s10-p3\"><rect x=\"988\" y=\"490\" width=\"179\" height=\"170\" rx=\"40\" class=\"f-d ln\"/><text class=\"t-m24\" x=\"1077\" y=\"584\" text-anchor=\"middle\" data-us=\"10 oz\">280 g</text></g>\n<g id=\"s10-kn\">\n  <rect x=\"607\" y=\"400\" width=\"16\" height=\"240\" class=\"f-i\"/>\n  <rect x=\"593\" y=\"370\" width=\"44\" height=\"54\" rx=\"8\" class=\"f-wd ln\"/>\n</g>",
+      "tw": [
+        ["s10-fl",0.4,1.2,{"o":[0,1]}],
+        ["s10-sl",0.8,2,{"o":[0,1],"y":[-160,0]},"o"],
+        ["s10-du",2,2.8,{"o":[0,1]}],
+        ["s10-kn",2.8,3.2,{"o":[0,1]}],
+        ["s10-kn",3.1,3.5,{"y":[-80,0]}],
+        ["s10-kn",3.7,4,{"y":[0,-80]}],
+        ["s10-kn",4.2,4.5,{"y":[-80,0]}],
+        ["s10-kn",4.7,5,{"y":[0,-80]}],
+        ["s10-kn",5.2,5.5,{"y":[-80,0]}],
+        ["s10-kn",5.7,6,{"y":[0,-120]}],
+        ["s10-kn",3.9,4.2,{"x":[0,185]}],
+        ["s10-kn",4.9,5.2,{"x":[185,370]}],
+        ["fadeOut","s10-kn",5.9,0.4],
+        ["s10-c1",3.4,3.7,{"sy":[0,1]}],
+        ["s10-c2",4.4,4.7,{"sy":[0,1]}],
+        ["s10-c3",5.4,5.7,{"sy":[0,1]}],
+        ["fadeOut","s10-sl",6.4,0.4],
+        ["fadeOut","s10-du",6.4,0.4],
+        ["fadeOut","s10-c1",6.4,0.4],
+        ["fadeOut","s10-c2",6.4,0.4],
+        ["fadeOut","s10-c3",6.4,0.4],
+        ["s10-p0",6.4,6.8,{"o":[0,1]}],
+        ["s10-p1",6.4,6.8,{"o":[0,1]}],
+        ["s10-p2",6.4,6.8,{"o":[0,1]}],
+        ["s10-p3",6.4,6.8,{"o":[0,1]}],
+        ["s10-p0",7,8.4,{"x":[0,-66]},"o"],
+        ["s10-p1",7,8.4,{"x":[0,-22]},"o"],
+        ["s10-p2",7,8.4,{"x":[0,22]},"o"],
+        ["s10-p3",7,8.4,{"x":[0,66]},"o"]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s11",
+      "title": "Shape into balls",
+      "dur": 12,
+      "clock": [
+        [0,1865],
+        [12,1872]
+      ],
+      "vo": "Shape each piece into a ball. Fold the edges into the middle, turn it over, and drag it towards you on the bench to tighten the surface.",
+      "voUS": "Shape each piece into a ball. Fold the edges into the middle, turn it over, and drag it towards you on the bench to tighten the surface.",
+      "cap": [
+        [0,"Fold the edges to the middle, turn it over, and drag it on the bench to tighten it."]
+      ],
+      "capUS": [
+        [0,"Fold the edges to the middle, turn it over, and drag it on the bench to tighten it."]
+      ],
+      "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<text id=\"s11-lb\" class=\"t-sm\" x=\"800\" y=\"330\" text-anchor=\"middle\">FOLD IN · TURN OVER · DRAG TO TIGHTEN</text>\n<rect id=\"s11-pc\" x=\"720\" y=\"430\" width=\"160\" height=\"170\" rx=\"40\" class=\"f-d ln\"/>\n<circle id=\"s11-bl\" cx=\"800\" cy=\"520\" r=\"88\" class=\"f-d ln\"/>\n<path id=\"s11-sm\" d=\"M745 562 Q800 592 855 562\" class=\"lt\"/>\n<g id=\"s11-rot\"><path d=\"M860 416 A 120 120 0 1 1 740 416\" class=\"ln\"/><path d=\"M716 417 L740 416 L727 436\" class=\"ln\"/></g>\n<circle id=\"s11-r0\" cx=\"620\" cy=\"540\" r=\"50\" class=\"f-d ln\"/>\n<circle id=\"s11-r1\" cx=\"740\" cy=\"540\" r=\"50\" class=\"f-d ln\"/>\n<circle id=\"s11-r2\" cx=\"860\" cy=\"540\" r=\"50\" class=\"f-d ln\"/>\n<circle id=\"s11-r3\" cx=\"980\" cy=\"540\" r=\"50\" class=\"f-d ln\"/>",
+      "tw": [
+        ["fadeOut","s11-pc",1.2,0.8],
+        ["s11-bl",1.2,2.4,{"o":[0,1],"s":[0.8,1]},"o"],
+        ["s11-sm",2,2.8,{"o":[0,1]}],
+        ["fadeUp","s11-lb",1.6],
+        ["s11-rot",0.8,1.4,{"o":[0,1]}],
+        ["s11-rot",0.8,5.6,{"r":[0,300]},"l"],
+        ["fadeOut","s11-rot",5.8],
+        ["fadeOut","s11-bl",6,0.8],
+        ["fadeOut","s11-sm",6,0.8],
+        ["pop","s11-r0",6.4],
+        ["pop","s11-r1",6.7],
+        ["pop","s11-r2",7],
+        ["pop","s11-r3",7.3]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s12",
+      "title": "Refrigerate",
+      "dur": 14,
+      "clock": [
+        [0,1872],
+        [7.6,1872],
+        [13.2,2220]
+      ],
+      "vo": "Put the balls in a lightly oiled, lidded container, with room to grow, and refrigerate. They're ready to use after 6 hours, and keep for up to 3 days. Take them out 1 to 2 hours before you bake.",
+      "voUS": "Put the balls in a lightly oiled, lidded container, with room to grow, and refrigerate. They're ready to use after 6 hours, and keep for up to 3 days. Take them out 1 to 2 hours before you bake.",
+      "cap": [
+        [0,"Put the balls in a lightly oiled, lidded container and refrigerate."],
+        [6.8,"Ready after 6 hours; they keep up to 3 days. Take them out 1 to 2 hours before baking."]
+      ],
+      "capUS": [
+        [0,"Put the balls in a lightly oiled, lidded container and refrigerate."],
+        [6.8,"Ready after 6 hours; they keep up to 3 days. Take them out 1 to 2 hours before baking."]
+      ],
+      "svg": "<rect x=\"1000\" y=\"150\" width=\"340\" height=\"560\" rx=\"10\" class=\"f-s ln\"/>\n<rect x=\"1020\" y=\"170\" width=\"300\" height=\"520\" class=\"f-w lt\"/>\n<line x1=\"1020\" y1=\"360\" x2=\"1320\" y2=\"360\" class=\"lt\"/>\n<line x1=\"1020\" y1=\"560\" x2=\"1320\" y2=\"560\" class=\"lt\"/>\n<g id=\"s12-tr\">\n  <rect x=\"240\" y=\"444\" width=\"500\" height=\"118\" rx=\"12\" class=\"f-w ln\"/>\n  <circle cx=\"325\" cy=\"510\" r=\"46\" class=\"f-d ln\"/>\n  <circle cx=\"435\" cy=\"510\" r=\"46\" class=\"f-d ln\"/>\n  <circle cx=\"545\" cy=\"510\" r=\"46\" class=\"f-d ln\"/>\n  <circle cx=\"655\" cy=\"510\" r=\"46\" class=\"f-d ln\"/>\n  <rect x=\"240\" y=\"444\" width=\"500\" height=\"118\" rx=\"12\" class=\"ln\"/>\n  <rect id=\"s12-wr\" x=\"228\" y=\"424\" width=\"524\" height=\"24\" rx=\"6\" class=\"f-s ln\"/>\n</g>\n<g id=\"s12-door\" data-o=\"r\">\n  <rect x=\"1000\" y=\"150\" width=\"340\" height=\"560\" rx=\"10\" class=\"f-s2 ln\"/>\n  <rect x=\"1030\" y=\"330\" width=\"14\" height=\"120\" rx=\"7\" class=\"f-i\"/>\n</g>\n<g id=\"s12-c1\" class=\"chip\"><rect/><text x=\"244\" y=\"300\">READY AFTER 6 HOURS</text></g>\n<g id=\"s12-c2\" class=\"chip light\"><rect/><text x=\"244\" y=\"370\">KEEPS UP TO 3 DAYS</text></g>",
+      "tw": [
+        ["s12-wr",1.2,2.4,{"o":[0,1],"y":[-60,0]},"o"],
+        ["s12-tr",3.2,5.2,{"x":[0,680],"y":[0,27],"s":[1,0.52]}],
+        ["s12-door",5.6,6.8,{"sx":[0.05,1]}],
+        ["fadeUp","s12-c1",7],
+        ["fadeUp","s12-c2",8.2]
+      ],
+      "uses": []
+    },
+    {
+      "id": "s17",
+      "title": "The schedule",
+      "dur": 14,
+      "clock": null,
+      "vo": "So the schedule is: feed the starter at 10 in the morning, mix the dough at 6 in the evening, and shape the balls at 7 the next morning. The dough is ready from 1 in the afternoon, and keeps in the fridge for up to 3 days.",
+      "voUS": "So the schedule is: feed the starter at 10 in the morning, mix the dough at 6 in the evening, and shape the balls at 7 the next morning. The dough is ready from 1 in the afternoon, and keeps in the fridge for up to 3 days.",
+      "cap": [
+        [0,"Feed at 10 am, mix at 6 pm, shape at 7 am. Ready from 1 pm, and keeps up to 3 days."]
+      ],
+      "capUS": [
+        [0,"Feed at 10 am, mix at 6 pm, shape at 7 am. Ready from 1 pm, and keeps up to 3 days."]
+      ],
+      "svg": "<text class=\"t-sm\" x=\"200\" y=\"330\" text-anchor=\"middle\">DAY 1</text>\n<text id=\"s17-d2\" class=\"t-sm\" x=\"962\" y=\"330\" text-anchor=\"middle\">DAY 2</text>\n<line id=\"s17-ln\" data-o=\"l\" x1=\"200\" y1=\"430\" x2=\"1400\" y2=\"430\" class=\"ln\"/>\n<g id=\"s17-mn\"><line x1=\"822\" y1=\"400\" x2=\"822\" y2=\"460\" class=\"dash\"/><text class=\"t-sm\" x=\"822\" y=\"500\" text-anchor=\"middle\">MIDNIGHT</text></g>\n<g id=\"s17-p0\"><circle cx=\"200\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"200\" y=\"395\" text-anchor=\"middle\">10:00</text><text class=\"t-sm\" x=\"200\" y=\"475\" text-anchor=\"middle\">FEED STARTER</text></g>\n<g id=\"s17-p1\"><circle cx=\"556\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"556\" y=\"395\" text-anchor=\"middle\">18:00</text><text class=\"t-sm\" x=\"556\" y=\"475\" text-anchor=\"middle\">MIX</text></g>\n<g id=\"s17-p2\"><circle cx=\"1133\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1133\" y=\"395\" text-anchor=\"middle\">07:00</text><text class=\"t-sm\" x=\"1133\" y=\"475\" text-anchor=\"middle\">DIVIDE + SHAPE</text></g>\n<g id=\"s17-p3\"><circle cx=\"1400\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1400\" y=\"395\" text-anchor=\"middle\">13:00+</text><text class=\"t-sm\" x=\"1400\" y=\"475\" text-anchor=\"middle\">READY TO USE</text></g>\n<g id=\"s17-ti\">\n  <text class=\"t-disp2\" x=\"800\" y=\"620\" text-anchor=\"middle\">4 PIZZAS · ONE OVERNIGHT RISE</text>\n  <text class=\"t-sm\" x=\"800\" y=\"670\" text-anchor=\"middle\">KEEPS UP TO 3 DAYS IN THE FRIDGE</text>\n</g>",
+      "tw": [
+        ["s17-ln",0.4,2.8,{"sx":[0,1]}],
+        ["s17-mn",2,2.8,{"o":[0,1]}],
+        ["s17-d2",2,2.8,{"o":[0,1]}],
+        ["pop","s17-p0",2.4],
+        ["pop","s17-p1",3.2],
+        ["pop","s17-p2",4],
+        ["pop","s17-p3",4.8],
+        ["fadeUp","s17-ti",6,1.2]
+      ],
+      "uses": [],
+      "kit": "back"
+    }
+  ]
+}

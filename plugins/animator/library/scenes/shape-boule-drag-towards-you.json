@@ -1,0 +1,192 @@
+{
+ "id": "s4",
+ "title": "Shape",
+ "dur": 14,
+ "clock": [
+  [
+   0,
+   442
+  ],
+  [
+   14,
+   446
+  ]
+ ],
+ "vo": "Now shape it. Fold the edges into the middle again, and turn it seam side down. Drag it towards you a few times on the surface, to tighten the top.",
+ "voUS": "Now shape it. Fold the edges into the middle again, and turn it seam side down. Drag it towards you a few times on the surface, to tighten the top.",
+ "cap": [
+  [
+   0,
+   "Fold the edges into the middle again and turn it seam side down."
+  ],
+  [
+   6.4,
+   "Drag it towards you a few times to tighten the top."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Fold the edges into the middle again and turn it seam side down."
+  ],
+  [
+   6.4,
+   "Drag it towards you a few times to tighten the top."
+  ]
+ ],
+ "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<text id=\"s4-lb\" class=\"t-sm\" x=\"800\" y=\"300\" text-anchor=\"middle\">FOLD IN · SEAM DOWN · DRAG TOWARDS YOU</text>\n<ellipse id=\"s4-ls\" cx=\"800\" cy=\"590\" rx=\"170\" ry=\"95\" class=\"f-d ln\"/>\n<g id=\"s4-a1\"><line x1=\"540\" y1=\"590\" x2=\"650\" y2=\"590\" class=\"ln\"/><path d=\"M628.8 578.7 L650 590 L628.8 601.3\" class=\"ln\"/></g>\n<g id=\"s4-a2\"><line x1=\"1060\" y1=\"590\" x2=\"950\" y2=\"590\" class=\"ln\"/><path d=\"M971.2 601.3 L950 590 L971.2 578.7\" class=\"ln\"/></g>\n<g id=\"s4-bl\"><path d=\"M670 685 C670 515 930 515 930 685 Z\" class=\"f-d ln\"/><path id=\"s4-sh\" d=\"M720 600 Q800 565 880 600\" class=\"lt\"/></g>\n<g id=\"s4-dr\"><line x1=\"1040\" y1=\"480\" x2=\"1040\" y2=\"650\" class=\"ln\"/><path d=\"M1051.3 628.8 L1040 650 L1028.7 628.8\" class=\"ln\"/></g>\n<text id=\"s4-t\" class=\"t-sm\" x=\"1080\" y=\"575\">TOWARDS YOU</text>",
+ "tw": [
+  [
+   "fadeUp",
+   "s4-lb",
+   0.4
+  ],
+  [
+   "pop",
+   "s4-a1",
+   0.8
+  ],
+  [
+   "pop",
+   "s4-a2",
+   1.3
+  ],
+  [
+   "s4-ls",
+   2.4,
+   3.4,
+   {
+    "sx": [
+     1,
+     0.8
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s4-ls",
+   3,
+   0.6
+  ],
+  [
+   "fadeOut",
+   "s4-a1",
+   2.6
+  ],
+  [
+   "fadeOut",
+   "s4-a2",
+   2.6
+  ],
+  [
+   "s4-bl",
+   3,
+   3.8,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s4-sh",
+   3,
+   3.2,
+   {
+    "o": [
+     0,
+     0
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s4-dr",
+   6.4
+  ],
+  [
+   "fadeUp",
+   "s4-t",
+   6.6
+  ],
+  [
+   "s4-bl",
+   7,
+   7.6,
+   {
+    "y": [
+     0,
+     30
+    ]
+   }
+  ],
+  [
+   "s4-bl",
+   7.6,
+   8,
+   {
+    "y": [
+     30,
+     0
+    ]
+   }
+  ],
+  [
+   "s4-bl",
+   8.2,
+   8.8,
+   {
+    "y": [
+     0,
+     30
+    ]
+   }
+  ],
+  [
+   "s4-bl",
+   8.8,
+   9.2,
+   {
+    "y": [
+     30,
+     0
+    ]
+   }
+  ],
+  [
+   "s4-bl",
+   9.4,
+   10,
+   {
+    "y": [
+     0,
+     30
+    ]
+   }
+  ],
+  [
+   "s4-bl",
+   10,
+   10.4,
+   {
+    "y": [
+     30,
+     0
+    ]
+   }
+  ],
+  [
+   "s4-sh",
+   10.4,
+   11.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ]
+ ],
+ "uses": []
+}

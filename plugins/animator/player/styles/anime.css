@@ -1,0 +1,29 @@
+/* D. Anime: clean black-and-white production line art. Bold outlines, fine detail lines, white objects,
+   grey only for liquids and depth: a blurred kitchen behind each scene and an out-of-focus utensil in front. */
+.stage.st-anime { --sbg: #FFFFFF; --sink: #101114; --sgrey: #8A9099; --lw: 3.6px; --lt: 1.3px; }
+.st-anime svg :is(.f-d, .f-w, .f-s, .f-c, .f-wd, .f-sun, .f-o) { fill: #FFFFFF; }
+.st-anime svg :is(.f-l, .f-s2) { fill: #F1F2F4; } .st-anime svg .f-ww { fill: #DADDE1; }
+.st-anime svg .f-wa { fill: #E6EAEF; } .st-anime svg .f-sa { fill: #A9AEB5; } .st-anime svg .f-b { fill: #2A2D33; }
+.st-anime svg .f-g { fill: #3A3E45; } .st-anime svg .f-st { fill: #C9CCD1; }
+.st-anime svg :is(.f-i, .f-gr, .f-ch) { fill: #101114; }
+.st-anime svg .heat { stroke: #101114; }
+.st-anime svg .wrapfilm { fill: rgba(200, 205, 212, .25); stroke: #101114; }
+.st-anime svg.art text { font-family: 'M PLUS Rounded 1c', 'Arial Rounded MT Bold', system-ui, sans-serif; font-weight: 800; fill: #101114; letter-spacing: .03em; }
+.st-anime svg.art text.t-disp, .st-anime svg.art text.t-disp2 { font-weight: 800; letter-spacing: .06em; fill: #101114; stroke: #FFFFFF; stroke-width: 14px; paint-order: stroke; stroke-linejoin: round; }
+.st-anime svg.art text.grey { fill: #8A9099; }
+.st-anime svg .t-disp { font-size: 72px; } .st-anime svg .t-disp2 { font-size: 52px; }
+.st-anime svg .chip rect { fill: #101114; rx: 20px; }
+.st-anime svg .chip text { fill: #FFFFFF; font-family: 'M PLUS Rounded 1c', sans-serif; font-weight: 800; font-size: 22px; }
+.st-anime svg .chip.light rect { fill: #FFFFFF; stroke: #101114; }
+.st-anime svg .chip.light text { fill: #101114; }
+.st-anime .cap p { font-family: 'M PLUS Rounded 1c', 'Arial Rounded MT Bold', sans-serif; font-weight: 800; font-size: 2.1cqw; color: #101114; }
+svg .kit .b { fill: none; stroke: #9AA0A8; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+svg .kit .bt { fill: none; stroke: #BDC2C8; stroke-width: 2; stroke-linecap: round; }
+svg .kit .w { fill: #FFFFFF; }
+svg .kit-fg .b { stroke: #5C6169; stroke-width: 9; }
+/* A scene's "kit" field: "none" hides the whole kitchen (list scenes), "back" keeps only the kitchen behind (a wide scene). */
+.st-anime[data-kit="none"] .kit, .st-anime[data-kit="back"] .kit-fg { display: none; }
+
+@media (max-width: 640px) {
+  .stage.st-anime .cap p { font-size: 16px; }
+}

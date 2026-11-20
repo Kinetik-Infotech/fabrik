@@ -84,12 +84,13 @@ export function parseSetup(argv) {
   return out;
 }
 
-/** Each agent in a plugin of the marketplace, as <plugin>:<agent>, from the plugins' agents folders. */
+/** Each agent that works in fabrik, as <plugin>:<agent>, from the fabrik plugin's agents folder. The marketplace's
+ * other plugins, such as animator and trip-agent, keep their work outside fabrik, so a fabrik folder can't use them. */
 export function marketplaceAgents(marketplace = MARKETPLACE) {
   const listed = JSON.parse(readFileSync(join(marketplace, ".claude-plugin", "marketplace.json"), "utf-8")).plugins ?? [];
   const agents = [];
   for (const plugin of listed) {
-    if (typeof plugin.source !== "string") continue;
+    if (plugin.name !== MARKETPLACE_NAME || typeof plugin.source !== "string") continue;
     const folder = join(marketplace, plugin.source, "agents");
     let files = [];
     try { files = readdirSync(folder).filter(f => f.endsWith(".md")).sort(); } catch { continue; }
@@ -207,7 +208,7 @@ export function setup(argv, { home = homedir(), signInArgs, signInPath, marketpl
   if (mismatch) { fail(mismatch); return 1; }
   try {
     const agents = marketplaceAgents(marketplace);
-    if (!agents.includes(o.agent)) throw new StepFailed(`${o.agent} is not an agent in the ${MARKETPLACE_NAME} marketplace. Its agents are: ${agents.join(", ")}.`);
+    if (!agents.includes(o.agent)) throw new StepFailed(`${o.agent} is not an agent that works in ${MARKETPLACE_NAME}. Its agents are: ${agents.join(", ")}.`);
     // The owner pastes a token later: typing before its prompt is held unshown, as management.mjs's holdTyping says.
     if (o.owner) holdTyping();
     const folder = resolve(o.folder ?? join(home, DEFAULT_FOLDER));
