@@ -214,6 +214,14 @@ footer .brand svg{width:36px;height:36px;display:block}
 .tape .tick.on{opacity:1}
 .tape .case{fill:var(--card);stroke:currentColor;stroke-width:2}
 .tape .hub{fill:var(--key);stroke:currentColor;stroke-width:2}
+/* a stick person just past the tape's end, who walks down as it grows; the legs and arms swing only while the page scrolls */
+.tape .walker path{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.tape .w-head{fill:var(--card);stroke:currentColor;stroke-width:1.7}
+.tape .w-leg,.tape .w-arm{transform-box:fill-box;transform-origin:50% 0}
+.tape .l1,.tape .a2{transform:rotate(18deg)}.tape .l2,.tape .a1{transform:rotate(-18deg)}
+.tape .walking .l1,.tape .walking .a2{animation:tape-step .5s ease-in-out infinite alternate}
+.tape .walking .l2,.tape .walking .a1{animation:tape-step .5s ease-in-out infinite alternate-reverse}
+@keyframes tape-step{from{transform:rotate(26deg)}to{transform:rotate(-26deg)}}
 @media (max-width:899px){.tape{display:none}}
 @media (prefers-reduced-motion:reduce){.tape .tick{transition:none}}
 
