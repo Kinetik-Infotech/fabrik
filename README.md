@@ -19,6 +19,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
 - **Analysis.** Prices, products or options weighed up across sites, with evidence.
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
+- **Website chat.** Visitors ask questions on your website, and get answers from a page you write and from nothing else in fabrik.
 - **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
 
 ## Cards
@@ -93,6 +94,7 @@ Each guide covers one thing fabrik does. In any Claude app, ask Claude how to do
 - [A forgotten password](docs/guides/14-forgotten-password.md)
 - [Costs and limits](docs/guides/15-costs-and-limits.md)
 - [Getting help](docs/guides/16-getting-help.md)
+- [Chat on your website](docs/guides/17-website-chat.md)
 
 ## Forgotten your fabrik password
 
