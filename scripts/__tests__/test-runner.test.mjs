@@ -11,7 +11,7 @@ import { once } from "node:events";
 const RUNNER = resolve(dirname(fileURLToPath(import.meta.url)), "..", "test.mjs");
 
 /** A folder with a space in its name, holding one test file. The test makes a folder in its temporary folder, writes
- * both paths as JSON to the file WHERE names, then passes, fails, or waits. */
+ * both paths and its process id as JSON to the file WHERE names, then passes, fails, or waits. */
 function testFile(t, end) {
   const dir = mkdtempSync(join(tmpdir(), "test runner "));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -21,7 +21,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 test("makes a folder", async () => {
-  writeFileSync(process.env.WHERE, JSON.stringify({ temp: tmpdir(), made: mkdtempSync(join(tmpdir(), "made-")) }));
+  writeFileSync(process.env.WHERE, JSON.stringify({ temp: tmpdir(), made: mkdtempSync(join(tmpdir(), "made-")), pid: process.pid }));
   ${end}
 });
 `);
@@ -43,6 +43,14 @@ test("a failing run exits 1, and its temporary folder is gone", t => {
   assert.equal(existsSync(JSON.parse(readFileSync(where, "utf8")).temp), false);
 });
 
+/** True once the process has ended, within 5 seconds of the run's end; false if it still runs then. */
+async function ended(pid) {
+  for (const stop = Date.now() + 5_000; Date.now() < stop; await new Promise(r => setTimeout(r, 50))) {
+    try { process.kill(pid, 0); } catch { return true; }
+  }
+  return false;
+}
+
 // Ctrl+C, a kill, and a closed terminal. Windows has no such signals to send.
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   test(`a run stopped by ${signal} exits 1, and its temporary folder is gone`, { skip: process.platform === "win32" }, async t => {
@@ -54,5 +62,6 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     const [code] = await once(runner, "exit");
     assert.equal(code, 1);
     assert.deepEqual(readdirSync(outer), []);
+    assert.ok(await ended(JSON.parse(readFileSync(where, "utf8")).pid), "the test file's process is still running");
   });
 }

@@ -25,7 +25,10 @@ const run = spawn(process.execPath, ["--test", ...process.argv.slice(2)], {
   env: { ...env, TMPDIR: folder, TMP: folder, TEMP: folder },
 });
 // The runner passes a stop on to the test run, waits for it to end, then removes the folder. SIGHUP comes when the
-// terminal closes. On Windows, Ctrl+C reaches the test run from the console itself.
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => { if (process.platform !== "win32") run.kill(signal); });
+// terminal closes. node --test ends its test files' processes on SIGINT and SIGTERM, but leaves them running on
+// SIGHUP, so SIGHUP goes on as SIGTERM. On Windows, Ctrl+C reaches the test run from the console itself.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => { if (process.platform !== "win32") run.kill(signal === "SIGHUP" ? "SIGTERM" : signal); });
+}
 run.on("error", err => { remove(); console.error(err.message); process.exit(1); });
 run.on("exit", code => { remove(); process.exit(code ?? 1); });
