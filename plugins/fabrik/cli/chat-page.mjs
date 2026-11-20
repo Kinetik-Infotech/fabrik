@@ -89,7 +89,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const icon = esc(brand?.logo?.src || FABRIK_MARK);
   const list = `<ul class="agents">${agents.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
-  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, MAIN: list, SCRIPT: "" });
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, NAV: "", MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
   const fallback = agents.some(a => a.slug === "chat") ? "chat" : "";
@@ -97,10 +97,13 @@ export function buildChatPage({ brand, address, folder, agents }) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
   writeFileSync(join(folder, "index.html"), root);
+  // An agent's page links to the list of agents, and to each other agent by name, with its purpose as the link's title.
+  const nav = slug => agents.length < 2 ? "" : `<nav aria-label="Other agents"><a href="../">All agents</a>${agents.filter(o => o.slug !== slug)
+    .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
-      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo, ICON: icon,
+      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo, ICON: icon, NAV: nav(a.slug),
       MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}></script>`,
     }));
   }
