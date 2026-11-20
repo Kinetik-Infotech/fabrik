@@ -21,7 +21,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
 - **Analysis.** Prices, products or options weighed up across sites, with evidence.
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
-- **Website chat.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
+- **Chatbot.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
 - **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
 
 ## Cards
