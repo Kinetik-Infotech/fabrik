@@ -30,9 +30,12 @@
 // After each answer it puts the answer's own tokens in place of what it held. They go in the agent's row for today, in
 // UTC days, in fabrik_private.public_agent_usage. A cache read counts a tenth, as Anthropic charges it.
 //
-// In the same statement it keeps the exchange in fabrik_private.public_exchange: the conversation, the agent, the
-// question, the answer shown and the answer's input and output tokens. The resting answer is kept too, with no tokens.
-// A question refused before Claude is called, by Turnstile, as a bad request or for an unknown agent, is not kept. It
+// Once the tokens are settled, a statement of its own keeps the exchange in fabrik_private.public_exchange. It keeps
+// the conversation, the agent, the question, the answer shown and the answer's input and output tokens. A failure to keep
+// it is logged, and the visitor still gets the answer. The resting answer is kept too, with no tokens, and so is the
+// answer a visitor reads when Claude fails, with the tokens Claude charged. A conversation id another agent already
+// holds is kept under a new id, so each conversation is one agent's. A question refused before Claude is called, by
+// Turnstile, as a bad request or for an unknown agent, is not kept. It
 // keeps no IP address, Turnstile token or browser detail, and logs no question, history or answer. The Anthropic API
 // key is the Vault's public_agent_anthropic_key. It is kept apart from the connections key, so turning one on never
 // turns on the other. Every agent uses the same key.
@@ -312,14 +315,13 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
   const [reserved] = await sql`update fabrik_private.public_agent_usage set tokens = tokens + ${held}
     where slug = ${agent} and day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
   if (!reserved) {
-    await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer) values (${conversation}::uuid, ${agent}, ${question}, ${RESTING})`
-      .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
+    await keep(conversation, agent, question, RESTING, 0, 0);
     return { answer: RESTING };
   }
   // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers. The
-  // exchange is kept after that, once the answer is known. A failure to keep it is logged and the visitor still gets
-  // the answer, so it never costs the agent the tokens held.
-  let spent = 0, kept: { answer: string; input: number; output: number } | null = null;
+  // exchange is kept after that, the answer a visitor reads when Claude fails included.
+  let spent = 0;
+  const kept = { answer: UNAVAILABLE, input: 0, output: 0 };
   try {
     let reply;
     try {
@@ -340,17 +342,22 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     const u = reply.usage;
     // Anthropic charges a cache read at a tenth of the input rate, so the cap counts it at a tenth of a token.
     spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + Math.ceil((u?.cache_read_input_tokens ?? 0) / 10);
-    const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim() || UNAVAILABLE;
-    kept = { answer, input: (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0), output: u?.output_tokens ?? 0 };
-    return { answer };
+    kept.input = (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
+    kept.output = u?.output_tokens ?? 0;
+    kept.answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim() || UNAVAILABLE;
+    return { answer: kept.answer };
   } finally {
     await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
-    if (kept) {
-      await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer, input_tokens, output_tokens)
-        values (${conversation}::uuid, ${agent}, ${question}, ${kept.answer}, ${kept.input}, ${kept.output})`
-        .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
-    }
+    await keep(conversation, agent, question, kept.answer, kept.input, kept.output);
   }
+}
+
+/** Keeps one exchange, under a new conversation id when another agent already holds this one. A failure is logged. */
+async function keep(conversation: string, agent: string, question: string, answer: string, input: number, output: number) {
+  await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer, input_tokens, output_tokens)
+    select case when exists (select 1 from fabrik_private.public_exchange where conversation = ${conversation}::uuid and slug <> ${agent})
+      then gen_random_uuid() else ${conversation}::uuid end, ${agent}, ${question}, ${answer}, ${input}, ${output}`
+    .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
 }
 
 /** Every model an agent answers with, or the default model while there is no agent. */
@@ -523,10 +530,13 @@ async function removeAgent(args: Record<string, unknown>) {
   return { ok: true, agent: agent.slug, removed: true };
 }
 
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/;
 /** A time given as text, such as 2026-11-20 or 2026-11-20T09:00:00Z, or a 400 refusal naming the argument. */
 function timeOf(given: unknown, name: string): string {
-  const at = typeof given === "string" ? new Date(given) : null;
-  if (!at || Number.isNaN(at.getTime())) throw refuse(400, `${name} is a date or a time, such as 2026-11-20 or 2026-11-20T09:00:00Z.`);
+  const at = typeof given === "string" && ISO_TIME.test(given) ? new Date(given) : null;
+  // Date reads 2026-02-30 as 2 March, so the day given must be a day of its month.
+  const [y, m, d] = typeof given === "string" ? given.slice(0, 10).split("-").map(Number) : [];
+  if (!at || Number.isNaN(at.getTime()) || new Date(Date.UTC(y, m - 1, d)).getUTCDate() !== d) throw refuse(400, `${name} is a date or a time, such as 2026-11-20 or 2026-11-20T09:00:00Z.`);
   return at.toISOString();
 }
 
@@ -536,11 +546,13 @@ async function listConversations(args: Record<string, unknown>) {
   const since = args.since === undefined ? null : timeOf(args.since, "since");
   const limit = args.limit === undefined ? LIST : args.limit;
   if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_LIST) throw refuse(400, `limit is a whole number from 1 to ${MAX_LIST}.`);
-  const rows = await sql`select conversation, min(slug) as agent, count(*)::int as questions, min(at) as first_at, max(at) as last_at,
+  // Only the conversations with a question since then are grouped, not every exchange kept.
+  const rows = await sql`select conversation, slug as agent, count(*)::int as questions, min(at) as first_at, max(at) as last_at,
       (array_agg(question order by at, id))[1] as first_question
     from fabrik_private.public_exchange
-    where (${slug}::text is null or slug = ${slug}) group by conversation
-    having ${since}::timestamptz is null or max(at) >= ${since}::timestamptz
+    where conversation in (select conversation from fabrik_private.public_exchange
+      where (${slug}::text is null or slug = ${slug}) and (${since}::timestamptz is null or at >= ${since}::timestamptz))
+    group by conversation, slug
     order by max(at) desc, conversation limit ${limit as number}`;
   return { ok: true, conversations: rows.map((r) => ({ id: r.conversation, agent: r.agent, first_question: r.first_question, questions: r.questions,
     first_at: new Date(r.first_at).toISOString(), last_at: new Date(r.last_at).toISOString() })) };
