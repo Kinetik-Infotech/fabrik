@@ -1,6 +1,6 @@
 // sessionAccess against a stand-in for Supabase Auth's token renewal, which counts renewals, swaps the refresh token
 // on each, refuses a used one, and can answer 429. Each test signs in to a home folder of its own.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/fabrik/__tests__/session-access.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

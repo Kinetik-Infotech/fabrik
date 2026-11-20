@@ -1,7 +1,7 @@
 // These five skills lived in three trees and referred to each other by absolute path. Bundled,
 // every one of those links has to resolve inside the plugin, or a skill sends the agent to a
 // file that is not there and the rule it was pointing at goes unread.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/humanizer/__tests__/humanizer.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
