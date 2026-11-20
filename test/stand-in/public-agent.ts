@@ -542,7 +542,8 @@ try {
   const dnsAnswers = new Map<string, boolean[]>(), reachAnswers = new Map<string, boolean[]>();
   const domains = { api: `http://127.0.0.1:${cloudflare.addr.port}/client/v4`, pause: () => Promise.resolve(), tries: 5,
     resolve: (host: string) => Promise.resolve(dnsAnswers.get(host)?.shift() ?? true), reach: (host: string) => Promise.resolve(reachAnswers.get(host)?.shift() ?? true),
-    isDomain: (host: string) => Promise.resolve(host === "outside.example") };
+    isDomain: (host: string) => Promise.resolve(host === "outside.example"),
+    onCloudflare: (domain: string) => Promise.resolve(domain === "elsewhere.example") };
   reachAnswers.set("chat.joinery.example", [false, false, true]);
   const domainAnswers = ["3", "1", ""], asked: string[] = [];
   const options = { ask: () => Promise.reject(new Error("This command needs an interactive terminal.")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject(), domains };
@@ -606,6 +607,13 @@ try {
       && cnameSaid.includes("fabrik sees the CNAME record for chat.outside.example.") && cnameSaid.includes("chat.outside.example is ready.")
       && !JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`)).workers?.["fabrik-chat-bcdefghijklmnopqrstu"], cnameSaid);
   cfCalls.length = 0;
+  const otherSaid: string[] = [];
+  const otherSite = await putUpFor("bcdefghijklmnopqrstw", "chat.elsewhere.example", otherSaid);
+  check("a domain whose DNS another Cloudflare account runs is refused, nothing is added or kept, and the pages are given at pages.dev",
+    otherSite === "https://fabrik-chat-bcdefghijklmnopqrstw.pages.dev" && !kept("bcdefghijklmnopqrstw") && !cfCalls.some((c) => c.startsWith("POST"))
+      && otherSaid.includes("elsewhere.example's DNS is on another Cloudflare account. Cloudflare keeps the chat's address only on the account that holds its domain, so a chat at chat.elsewhere.example would stop answering within minutes. Choose a domain on this account, or move elsewhere.example to this account first. Meanwhile the pages are at https://fabrik-chat-bcdefghijklmnopqrstw.pages.dev."),
+    { otherSite, otherSaid, cfCalls });
+  cfCalls.length = 0;
   const apex = [await putUpFor("cdefghijklmnopqrstuv", "joinery.example"), await putUpFor("cdefghijklmnopqrstuv", "outside.example")];
   check("a domain itself is refused, in Cloudflare or outside it, and nothing is added",
     apex[0] === "stopped: fabrik puts the chat on a subdomain, such as chat.joinery.example, so your website at joinery.example stays as it is."
@@ -666,7 +674,7 @@ try {
     dnsRecords.delete("help.joinery.example");
     return Promise.resolve("");
   });
-  const deleteAsk = "help.joinery.example already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named help on Cloudflare's DNS page for joinery.example, https://dash.cloudflare.com/acc-1/joinery.example/dns/records. fabrik never deletes a DNS record itself.";
+  const deleteAsk = "help.joinery.example already has a DNS record, so Cloudflare can't make the one the chat needs. Delete the record named help on Cloudflare's DNS page for joinery.example, https://dash.cloudflare.com/acc-1/joinery.example/dns/records.";
   check("an address with a DNS record names the record and asks the owner to delete it, and once it's gone the Worker has the address",
     recordSite === "https://help.joinery.example" && recordSaid.includes(deleteAsk)
       && JSON.stringify(recordAsked) === JSON.stringify(["Press Return once the record named help is deleted: "])
