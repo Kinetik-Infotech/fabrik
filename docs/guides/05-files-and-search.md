@@ -15,6 +15,8 @@ Ask Claude to keep a file as a document, and it also saves a record about it. Th
 
 fabrik reads the text of PDF, Word (.docx), Excel (.xlsx and .xls), OpenDocument spreadsheet (.ods), Markdown and plain text files, soon after each upload. Until then, search says the file is waiting. A scanned page with no text in it cannot be read this way.
 
+When you replace or delete a file before search has finished reading it, fabrik stops reading the old content. The same happens to a record's older version once a newer one is saved. If the old content comes back, fabrik reads the rest of it.
+
 ## Searching
 
 Ask a question in your own words, such as "What did the surveyor say about the harbour wall?". Search matches the words and the meaning together, and ranks your records and files in one list. Each answer names the record or the file, and the page or section the passage came from. Ask Claude how it found an answer, and it draws the search's graph: the sentences that matched, and what they name.

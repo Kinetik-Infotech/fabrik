@@ -456,6 +456,136 @@ begin
  raise notice 'ok - 0005-worker-budget set each row that failed after five attempts waiting again, once';
 end $$;
 
+-- A file's older content keeps its version, extracted, and its embedded chunks, but its waiting chunks are retired
+-- once new content lands, so claim_chunks takes only the new content's. When the older content comes back, its
+-- chunks wait again and the newer content's are retired.
+create function pg_temp.read_text(p_version_id uuid) returns void language sql as $$
+ select file_search.record_file_text(p_version_id, 'extracted',
+  '[{"ordinal":0,"place":null,"body":"Its first part.","section":0},{"ordinal":1,"place":null,"body":"Its second part.","section":0}]'::jsonb,
+  null, '[{"ordinal":0,"place":null,"body":"Its first part. Its second part."}]'::jsonb)
+$$;
+create function pg_temp.replaced_states(p_tag text) returns text language sql as $$
+ select v.state||' '||string_agg(c.state, ',' order by c.ordinal)||' '||coalesce((select string_agg(distinct s.state, ',')
+  from file_search.chunk_sentence s join file_search.chunk k using (chunk_id) where k.version_id=v.version_id), 'none')
+ from file_search.file_version v join file_search.chunk c using (version_id)
+ where v.name='replaced.md' and v.content_tag=p_tag group by v.version_id, v.state
+$$;
+insert into storage.buckets(id, name) values ('replaced_chunks', 'replaced_chunks');
+insert into file_search.indexed_bucket(bucket_id) values ('replaced_chunks');
+update file_search.chunk set state='embedded' where state='waiting';
+update file_search.chunk_sentence set state='embedded' where state='waiting';
+insert into storage.objects(bucket_id, name, metadata) values ('replaced_chunks', 'replaced.md', '{"eTag":"r1"}');
+select pg_temp.read_text(version_id) from file_search.file_version where name='replaced.md';
+update storage.objects set metadata='{"eTag":"r2"}' where name='replaced.md';
+select pg_temp.read_text(version_id) from file_search.file_version where name='replaced.md' and content_tag='r2';
+do $$
+declare took text; fresh text;
+begin
+ if pg_temp.replaced_states('r1') is distinct from 'extracted retired,retired retired'
+  or pg_temp.replaced_states('r2') is distinct from 'extracted waiting,waiting waiting' then
+  raise exception 'FAIL: once replaced.md''s content was replaced, its older content read % and its newer %',
+   pg_temp.replaced_states('r1'), pg_temp.replaced_states('r2');
+ end if;
+ select string_agg(c.chunk_id::text, ',' order by c.chunk_id) into fresh from file_search.chunk c
+ join file_search.file_version v using (version_id) where v.name='replaced.md' and v.content_tag='r2';
+ begin
+  select string_agg(x.chunk_id::text, ',' order by x.chunk_id) into took from file_search.claim_chunks(50) x;
+  raise exception using errcode='U0001', message='undo';
+ exception when sqlstate 'U0001' then null;
+ end;
+ if took is distinct from fresh then raise exception 'FAIL: claim_chunks(50) took % where only replaced.md''s newer chunks % wait', took, fresh; end if;
+ update storage.objects set metadata='{"eTag":"r1"}' where name='replaced.md';
+ if pg_temp.replaced_states('r1') is distinct from 'extracted waiting,waiting waiting'
+  or pg_temp.replaced_states('r2') is distinct from 'extracted retired,retired retired' then
+  raise exception 'FAIL: once replaced.md''s older content came back, it read % and the newer %',
+   pg_temp.replaced_states('r1'), pg_temp.replaced_states('r2');
+ end if;
+ update storage.objects set metadata='{"eTag":"r2"}' where name='replaced.md';
+ raise notice 'ok - a replaced file''s older content kept its version and retired its waiting chunks, claim_chunks took only the newer content''s, and the older content''s chunks waited again when it came back';
+end $$;
+
+-- A retired version's waiting chunks are retired with it, and wait again when it comes back. A deleted file and a
+-- record's replaced version are read into chunks, none embedded yet, beside a file that stays. claim_chunks then
+-- takes only the staying file's chunks. Its bucket stops being indexed and is indexed again, and its chunks wait
+-- again. Last, the gone versions' chunks are set waiting, as on a project built before 0008-retired-chunks, with a
+-- purged version's chunk beside them, and the upgrade leaves none of them waiting.
+insert into storage.buckets(id, name) values ('retired_chunks', 'retired_chunks');
+insert into file_search.indexed_bucket(bucket_id) values ('retired_chunks');
+update file_search.chunk set state='embedded' where state='waiting';
+update file_search.chunk_sentence set state='embedded' where state='waiting';
+insert into storage.objects(bucket_id, name, metadata)
+ values ('retired_chunks', 'gone.md', '{"eTag":"g1"}'), ('retired_chunks', 'kept.md', '{"eTag":"k1"}');
+select file_search.queue_record('00000000-0000-4000-9000-000000000001', '00000000-0000-4000-9000-000000000011', 1,
+ 'retired_chunks', 'A record', '{"note":"Its first version."}');
+select pg_temp.read_text(version_id) from file_search.file_version where bucket_id='retired_chunks';
+set storage.allow_delete_query='true';
+delete from storage.objects where bucket_id='retired_chunks' and name='gone.md';
+reset storage.allow_delete_query;
+select file_search.queue_record('00000000-0000-4000-9000-000000000001', '00000000-0000-4000-9000-000000000012', 2,
+ 'retired_chunks', 'A record', '{"note":"Its second version."}');
+do $$
+declare took text; kept text;
+begin
+ if exists(select 1 from file_search.chunk c join file_search.file_version v using (version_id)
+   where v.bucket_id='retired_chunks' and v.state='retired' and c.state<>'retired')
+  or exists(select 1 from file_search.chunk_sentence s join file_search.chunk c using (chunk_id) join file_search.file_version v using (version_id)
+   where v.bucket_id='retired_chunks' and v.state='retired' and s.state<>'retired')
+  or (select count(*) from file_search.chunk c join file_search.file_version v using (version_id)
+   where v.bucket_id='retired_chunks' and v.state='retired')<>4 then
+  raise exception 'FAIL: a deleted file''s or a replaced record version''s waiting chunks or sentences were not retired: %',
+   (select string_agg(v.name||' '||v.state||' '||c.state, ', ') from file_search.chunk c join file_search.file_version v using (version_id)
+    where v.bucket_id='retired_chunks');
+ end if;
+ select string_agg(c.chunk_id::text, ',' order by c.chunk_id) into kept from file_search.chunk c join file_search.file_version v using (version_id)
+ where v.bucket_id='retired_chunks' and v.name='kept.md';
+ begin
+  select string_agg(x.chunk_id::text, ',' order by x.chunk_id) into took from file_search.claim_chunks(50) x;
+  raise exception using errcode='U0001', message='undo';
+ exception when sqlstate 'U0001' then null;
+ end;
+ if took is distinct from kept then raise exception 'FAIL: claim_chunks(50) took % where only kept.md''s chunks % wait', took, kept; end if;
+ perform file_search.unindex_bucket('retired_chunks');
+ if exists(select 1 from file_search.chunk c join file_search.file_version v using (version_id)
+   where v.bucket_id='retired_chunks' and c.state<>'retired') then
+  raise exception 'FAIL: a bucket no longer indexed kept a waiting chunk';
+ end if;
+ perform file_search.index_bucket('retired_chunks');
+ if (select string_agg(v.state||' '||c.state, ',') from file_search.chunk c join file_search.file_version v using (version_id)
+    where v.bucket_id='retired_chunks' and v.name='kept.md')<>'extracted waiting,extracted waiting'
+  or exists(select 1 from file_search.chunk_sentence s join file_search.chunk c using (chunk_id) join file_search.file_version v using (version_id)
+   where v.name='kept.md' and s.state<>'waiting') then
+  raise exception 'FAIL: kept.md, indexed again, did not set its chunks and sentences waiting again';
+ end if;
+ raise notice 'ok - a deleted file''s and a replaced record version''s waiting chunks were retired, claim_chunks took only kept.md''s, and kept.md''s chunks waited again once its bucket was indexed again';
+end $$;
+do $$
+declare gone uuid:=(select object_id from file_search.file_version where name='gone.md');
+begin
+ update file_search.chunk c set state='waiting' from file_search.file_version v
+ where v.version_id=c.version_id and v.bucket_id='retired_chunks' and v.state='retired';
+ update file_search.chunk_sentence s set state='waiting' from file_search.chunk c, file_search.file_version v
+ where c.chunk_id=s.chunk_id and v.version_id=c.version_id and v.bucket_id='retired_chunks' and v.state='retired';
+ update file_search.chunk c set state='waiting' from file_search.file_version v
+ where v.version_id=c.version_id and v.name='replaced.md' and v.content_tag='r1';
+ perform file_search.purge(gone);
+ insert into file_search.chunk(version_id, object_id, ordinal, body)
+ select version_id, object_id, 9, 'A chunk purge left behind.' from file_search.file_version where object_id=gone;
+end $$;
+delete from file_search.schema_upgrade where id='0008-retired-chunks';
+\i :retired_upgrade
+do $$
+begin
+ if exists(select 1 from file_search.chunk c join file_search.file_version v using (version_id)
+   where c.state='waiting' and v.state in ('retired','purged')) then
+  raise exception 'FAIL: 0008-retired-chunks left waiting % chunk(s) of retired or purged versions',
+   (select count(*) from file_search.chunk c join file_search.file_version v using (version_id) where c.state='waiting' and v.state in ('retired','purged'));
+ end if;
+ if pg_temp.replaced_states('r1') not like 'extracted retired,retired %' then
+  raise exception 'FAIL: 0008-retired-chunks left replaced.md''s older content as %', pg_temp.replaced_states('r1');
+ end if;
+ raise notice 'ok - 0008-retired-chunks retired every waiting chunk of a retired or purged version, and of a file''s older content';
+end $$;
+
 do $$ begin
- raise notice 'PASS: claim-once (each claim''s old shape took more than one row, claim_files, claim_chunks, claim_sentences and claim_entities took exactly one each time, in a race claim_files, claim_chunks and claim_entities passed by the row another run had just taken, where the shape with a view took it, claim_chunks passed by a chunk whose version was retired during the claim, claim_sentences(2, 900) kept within its characters and passed by the sentences another claim held, and 0005-worker-budget set the rows the old claims wore out waiting again, once)';
+ raise notice 'PASS: claim-once (each claim''s old shape took more than one row, claim_files, claim_chunks, claim_sentences and claim_entities took exactly one each time, in a race claim_files, claim_chunks and claim_entities passed by the row another run had just taken, where the shape with a view took it, claim_chunks passed by a chunk whose version was retired during the claim, claim_sentences(2, 900) kept within its characters and passed by the sentences another claim held, 0005-worker-budget set the rows the old claims wore out waiting again, once, a replaced file''s or a retired version''s waiting chunks were retired and waited again when they came back, and 0008-retired-chunks retired those a project kept waiting)';
 end $$;
