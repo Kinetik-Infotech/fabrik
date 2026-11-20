@@ -3,12 +3,13 @@
 // Turnstile checks a visitor, and an administrator's own sign-in is the check for the settings actions.
 //
 // The chat box posts { question, history, turnstile_token }. The function checks the token with Cloudflare's siteverify,
-// using the Vault's turnstile_secret, and answers 403 when it fails. Once today's tokens reach the daily cap in
-// fabrik_private.public_agent_setting, it answers RESTING and calls nothing. Else it sends Claude the fixed INSTRUCTION,
-// then the file, cached, then the last 10 turns and the question. It answers { answer } in plain text.
+// using the Vault's turnstile_secret, and answers 403 when it fails. It holds the most this answer could cost against
+// the daily cap in fabrik_private.public_agent_setting. When that would pass the cap, it answers RESTING and calls
+// nothing. Else it sends Claude the fixed INSTRUCTION, then the file, cached, then the last 10 turns and the question.
+// It answers { answer } in plain text.
 //
-// After each answer it adds the answer's tokens to today's row of fabrik_private.public_agent_usage, in UTC days. It
-// stores and logs no question, history or answer. The Anthropic API key is the Vault's public_agent_anthropic_key. It is
+// After each answer it puts the answer's own tokens in place of what it held, in today's row of
+// fabrik_private.public_agent_usage, in UTC days. It stores and logs no question, history or answer. The Anthropic API key is the Vault's public_agent_anthropic_key. It is
 // kept apart from the connections key, so turning one on never turns on the other.
 //
 // An administrator calls it with their own sign-in and an action, as the fabrik-apps connector does. check says whether
@@ -31,6 +32,9 @@ const MAX_TOKENS = 1000;
 /** The most turns of history sent with a question. A turn is a question and its answer. */
 const TURNS = 10;
 const MAX_QUESTION = 2000;
+/** The most characters of history, all turns together, and of one answer in it. */
+const MAX_HISTORY = 8000;
+const MAX_ANSWER = 4000;
 const MAX_KNOWLEDGE = 100_000;
 
 /** What Claude is told before the file. */
@@ -130,12 +134,13 @@ export function historyOf(given: unknown): Turn[] | null {
   const turns: Turn[] = [];
   for (const t of given) {
     if (!t || (t.role !== "user" && t.role !== "assistant") || typeof t.content !== "string") return null;
-    const content = t.content.trim().slice(0, MAX_QUESTION * 2);
-    if (!content) return null;
+    const content = t.content.trim();
+    if (!content || content.length > (t.role === "user" ? MAX_QUESTION : MAX_ANSWER)) return null;
     turns.push({ role: t.role, content });
   }
   if (turns.some((t, i) => t.role !== (i % 2 ? "assistant" : "user")) || turns.length % 2) return null;
-  return turns.slice(-TURNS * 2);
+  const kept = turns.slice(-TURNS * 2);
+  return kept.reduce((n, t) => n + t.content.length, 0) > MAX_HISTORY ? null : kept;
 }
 
 /** A visitor's question, answered from KNOWLEDGE.md. */
@@ -143,18 +148,26 @@ async function ask(args: Record<string, unknown>, ip: string | null) {
   const question = typeof args.question === "string" ? args.question.trim() : "";
   if (!question || question.length > MAX_QUESTION) throw refuse(400, `Ask a question of at most ${MAX_QUESTION} characters.`);
   const history = historyOf(args.history);
-  if (!history) throw refuse(400, "history is a list of turns, each { role, content }, a question then its answer.");
+  if (!history) throw refuse(400, `history is a list of turns, a question then its answer, each { role, content }, with at most ${MAX_HISTORY} characters in its last ${TURNS} turns.`);
   const token = typeof args.turnstile_token === "string" ? args.turnstile_token : "";
   let secret: string, key: string;
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
   if (!secret) throw refuse(503, UNAVAILABLE, { setup: "turnstile" });
   if (!token || token.length > 2048 || !(await turnstile(secret, token, ip)).success) throw refuse(403, NOT_CHECKED);
-  const s = await settings();
-  if (await today() >= s.daily_cap_tokens) return { answer: RESTING };
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const file = await knowledge();
   if (!file?.trim()) throw refuse(503, UNAVAILABLE, { setup: "knowledge" });
+  const s = await settings();
+  // The most this answer can cost is held against the cap before Claude is called. So questions sent side by side
+  // can't pass the cap together. A character is counted as a third of a token, more than English text takes.
+  const chars = INSTRUCTION.length + file.length + question.length + history.reduce((n, t) => n + t.content.length, 0);
+  const held = MAX_TOKENS + Math.ceil(chars / 3);
+  await sql`insert into fabrik_private.public_agent_usage(day, tokens) values ((now() at time zone 'utc')::date, 0) on conflict (day) do nothing`;
+  const [reserved] = await sql`update fabrik_private.public_agent_usage set tokens = tokens + ${held}
+    where day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
+  if (!reserved) return { answer: RESTING };
+  const settle = (spent: number) => sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where day = ${reserved.day}`;
   let reply;
   try {
     reply = await seam.client(key).messages.create({
@@ -167,12 +180,12 @@ async function ask(args: Record<string, unknown>, ip: string | null) {
     });
   } catch (err) {
     console.error("public-agent: Claude did not answer:", err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : "no reply");
+    await settle(0);
     throw refuse(502, UNAVAILABLE);
   }
   const u = reply.usage;
   const tokens = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
-  await sql`insert into fabrik_private.public_agent_usage(day, tokens) values ((now() at time zone 'utc')::date, ${tokens})
-    on conflict (day) do update set tokens = fabrik_private.public_agent_usage.tokens + excluded.tokens`;
+  await settle(tokens);
   const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim();
   return { answer: answer || UNAVAILABLE };
 }

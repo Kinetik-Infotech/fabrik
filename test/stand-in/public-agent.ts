@@ -173,8 +173,20 @@ try {
   check("a question with no Turnstile token gets 403", res.status === 403, res);
   res = await ask("Hi", { history: [{ role: "assistant", content: "Hello" }, { role: "assistant", content: "Again" }] });
   check("a history that doesn't alternate is refused", res.status === 400, res);
+  const callsNow = sent.length;
+  const long = await ask("Hi", { history: [{ role: "user", content: "Hello" }, { role: "assistant", content: "x".repeat(4001) }] });
+  const many = await ask("Hi", { history: Array.from({ length: 10 }, (_, i) => [{ role: "user", content: `Question ${i}` }, { role: "assistant", content: "y".repeat(900) }]).flat() });
+  check("a history with an answer over 4,000 characters, or over 8,000 characters in all, is refused, and Claude isn't called",
+    long.status === 400 && many.status === 400 && sent.length === callsNow, { long, many });
 
-  // The daily cap.
+  // The daily cap. The most an answer can cost is held before Claude is called. With 2,060 spent and a cap of 3,000,
+  // there's less room than one answer's 1,000 tokens of output, so the answer is the resting message.
+  res = await post({ action: "settings", daily_cap_tokens: 3000 }, admin);
+  const held = sent.length;
+  const short = await ask("What services do you offer?");
+  const afterHold = await post({ action: "settings" }, admin);
+  check("an answer whose most would pass the cap gets the resting message, Claude isn't called, and nothing stays held",
+    short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 2060, { short, afterHold });
   res = await post({ action: "settings", daily_cap_tokens: 2000 }, admin);
   check("settings counts today's tokens from Claude's usage, and sets the cap", res.body.today_tokens === 2060 && res.body.daily_cap_tokens === 2000, res);
   const before = sent.length;
