@@ -44,7 +44,7 @@ Tell them the command asks for a token, says where to make it, and says to delet
 
 When it stops, tell the person what it said, and that running the same command again carries on from where it stopped.
 
-Run `update --check` again at the end. It must answer `behind` false. Then tell the person what's new in fabrik, in one or two sentences. When a connector tool was added or changed, ask them to open a new session to use it.
+Run `update --check` again at the end. It must answer `behind` false. Then tell the person what's new in fabrik, in one or two sentences. When a connector tool was added or changed, a new session alone doesn't show it. Claude keeps the connector's tools from when it was last connected. Ask them to reconnect fabrik in Settings, then Connectors, and then open a new session to use it.
 
 ## 4. Sending for a mailbox that only reads
 
