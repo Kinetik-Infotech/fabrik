@@ -35,6 +35,7 @@ const MAX_QUESTION = 2000;
 /** The most characters of history, all turns together, and of one answer in it. */
 const MAX_HISTORY = 8000;
 const MAX_ANSWER = 4000;
+const utf8 = new TextEncoder();
 const MAX_KNOWLEDGE = 100_000;
 
 /** What Claude is told before the file. */
@@ -160,34 +161,38 @@ async function ask(args: Record<string, unknown>, ip: string | null) {
   if (!file?.trim()) throw refuse(503, UNAVAILABLE, { setup: "knowledge" });
   const s = await settings();
   // The most this answer can cost is held against the cap before Claude is called. So questions sent side by side
-  // can't pass the cap together. A character is counted as a third of a token, more than English text takes.
-  const chars = INSTRUCTION.length + file.length + question.length + history.reduce((n, t) => n + t.content.length, 0);
-  const held = MAX_TOKENS + Math.ceil(chars / 3);
+  // can't pass the cap together. Every token covers at least one byte of UTF-8. So the bytes sent, with room for each
+  // message's framing, are the most Claude can read, in any language.
+  const sentText = [INSTRUCTION, file, question, ...history.map((t) => t.content)];
+  const held = MAX_TOKENS + 100 + 20 * (history.length + 1) + sentText.reduce((n, t) => n + utf8.encode(t).length, 0);
   await sql`insert into fabrik_private.public_agent_usage(day, tokens) values ((now() at time zone 'utc')::date, 0) on conflict (day) do nothing`;
   const [reserved] = await sql`update fabrik_private.public_agent_usage set tokens = tokens + ${held}
     where day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
   if (!reserved) return { answer: RESTING };
-  const settle = (spent: number) => sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where day = ${reserved.day}`;
-  let reply;
+  // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers.
+  let spent = 0;
   try {
-    reply = await seam.client(key).messages.create({
-      model: s.model, max_tokens: MAX_TOKENS,
-      system: [
-        { type: "text", text: INSTRUCTION },
-        { type: "text", text: `<knowledge>\n${file.replaceAll("</knowledge>", "</ knowledge>")}\n</knowledge>`, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [...history, { role: "user", content: question }],
-    });
-  } catch (err) {
-    console.error("public-agent: Claude did not answer:", err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : "no reply");
-    await settle(0);
-    throw refuse(502, UNAVAILABLE);
+    let reply;
+    try {
+      reply = await seam.client(key).messages.create({
+        model: s.model, max_tokens: MAX_TOKENS,
+        system: [
+          { type: "text", text: INSTRUCTION },
+          { type: "text", text: `<knowledge>\n${file.replaceAll("</knowledge>", "</ knowledge>")}\n</knowledge>`, cache_control: { type: "ephemeral" } },
+        ],
+        messages: [...history, { role: "user", content: question }],
+      });
+    } catch (err) {
+      console.error("public-agent: Claude did not answer:", err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : "no reply");
+      throw refuse(502, UNAVAILABLE);
+    }
+    const u = reply.usage;
+    spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
+    const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim();
+    return { answer: answer || UNAVAILABLE };
+  } finally {
+    await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where day = ${reserved.day}`;
   }
-  const u = reply.usage;
-  const tokens = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
-  await settle(tokens);
-  const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim();
-  return { answer: answer || UNAVAILABLE };
 }
 
 /** Whether the key is there and Anthropic takes it: available, missing or refused. */
