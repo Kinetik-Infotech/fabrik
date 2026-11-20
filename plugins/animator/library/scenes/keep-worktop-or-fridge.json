@@ -1,0 +1,111 @@
+{
+ "id": "s10",
+ "title": "Keep it",
+ "dur": 14,
+ "clock": null,
+ "vo": "Now you have one jar, about 150 grams. Keep it on the worktop and feed it every 12 hours, or keep it in the fridge and feed it once a week. Feed it the evening before you bake, and use it when it has doubled.",
+ "voUS": "Now you have one jar, about 5 ounces. Keep it on the worktop and feed it every 12 hours, or keep it in the fridge and feed it once a week. Feed it the evening before you bake, and use it when it has doubled.",
+ "cap": [
+  [
+   0,
+   "One jar, about 150 g. On the worktop, feed it every 12 hours."
+  ],
+  [
+   5.2,
+   "In the fridge, feed it once a week."
+  ],
+  [
+   8.8,
+   "Feed it the evening before you bake, and use it when it has doubled."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "One jar, about 5 oz. On the worktop, feed it every 12 hours."
+  ],
+  [
+   5.2,
+   "In the fridge, feed it once a week."
+  ],
+  [
+   8.8,
+   "Feed it the evening before you bake, and use it when it has doubled."
+  ]
+ ],
+ "svg": "<path d=\"M300 300 L300 600 Q300 620 320 620 L480 620 Q500 620 500 600 L500 300 Z\" class=\"f-w\"/>\n<rect id=\"s10-fill\" data-o=\"b\" x=\"308\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s10-u0\" cx=\"340\" cy=\"520\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s10-u1\" cx=\"395\" cy=\"560\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s10-u2\" cx=\"440\" cy=\"500\" r=\"6\" class=\"f-w lt\"/>\n<circle id=\"s10-u3\" cx=\"460\" cy=\"580\" r=\"4\" class=\"f-w lt\"/>\n<path d=\"M300 300 L300 600 Q300 620 320 620 L480 620 Q500 620 500 600 L500 300\" class=\"ln\"/>\n<text class=\"t-sm\" x=\"400\" y=\"665\" text-anchor=\"middle\">WORKTOP</text>\n<g id=\"s10-c1\" class=\"chip\"><rect/><text x=\"244\" y=\"240\">FEED EVERY 12 H</text></g>\n<text id=\"s10-or\" class=\"t-lbl grey\" x=\"800\" y=\"450\" text-anchor=\"middle\">OR</text>\n<rect x=\"1040\" y=\"290\" width=\"260\" height=\"390\" rx=\"10\" class=\"f-s ln\"/>\n<rect x=\"1056\" y=\"306\" width=\"228\" height=\"358\" class=\"f-w lt\"/>\n<line x1=\"1056\" y1=\"420\" x2=\"1284\" y2=\"420\" class=\"lt\"/>\n<line x1=\"1056\" y1=\"560\" x2=\"1284\" y2=\"560\" class=\"lt\"/>\n<g id=\"s10-sj\"><path d=\"M1130 470 L1130 552 Q1130 560 1138 560 L1202 560 Q1210 560 1210 552 L1210 470 Z\" class=\"f-w ln\"/><rect x=\"1135\" y=\"500\" width=\"70\" height=\"56\" rx=\"6\" class=\"f-l\"/><path d=\"M1130 470 L1130 552 Q1130 560 1138 560 L1202 560 Q1210 560 1210 552 L1210 470\" class=\"ln\"/></g>\n<g id=\"s10-c2\" class=\"chip\"><rect/><text x=\"1040\" y=\"240\">FEED ONCE A WEEK</text></g>\n<text class=\"t-sm\" x=\"1170\" y=\"710\" text-anchor=\"middle\">FRIDGE</text>\n<g id=\"s10-c3\" class=\"chip light\"><rect/><text x=\"540\" y=\"690\">FEED THE EVENING BEFORE BAKING</text></g>",
+ "tw": [
+  [
+   "s10-fill",
+   0,
+   0.1,
+   {
+    "sy": [
+     0.45,
+     0.45
+    ]
+   }
+  ],
+  [
+   "pop",
+   "s10-u0",
+   0.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s10-u1",
+   0.9,
+   0.6
+  ],
+  [
+   "pop",
+   "s10-u2",
+   1.2,
+   0.6
+  ],
+  [
+   "pop",
+   "s10-u3",
+   1.5,
+   0.6
+  ],
+  [
+   "fadeUp",
+   "s10-c1",
+   2
+  ],
+  [
+   "fadeUp",
+   "s10-or",
+   4.6
+  ],
+  [
+   "s10-sj",
+   5.2,
+   6.4,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -30,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s10-c2",
+   6
+  ],
+  [
+   "fadeUp",
+   "s10-c3",
+   9
+  ]
+ ],
+ "uses": []
+}

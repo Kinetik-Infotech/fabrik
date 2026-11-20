@@ -1,0 +1,85 @@
+{
+ "id": "s12",
+ "title": "The schedule",
+ "dur": 16,
+ "clock": null,
+ "kit": "back",
+ "vo": "So the schedule is: tip out and pre-shape at 7, and shape at about 25 past. Heat the pot at half past 8, and bake at a quarter past 9. Take the lid off at 25 to 10, and cut the loaf from about 11. Or prove it in the fridge for 8 to 16 hours, and bake it straight from cold.",
+ "voUS": "So the schedule is: tip out and pre-shape at 7, and shape at about 25 past. Heat the pot at half past 8, and bake at a quarter past 9. Take the lid off at 25 to 10, and cut the loaf from about 11. Or prove it in the fridge for 8 to 16 hours, and bake it straight from cold.",
+ "cap": [
+  [
+   0,
+   "Tip out at 7 am, shape at 7:25, heat the pot at 8:30, bake at 9:15, lid off at 9:35, cut from 11."
+  ],
+  [
+   10,
+   "Or prove 8 to 16 hours in the fridge and bake straight from cold."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Tip out at 7 am, shape at 7:25, heat the pot at 8:30, bake at 9:15, lid off at 9:35, cut from 11."
+  ],
+  [
+   10,
+   "Or prove 8 to 16 hours in the fridge and bake straight from cold."
+  ]
+ ],
+ "svg": "<line id=\"s12-ln\" data-o=\"l\" x1=\"200\" y1=\"430\" x2=\"1400\" y2=\"430\" class=\"ln\"/>\n<g id=\"s12-p0\"><circle cx=\"200\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"200\" y=\"395\" text-anchor=\"middle\">07:00</text><text class=\"t-sm\" x=\"200\" y=\"475\" text-anchor=\"middle\">TIP OUT</text></g>\n<g id=\"s12-p1\"><circle cx=\"322\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"322\" y=\"395\" text-anchor=\"middle\">07:25</text><text class=\"t-sm\" x=\"322\" y=\"475\" text-anchor=\"middle\">SHAPE</text></g>\n<g id=\"s12-p2\"><circle cx=\"641\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"641\" y=\"395\" text-anchor=\"middle\">08:30</text><text class=\"t-sm\" x=\"641\" y=\"475\" text-anchor=\"middle\">HEAT POT</text></g>\n<g id=\"s12-p3\"><circle cx=\"861\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"861\" y=\"395\" text-anchor=\"middle\">09:15</text><text class=\"t-sm\" x=\"861\" y=\"475\" text-anchor=\"middle\">BAKE</text></g>\n<g id=\"s12-p4\"><circle cx=\"959\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"959\" y=\"395\" text-anchor=\"middle\">09:35</text><text class=\"t-sm\" x=\"959\" y=\"475\" text-anchor=\"middle\">LID OFF</text></g>\n<g id=\"s12-p5\"><circle cx=\"1106\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1106\" y=\"395\" text-anchor=\"middle\">10:05</text><text class=\"t-sm\" x=\"1106\" y=\"475\" text-anchor=\"middle\">COOL</text></g>\n<g id=\"s12-p6\"><circle cx=\"1400\" cy=\"430\" r=\"10\" class=\"f-i\"/><text class=\"t-m24\" x=\"1400\" y=\"395\" text-anchor=\"middle\">11:05</text><text class=\"t-sm\" x=\"1400\" y=\"475\" text-anchor=\"middle\">CUT</text></g>\n<g id=\"s12-ti\"><text class=\"t-disp2\" x=\"800\" y=\"610\" text-anchor=\"middle\">ONE LOAF · ABOUT FOUR HOURS</text><text class=\"t-sm\" x=\"800\" y=\"665\" text-anchor=\"middle\">OR PROVE 8–16 H IN THE FRIDGE AND BAKE FROM COLD</text></g>",
+ "tw": [
+  [
+   "s12-ln",
+   0.4,
+   2.8,
+   {
+    "sx": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "pop",
+   "s12-p0",
+   2.0
+  ],
+  [
+   "pop",
+   "s12-p1",
+   2.7
+  ],
+  [
+   "pop",
+   "s12-p2",
+   3.4
+  ],
+  [
+   "pop",
+   "s12-p3",
+   4.1
+  ],
+  [
+   "pop",
+   "s12-p4",
+   4.8
+  ],
+  [
+   "pop",
+   "s12-p5",
+   5.5
+  ],
+  [
+   "pop",
+   "s12-p6",
+   6.199999999999999
+  ],
+  [
+   "fadeUp",
+   "s12-ti",
+   7.4,
+   1.2
+  ]
+ ],
+ "uses": []
+}

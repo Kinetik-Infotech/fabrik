@@ -1,0 +1,23 @@
+{
+  "_about": "The 14 allergens UK law lists, each with words that mean it in a recipe. Matched whole-word and case-insensitive. 'unless' lists words that, just before a match, mean it is not that allergen (coconut milk is not milk).",
+  "celery": { "words": ["celery", "celeriac", "celery salt"] },
+  "gluten": {
+    "words": ["wheat", "flour", "spelt", "rye", "barley", "oats", "oat", "semolina", "durum", "couscous", "bulgur", "bulghur", "farro", "kamut", "seitan", "breadcrumbs", "bread", "pasta", "noodles", "levain", "sourdough starter", "starter", "malt"],
+    "unless": ["rice", "almond", "coconut", "buckwheat", "chickpea", "gram", "potato", "tapioca", "corn", "maize", "cassava", "teff", "sorghum", "millet", "quinoa", "gluten-free", "rice noodles"]
+  },
+  "crustaceans": { "words": ["prawn", "prawns", "shrimp", "shrimps", "crab", "lobster", "crayfish", "langoustine", "langoustines"] },
+  "eggs": { "words": ["egg", "eggs", "egg yolk", "egg white", "mayonnaise", "mayo", "meringue", "aioli", "hollandaise"] },
+  "fish": { "words": ["fish", "fish sauce", "anchovy", "anchovies", "salmon", "tuna", "cod", "haddock", "mackerel", "sardine", "sardines", "trout", "hake", "pollock", "sea bass", "worcestershire"] },
+  "lupin": { "words": ["lupin", "lupine"] },
+  "milk": {
+    "words": ["milk", "butter", "buttermilk", "cream", "cheese", "yoghurt", "yogurt", "ghee", "whey", "casein", "lactose", "kefir", "crème fraîche", "creme fraiche", "parmesan", "mozzarella", "ricotta", "mascarpone", "paneer"],
+    "unless": ["coconut", "almond", "oat", "soy", "soya", "rice", "cashew", "peanut", "nut", "cocoa", "shea", "apple"]
+  },
+  "molluscs": { "words": ["mussel", "mussels", "clam", "clams", "oyster", "oysters", "oyster sauce", "squid", "octopus", "scallop", "scallops", "cockle", "cockles", "whelk", "whelks", "snail", "snails", "calamari"] },
+  "mustard": { "words": ["mustard"] },
+  "nuts": { "words": ["almond", "almonds", "hazelnut", "hazelnuts", "walnut", "walnuts", "cashew", "cashews", "pecan", "pecans", "pistachio", "pistachios", "macadamia", "macadamias", "brazil nut", "brazil nuts", "tree nut", "tree nuts", "praline", "marzipan", "frangipane"] },
+  "peanuts": { "words": ["peanut", "peanuts", "groundnut", "groundnuts", "monkey nuts"] },
+  "sesame": { "words": ["sesame", "tahini"] },
+  "soya": { "words": ["soy", "soya", "soy sauce", "tofu", "tempeh", "edamame", "miso", "tamari"] },
+  "sulphites": { "words": ["wine", "sulphite", "sulphites", "sulfite", "sulfites", "dried apricot", "dried apricots", "balsamic"] }
+}

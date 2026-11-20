@@ -1,0 +1,89 @@
+{
+ "id": "s2",
+ "title": "Tip out the dough",
+ "dur": 12,
+ "clock": [
+  [
+   0,
+   420
+  ],
+  [
+   12,
+   422
+  ]
+ ],
+ "vo": "Start at about 7 in the morning. Lightly flour your work surface, and tip all the dough out onto it, in one piece.",
+ "voUS": "Start at about 7 in the morning. Lightly flour your work surface, and tip all the dough out onto it, in one piece.",
+ "cap": [
+  [
+   0,
+   "At about 7 am, lightly flour the work surface."
+  ],
+  [
+   4.4,
+   "Tip all the dough out onto it, in one piece."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "At about 7 am, lightly flour the work surface."
+  ],
+  [
+   4.4,
+   "Tip all the dough out onto it, in one piece."
+  ]
+ ],
+ "svg": "<rect x=\"140\" y=\"430\" width=\"1320\" height=\"290\" class=\"f-s\"/>\n<g id=\"s2-fl\" class=\"f-w lt\"><circle cx=\"200\" cy=\"470\" r=\"4\"/><circle cx=\"260\" cy=\"560\" r=\"3\"/><circle cx=\"330\" cy=\"660\" r=\"4\"/><circle cx=\"380\" cy=\"480\" r=\"3\"/><circle cx=\"1230\" cy=\"470\" r=\"4\"/><circle cx=\"1290\" cy=\"590\" r=\"3\"/><circle cx=\"1360\" cy=\"680\" r=\"4\"/><circle cx=\"1400\" cy=\"500\" r=\"3\"/><circle cx=\"1210\" cy=\"690\" r=\"3\"/><circle cx=\"240\" cy=\"690\" r=\"3\"/></g>\n<rect id=\"s2-sl\" x=\"500\" y=\"480\" width=\"600\" height=\"200\" rx=\"90\" class=\"f-d ln\"/>\n<g id=\"s2-du\" class=\"f-w\"><circle cx=\"600\" cy=\"540\" r=\"4\"/><circle cx=\"720\" cy=\"610\" r=\"3\"/><circle cx=\"840\" cy=\"530\" r=\"4\"/><circle cx=\"960\" cy=\"620\" r=\"3\"/><circle cx=\"1040\" cy=\"560\" r=\"4\"/></g>\n<g id=\"s2-c\" class=\"chip\"><rect/><text x=\"654\" y=\"360\" data-us=\"ABOUT 2½ lb · ONE PIECE\">ABOUT 1.1 kg · ONE PIECE</text></g>",
+ "tw": [
+  [
+   "s2-fl",
+   0.4,
+   1.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s2-sl",
+   2.2,
+   3.6,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -180,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "s2-du",
+   3.6,
+   4.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s2-c",
+   5.4
+  ]
+ ],
+ "uses": [
+  {
+   "ingredient": "dough",
+   "grams": 1100
+  }
+ ]
+}

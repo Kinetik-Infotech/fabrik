@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Courier+Prime:wght@400;700&family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@500;800&family=Bangers&family=Comic+Neue:wght@700&display=swap">
+<style>
+  /* Layout: one 16:9 stage with a caption bar, transport and chapter grid beneath.
+     Single light theme: white ground, near-black ink, grey accents; colour only where it is the food. */
+  :root {
+    --bg: #FFFFFF;
+    --ink: #111418;
+    --ink2: #4B515B;
+    --grey: #8D939C;
+    --line: #D9DCE1;
+    --surf: #F2F3F5;
+    --surf2: #E4E6EA;
+    --dough: #EFE6D4;
+    --levain: #E2D2AC;
+    --ww: #CDBA92;
+    --water: #A9BDCB;
+    --sauce: #B23A2C;
+    --basil: #5E7D46;
+    --crust: #CDA872;
+    --char: #3A2A20;
+    --oil: #CBC06E;
+    --wood: #DCCBA8;
+    --glass: #2A2F38;
+    --stone: #8E877F;
+    --sun: #EAD9A0;
+    --display: 'Jost', 'Futura', 'Avenir Next', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    color-scheme: light;
+  }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--display);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 56px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  header .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--grey); }
+  header h1 { font-weight: 300; font-size: clamp(24px, 4vw, 40px); letter-spacing: .12em; text-transform: uppercase; margin: 6px 0 0; line-height: 1.1; text-wrap: balance; }
+
+  /* Stage = picture, then a reserved strip for the player controls, then the caption. Nothing overlaps the drawing or the text. */
+  .stage { position: relative; max-width: 100%; border: 1px solid var(--line); background: var(--bg); container-type: inline-size; overflow: hidden; --band: 54px; }
+  .pic { position: relative; cursor: pointer; padding-bottom: var(--band); }
+  .stage svg.art { position: relative; display: block; width: 100%; height: auto; aspect-ratio: 1600 / 760; visibility: hidden; }
+  .stage.ready svg.art { visibility: visible; }
+  .cap { position: relative; min-height: 8.6cqw; display: flex; align-items: center; justify-content: center; padding: 1.2cqw 6cqw; border-top: 1px solid var(--line); background: var(--bg); }
+  .cap p { margin: 0; font-size: 2.1cqw; line-height: 1.3; text-align: center; color: var(--ink); max-width: 82cqw; text-wrap: balance; }
+
+  .ctrl { position: absolute; left: 0; right: 0; bottom: 0; height: var(--band); z-index: 2; padding: 2px 1.6cqw 2px; cursor: default; }
+  /* The timeline stays in its strip; only the step menu button fades while playing. */
+  .burger { opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  .stage.chrome .burger, .burger:focus-visible { opacity: 1; pointer-events: auto; }
+  .bar { height: 14px; display: flex; align-items: center; }
+  .scrub { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; margin: 0; border-radius: 0; cursor: pointer; background: linear-gradient(to right, var(--ink) var(--p, 0%), var(--line) var(--p, 0%)); transition: height .15s ease; }
+  .bar:hover .scrub { height: 5px; }
+  .scrub::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 0; }
+  .scrub::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 0; }
+  .scrub::-moz-range-track { background: transparent; }
+  .row { display: flex; align-items: center; gap: 2px; }
+  .ib { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: 0; border-radius: 0; color: var(--ink); cursor: pointer; }
+  .ib:hover { background: var(--surf); }
+  .ib svg { width: 20px; height: 20px; fill: currentColor; }
+  #play .i-pause, #play.is-playing .i-play { display: none; }
+  #play.is-playing .i-pause { display: block; }
+  #mute .i-off, #mute.is-muted .i-on { display: none; }
+  #mute.is-muted .i-off { display: block; }
+  .time { margin-left: auto; padding-right: 4px; font-family: var(--mono); font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+  button:focus-visible, .scrub:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .burger, .scrub { transition: none; } }
+
+  @media (max-width: 640px) {
+    .cap { min-height: 64px; padding: 10px 14px; }
+    .cap p { font-size: 15px; max-width: none; }
+  }
+
+  .chapters button { font-family: var(--display); background: var(--bg); color: var(--ink); border: 1px solid transparent; cursor: pointer; border-radius: 0; }
+  .burger { --b: max(32px, 3.4cqw); position: absolute; left: 1.6cqw; top: 1.6cqw; width: var(--b); height: var(--b); z-index: 3; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: max(4px, .45cqw); padding: 0; background: var(--bg); border: 1px solid var(--ink); border-radius: 0; cursor: pointer; }
+  .burger span { display: block; width: 55%; height: 2px; background: var(--ink); }
+  .burger[aria-expanded="true"] { background: var(--ink); }
+  .burger[aria-expanded="true"] span { background: var(--bg); }
+  .chapters { --top: calc(1.6cqw + max(32px, 3.4cqw) + 6px); position: absolute; left: 1.6cqw; top: var(--top); z-index: 3; width: min(290px, calc(100% - 3.2cqw)); max-height: calc(100% - var(--top) - 1.6cqw); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 6px; background: var(--bg); border: 1px solid var(--ink); box-shadow: 0 10px 28px rgba(17, 20, 24, .14); }
+  .chapters[hidden] { display: none; }
+  .chapters button { text-align: left; border-color: transparent; display: flex; gap: 10px; align-items: baseline; text-transform: none; letter-spacing: 0; font-family: var(--display); font-size: 14px; padding: 7px 10px; min-width: 0; flex-shrink: 0; }
+  .chapters button:hover { background: var(--surf); }
+  .chapters button .n { font-family: var(--mono); font-size: 11px; color: var(--grey); }
+  .chapters button[aria-current="true"] { border-color: var(--ink); background: var(--surf); }
+
+  /* SVG drawing */
+  svg g, svg path, svg rect, svg circle, svg ellipse, svg line, svg text { transform-box: fill-box; transform-origin: 50% 50%; }
+  svg [data-o="b"] { transform-origin: 50% 100%; }
+  svg [data-o="t"] { transform-origin: 50% 0%; }
+  svg [data-o="l"] { transform-origin: 0% 50%; }
+  svg [data-o="r"] { transform-origin: 100% 50%; }
+  svg [transform] { transform-box: view-box; transform-origin: 0 0; }
+  /* Strokes don't distort when shapes stretch; --k (stage width / 1600) keeps them in proportion at every size. */
+  .stage { --k: .7; --lw: 2.4px; --lt: 1.4px; }
+  svg .ln, svg .lt, svg .heat { vector-effect: non-scaling-stroke; }
+  svg .ln { stroke-width: calc(var(--lw) * var(--k)); }
+  svg .ln.thin, svg .lt { stroke-width: calc(var(--lt) * var(--k)); }
+  svg .heat { stroke-width: calc(var(--lw) * var(--k)); }
+  svg .ln { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg .lt { stroke: var(--grey); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  svg .dash { stroke: var(--grey); stroke-width: 2; stroke-dasharray: 8 8; fill: none; }
+  svg .heat { stroke: var(--sauce); fill: none; stroke-linecap: round; }
+  svg .wrapfilm { fill: rgba(169, 189, 203, .2); stroke: var(--grey); stroke-width: 2; }
+  svg .f-w { fill: #FFFFFF; } svg .f-s { fill: var(--surf); } svg .f-s2 { fill: var(--surf2); }
+  svg .f-d { fill: var(--dough); } svg .f-l { fill: var(--levain); } svg .f-ww { fill: var(--ww); }
+  svg .f-wa { fill: var(--water); } svg .f-sa { fill: var(--sauce); } svg .f-b { fill: var(--basil); }
+  svg .f-c { fill: var(--crust); } svg .f-ch { fill: var(--char); } svg .f-o { fill: var(--oil); }
+  svg .f-wd { fill: var(--wood); } svg .f-g { fill: var(--glass); } svg .f-i { fill: var(--ink); }
+  svg .f-gr { fill: var(--grey); } svg .f-st { fill: var(--stone); } svg .f-sun { fill: var(--sun); }
+  svg text { font-family: var(--display); fill: var(--ink); }
+  svg .t-lbl { font-size: 26px; letter-spacing: .14em; }
+  svg .t-sm { font-size: 20px; letter-spacing: .16em; fill: var(--ink2); }
+  svg .t-mono { font-family: var(--mono); font-size: 30px; }
+  svg .t-m24 { font-family: var(--mono); font-size: 24px; }
+  svg .t-body { font-size: 27px; }
+  svg .t-disp { font-size: 74px; font-weight: 300; letter-spacing: .14em; }
+  svg .t-disp2 { font-size: 52px; font-weight: 300; letter-spacing: .14em; }
+  svg .grey { fill: var(--grey); }
+  svg.art text.t-list { font-size: 32px; }
+  .units-us svg.art text.t-list { font-size: 28px; }
+    svg .chip rect { fill: var(--ink); }
+  svg .chip text { fill: #FFFFFF; font-family: var(--mono); font-size: 22px; letter-spacing: .04em; }
+  svg .chip.light rect { fill: var(--surf); stroke: var(--line); stroke-width: 2; }
+  svg .chip.light text { fill: var(--ink); }
+
+  /* ---------- Drawing styles: one geometry, three treatments ---------- */
+  .stage { --sbg: #FFFFFF; --sink: #16181C; --sgrey: #8D939C; background: var(--sbg); }
+  .stage .cap { background: var(--sbg); }
+  .stage .ctrl { background: var(--sbg); }
+  svg .ln { stroke: var(--sink); }
+  svg .lt, svg .dash { stroke: var(--sgrey); }
+  svg .only-comic, svg .only-board, svg .only-anime { display: none; }
+  .st-comic svg .only-comic, .st-board svg .only-board, .st-anime svg .only-anime { display: inline; }
+  svg .sfx { font-family: Bangers, Impact, sans-serif; font-size: 96px; letter-spacing: 3px; fill: #FFFFFF; stroke: #111; stroke-width: 9px; paint-order: stroke; stroke-linejoin: round; }
+  svg .note { font-family: Caveat, 'Bradley Hand', cursive; font-weight: 700; font-size: 40px; fill: #2C2F33; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  .toolbar .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--grey); }
+  /* Two compact dropdowns on one line, at every width. */
+  .toolbar { gap: 8px 20px; margin-bottom: 14px; }
+  .pick { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .pick select { font-family: var(--mono); font-size: 12px; letter-spacing: .04em; color: var(--ink); background: var(--bg)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23111418' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;
+    -webkit-appearance: none; appearance: none; border: 1px solid var(--ink); border-radius: 0; padding: 7px 30px 7px 10px; cursor: pointer; }
+  .pick select:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  header .eyebrow span { white-space: nowrap; }
+  /* Phones: labels hidden (the selects carry aria-labels), selects share the row; 16px stops iOS zooming on tap. */
+  @media (max-width: 560px) {
+    .toolbar { flex-wrap: nowrap; gap: 8px; }
+    .pick { flex: 1 1 0; }
+    .pick .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .pick select { width: 100%; font-size: 16px; padding: 8px 28px 8px 10px; }
+  }
+</style>
+{{STYLES}}
+<style>
+  /* ?record: the 1600 × 900 video frame only. The drawing is 1600 × 760 and the caption band 140, with no
+     header, toolbar or controls. The step button keeps its place, unseen, so the step title sits where it does in the player. */
+  html.rec, html.rec body { margin: 0; padding: 0; width: 1600px; height: 900px; overflow: hidden; }
+  html.rec .wrap { display: none; }
+  html.rec body .stage { width: 1600px; height: 900px; border: 0; }
+  html.rec .pic { padding-bottom: 0; cursor: default; }
+  html.rec .ctrl, html.rec .chapters { display: none; }
+  html.rec body .burger { opacity: 0; visibility: hidden; }
+  html.rec body .cap { box-sizing: border-box; height: 140px; min-height: 0; padding-block: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow">Animated tutorial</div>
+    <h1>{{TITLE}}</h1>
+  </header>
+
+  <div class="toolbar">
+    <label class="pick"><span class="lbl">Style</span>
+      <select id="style-pick" aria-label="Drawing style">
+        <option value="line">Line art</option><option value="storyboard">Storyboard</option>
+        <option value="comic">Comic</option><option value="anime">Anime</option>
+      </select></label>
+    <label class="pick"><span class="lbl">Units</span>
+      <select id="units-pick" aria-label="Units">
+        <option value="metric">Metric</option><option value="us">US cups</option>
+      </select></label>
+  </div>
+</div>
+
+  <div class="stage chrome st-line" id="stage">
+   <div class="pic" id="pic">
+    <svg class="art" viewBox="0 0 1600 760" role="img" aria-label="Animated tutorial for {{TITLE_LOWER}}">
+      <defs>
+        <pattern id="p-hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="12" height="12" fill="#fff"/><line x1="0" y1="0" x2="0" y2="12" stroke="#16181c" stroke-width="1.8"/></pattern>
+        <pattern id="p-hatch-l" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="14" height="14" fill="#fff"/><line x1="0" y1="0" x2="0" y2="14" stroke="#9aa0a8" stroke-width="1.4"/></pattern>
+        <pattern id="p-tone" width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="22" height="22" fill="#fff"/><line x1="0" y1="0" x2="0" y2="22" stroke="#c4c8ce" stroke-width="1.4"/></pattern>
+        <pattern id="p-cross" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="10" height="10" fill="#fff"/><path d="M0 0 V10 M0 0 H10" stroke="#16181c" stroke-width="1.6"/></pattern>
+        <pattern id="p-stip" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="14" height="14" fill="#fff"/><circle cx="3.5" cy="3.5" r="1.9" fill="#16181c"/><circle cx="10.5" cy="10.5" r="1.9" fill="#16181c"/></pattern>
+        <pattern id="p-stip-d" width="9" height="9" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="#fff"/><circle cx="2.2" cy="2.2" r="1.8" fill="#16181c"/><circle cx="6.7" cy="6.7" r="1.8" fill="#16181c"/></pattern>
+        <pattern id="p-water" width="16" height="12" patternUnits="userSpaceOnUse"><rect width="16" height="12" fill="#fff"/><path d="M0 6 Q4 3 8 6 T16 6" fill="none" stroke="#16181c" stroke-width="1.4"/></pattern>
+        <pattern id="p-dots" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(25)"><circle cx="8" cy="8" r="3.4" fill="#111"/></pattern>
+        <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDEEFF"/><stop offset=".6" stop-color="#FDF3FA"/><stop offset="1" stop-color="#FFF6EE"/></linearGradient>
+        <filter id="f-cel" primitiveUnits="objectBoundingBox" x="-.05" y="-.05" width="1.1" height="1.1" color-interpolation-filters="sRGB">
+          <feOffset in="SourceAlpha" dx="-.09" dy="-.11" result="o1"/><feComposite in="SourceAlpha" in2="o1" operator="out" result="shadeMask"/>
+          <feFlood flood-color="#3B2A6B" flood-opacity=".2"/><feComposite in2="shadeMask" operator="in" result="shade"/>
+          <feOffset in="SourceAlpha" dx=".05" dy=".06" result="o2"/><feComposite in="SourceAlpha" in2="o2" operator="out" result="hiMask"/>
+          <feFlood flood-color="#FFFFFF" flood-opacity=".55"/><feComposite in2="hiMask" operator="in" result="hi"/>
+          <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="shade"/><feMergeNode in="hi"/></feMerge>
+        </filter>
+        <filter id="f-pop" x="-10%" y="-30%" width="120%" height="160%"><feDropShadow dx="5" dy="7" stdDeviation="0" flood-color="#2B2440" flood-opacity=".9"/></filter>
+        <filter id="f-dof" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="2.4"/></filter>
+        <filter id="f-dof-near" x="-20%" y="-10%" width="140%" height="120%"><feGaussianBlur stdDeviation="9"/></filter>
+        <filter id="f-rough"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="2" seed="1"/><feDisplacementMap in="SourceGraphic" scale="6"/></filter>
+      </defs>
+      <!-- Anime: soft, out-of-focus kitchen behind every scene -->
+      <g class="only-anime kit" filter="url(#f-dof)" opacity=".75">
+        <rect x="600" y="36" width="880" height="390" class="b"/><line x1="600" y1="180" x2="1480" y2="180" class="b"/>
+        <line x1="893" y1="36" x2="893" y2="426" class="b"/><line x1="1186" y1="36" x2="1186" y2="426" class="b"/>
+        <path d="M600 330 C660 300 700 340 760 310 S860 280 920 320 S1040 290 1100 315 S1220 280 1290 312 S1420 290 1480 318" class="bt"/>
+        <path d="M640 120 v120 M700 90 v150 M1260 70 v170 M1330 110 v130 M1400 80 v160" class="bt"/>
+        <line x1="40" y1="70" x2="520" y2="70" class="b"/>
+        <path d="M120 70 v180 M120 250 a34 40 0 1 0 .1 0" class="b"/>
+        <path d="M200 70 v150 M186 220 h28 l6 90 h-40 z" class="b"/>
+        <path d="M280 70 v130 M280 200 c-34 10 -34 90 0 100 c34 -10 34 -90 0 -100" class="b"/>
+        <path d="M262 230 q18 30 36 0 M262 260 q18 30 36 0" class="bt"/>
+        <rect x="350" y="80" width="70" height="200" rx="10" class="b"/>
+        <path d="M364 110 h42 M364 140 h42 M364 170 h42 M364 200 h42 M364 230 h42" class="bt"/>
+        <path d="M460 70 v220" class="b"/>
+        <line x1="0" y1="540" x2="1600" y2="540" class="b"/><line x1="0" y1="566" x2="1600" y2="566" class="bt"/>
+        <path d="M1500 420 h90 v120 h-90 z M1510 400 h70" class="b"/>
+        <path d="M40 470 h80 v70 h-80 z M150 480 h70 v60 h-70 z" class="b"/>
+      </g>
+      <rect class="only-comic" width="1600" height="760" fill="url(#p-dots)" opacity=".13"/>
+
+      <!-- Scenes: player.js inserts one <g class="scene"> per script scene here, before the near-utensil layer -->
+      <g class="only-anime kit kit-fg" filter="url(#f-dof-near)">
+        <path d="M58 -20 V430" class="b"/><path d="M58 430 c-80 10 -86 200 0 214 c86 -14 80 -204 0 -214" class="b w"/>
+        <path d="M1560 -20 V250" class="b"/><path d="M1530 250 h60 l14 150 h-88 z" class="b w"/>
+      </g>
+      <g class="only-board pframe"><rect x="16" y="16" width="1568" height="726" class="ln"/></g>
+
+      <!-- ============ HUD ============ -->
+      <g id="hud">
+        <text id="hud-n" class="t-m24 grey" x="60" y="72">01</text>
+        <text id="hud-t" class="t-lbl" x="108" y="72"></text>
+        <g id="hud-clock">
+          <text id="hud-d" class="t-mono" x="1444" y="72" text-anchor="end">07:00</text>
+          <text id="hud-day" class="t-sm" x="1444" y="102" text-anchor="end">DAY 1</text>
+          <circle cx="1500" cy="74" r="36" class="f-w ln"/>
+          <line id="hud-h" x1="1500" y1="74" x2="1500" y2="54" class="ln"/>
+          <line id="hud-m" x1="1500" y1="74" x2="1500" y2="46" class="ln thin"/>
+          <circle cx="1500" cy="74" r="3.5" class="f-i"/>
+        </g>
+      </g>
+    </svg>
+    <div class="ctrl" id="ctrl">
+      <div class="bar"><input class="scrub" id="scrub" type="range" min="0" max="100" step="0.01" value="0" aria-label="Position in tutorial"></div>
+      <div class="row">
+        <button class="ib" id="play" type="button" aria-label="Play"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+        <button class="ib" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="ib" id="next" type="button" aria-label="Next step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+        <button class="ib" id="restart" type="button" aria-label="Restart"><svg viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M4.5 13a7.5 7.5 0 1 0 2.2-6.3"/><path d="M4 4v5h5"/></svg></button>
+        <button class="ib" id="mute" type="button" aria-label="Mute narration" aria-pressed="false"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"/></svg></button>
+        <span class="time" id="time">0:00 / 0:00</span>
+      </div>
+    </div>
+    <button class="burger" id="burger" type="button" aria-label="Choose a step" aria-expanded="false" aria-controls="chapters"><span></span><span></span><span></span></button>
+    <nav class="chapters" id="chapters" aria-label="Steps" hidden></nav>
+   </div>
+    <div class="cap"><p id="cap"></p></div>
+  </div>
+{{DATA}}
+<script>
+{{PLAYER}}
+</script>
+</body>
+</html>

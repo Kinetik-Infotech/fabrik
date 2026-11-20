@@ -1,0 +1,20 @@
+/* A. Line art: white ground, ink outlines, engraving hatch and stipple instead of colour */
+.st-line svg .f-d, .st-line svg .f-w, .st-line svg .f-c, .st-line svg .f-wd, .st-line svg .f-sun { fill: #FFFFFF; }
+.st-line svg .f-s { fill: url(#p-tone); }
+.st-line svg .f-s2 { fill: url(#p-hatch-l); }
+.st-line svg .f-l, .st-line svg .f-o { fill: url(#p-stip); }
+.st-line svg .f-ww, .st-line svg .f-sa { fill: url(#p-stip-d); }
+.st-line svg .f-wa { fill: url(#p-water); }
+.st-line svg .f-b, .st-line svg .f-st { fill: url(#p-hatch); }
+.st-line svg .f-g { fill: url(#p-cross); }
+.st-line svg .f-gr, .st-line svg .f-ch, .st-line svg .f-i { fill: #16181C; }
+.st-line svg .heat { stroke: #16181C; }
+.st-line svg .t-disp, .st-line svg .t-disp2 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; letter-spacing: .1em; }
+.st-line svg .t-disp { font-size: 84px; }
+.st-line svg .chip rect { fill: #FFFFFF; stroke: #16181C; stroke-width: 2; }
+.st-line svg .chip text { fill: #16181C; }
+.st-line .cap p { font-family: 'Cormorant Garamond', Georgia, serif; font-style: italic; font-weight: 500; font-size: 2.6cqw; }
+
+@media (max-width: 640px) {
+  .stage.st-line .cap p { font-size: 18px; }
+}
