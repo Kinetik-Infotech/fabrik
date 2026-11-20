@@ -172,7 +172,8 @@ test("with no sign-in saved, the command gives the sign-in command and no instru
   assert.equal(ran.code, 1);
   // The path is quoted for the shell, so a folder with a space in its name still runs.
   assert.match(ran.err, /Sign in with: node ["'].*fabrik\.mjs["'] sign-in\n$/);
-  assert.doesNotMatch(ran.err, /chat/);
+  // The plugin's own path, which may name a folder such as a chat-… worktree, is left out of the check.
+  assert.doesNotMatch(ran.err.replace(/["'][^"']*fabrik\.mjs["']/, ""), /chat/);
 });
 
 test("an unknown name, or an argument without a value, is refused", async () => {
