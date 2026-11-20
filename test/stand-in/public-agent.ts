@@ -766,10 +766,11 @@ try {
   (chat as any).fabrikChatTurnstile();
   (cdoc.querySelector("#fabrik-chat input") as any).value = "How do I book tables?";
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
-  while (!cdoc.querySelector("#fabrik-chat li.a")) await new Promise((r) => setTimeout(r, 5));
-  const answered = { methods, rendered, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
-  check("an agent's page gets the site key with a GET, draws the Turnstile check with it, and a question gets that agent's answer",
-    JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
+  const thought = Boolean(cdoc.querySelector("#fabrik-chat li.thinking"));
+  while (!cdoc.querySelector("#fabrik-chat li.a:not(.thinking)")) await new Promise((r) => setTimeout(r, 5));
+  const answered = { methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
+  check("an agent's page gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer",
+    answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
       && answered.answer === "Tables: book by phone on 01234 567890." && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
   await chat.happyDOM.close();
 
