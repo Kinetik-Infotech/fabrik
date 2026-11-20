@@ -15,7 +15,7 @@ Ask Claude to keep a file as a document, and it also saves a record about it. Th
 
 fabrik reads the text of PDF, Word (.docx), Excel (.xlsx and .xls), OpenDocument spreadsheet (.ods), Markdown and plain text files, soon after each upload. Until then, search says the file is waiting. A scanned page with no text in it cannot be read this way.
 
-When you delete a file before search has finished reading it, fabrik stops reading it. The same happens to a record's older version once a newer one is saved. If the file comes back, fabrik reads the rest of it.
+When you replace or delete a file before search has finished reading it, fabrik stops reading the old content. The same happens to a record's older version once a newer one is saved. If the old content comes back, fabrik reads the rest of it.
 
 ## Searching
 

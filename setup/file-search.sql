@@ -523,7 +523,7 @@ grant execute on function file_search.graph_key(text) to authenticated;
 -- A move keeps the file's id and content, so it is not queued again; search reads its name live.
 -- A deleted file, or one moved out of the indexed buckets, has its versions retired. A retired
 -- or failed version whose content comes back is restored: extracted if its chunks remain, else
--- waiting, with its attempts reset.
+-- waiting, with its attempts reset. Only the file's current content's chunks wait for their vectors.
 create function file_search.queue_object() returns trigger
 language plpgsql security definer set search_path=pg_catalog as $$
 begin
@@ -550,6 +550,7 @@ begin
   state=case when exists(select 1 from file_search.chunk c where c.version_id=file_version.version_id) then 'extracted' else 'waiting' end,
   attempts=0, error=null, finished_at=null
  where file_version.state in ('retired','failed');
+ perform file_search.chunks_follow_content(new.id, coalesce(new.metadata->>'eTag', new.updated_at::text));
  return new;
 end $$;
 revoke all on function file_search.queue_object() from public, anon, authenticated;
@@ -889,6 +890,29 @@ end $$;
 revoke all on function file_search.chunks_follow_version() from public, anon, authenticated;
 create trigger chunks_follow_version after update of state on file_search.file_version
  for each row when (old.state is distinct from new.state) execute function file_search.chunks_follow_version();
+
+-- A file's older content keeps its version and its embedded chunks, and its waiting chunks and sentences are
+-- retired. The current content's retired chunks and sentences wait again, unless its version is retired or purged.
+-- queue_object calls it each time a file's content lands. Returns how many chunks it retired.
+create or replace function file_search.chunks_follow_content(p_object_id uuid, p_content_tag text) returns integer
+language plpgsql volatile set search_path=pg_catalog as $$
+declare n integer;
+begin
+ update file_search.chunk_sentence s set state='retired' from file_search.chunk c, file_search.file_version v
+ where v.object_id=p_object_id and v.content_tag<>p_content_tag and c.version_id=v.version_id and s.chunk_id=c.chunk_id
+  and s.state='waiting';
+ update file_search.chunk c set state='retired' from file_search.file_version v
+ where v.object_id=p_object_id and v.content_tag<>p_content_tag and c.version_id=v.version_id and c.state='waiting';
+ get diagnostics n=row_count;
+ update file_search.chunk c set state='waiting' from file_search.file_version v
+ where v.object_id=p_object_id and v.content_tag=p_content_tag and v.state not in ('retired','purged')
+  and c.version_id=v.version_id and c.state='retired';
+ update file_search.chunk_sentence s set state='waiting' from file_search.chunk c, file_search.file_version v
+ where v.object_id=p_object_id and v.content_tag=p_content_tag and v.state not in ('retired','purged')
+  and c.version_id=v.version_id and s.chunk_id=c.chunk_id and s.state='retired';
+ return n;
+end $$;
+revoke all on function file_search.chunks_follow_content(uuid,text) from public, anon, authenticated;
 
 -- One sentence's vector, as '[n,n,...]', recorded as soon as it is made; or its error.
 create or replace function file_search.record_sentence_vector(p_sentence_id uuid, p_embedding text, p_error text)
