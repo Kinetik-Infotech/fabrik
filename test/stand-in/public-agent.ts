@@ -19,8 +19,9 @@
 // panel, where a question gets that agent's answer. Once today's tokens reach the cap, the answer is the resting message
 // and Claude isn't called. No reply holds the key or the secret.
 //
-// Each question an agent answered, the resting answer included, is kept in public_exchange under the conversation id
-// chat.js made when the box was drawn, and nowhere else. A refused question is not kept, and no row holds the visitor's
+// Each question an agent answered, the resting answer and a failed answer included, is kept in public_exchange under
+// the conversation id chat.js made when the box was drawn, and nowhere else. An id another agent holds is kept under a
+// new one, and chat.js makes an id without crypto.randomUUID. A refused question is not kept, and no row holds the visitor's
 // IP address, Turnstile token or browser. An administrator lists the conversations, reads one whole, and deletes one or
 // every conversation of an agent before a date. The chat page says under the box that the business keeps the
 // conversation. run.sh runs it.
@@ -417,6 +418,9 @@ try {
   const afterBroken = await post({ action: "settings", agent: "chat" }, admin);
   check("a reply the function can't read gets the words a visitor reads, and today's tokens hold its 1,030, not what was held",
     broken.status === 500 && broken.body.problem === UNAVAILABLE && afterBroken.body.today_tokens === 4120 + 1030, { broken, afterBroken });
+  const [brokenKept] = await sql`select answer, input_tokens, output_tokens from fabrik_private.public_exchange where question = 'Tell me about the broken reply'`;
+  check("a question Claude failed on is kept with the words the visitor read and the tokens Claude charged",
+    brokenKept?.answer === UNAVAILABLE && brokenKept.input_tokens === 6400 && brokenKept.output_tokens === 30, { brokenKept });
 
   // Three agents. Each answers from its own files, and Claude's system prompt holds its INSTRUCTIONS.md, AGENTS.md and
   // KNOWLEDGE.md and nothing else.
@@ -532,6 +536,39 @@ try {
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pageConversation) && posted.every((p) => p.conversation === pageConversation)
       && pageKept.n === 12 && keptLine === "This conversation is kept to improve its answers.", { pageConversation, pageKept, keptLine, sentIds: posted.map((p) => p.conversation) });
   await page.happyDOM.close();
+
+  // A browser without crypto.randomUUID, such as Safari before 15.4 or a page on http, and one with no crypto at all.
+  const oldBrowser = async (crypto: unknown) => {
+    const w = new Window({ url: "http://bakery.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+    Object.defineProperty(w, "crypto", { value: crypto, configurable: true });
+    const t = w.document.createElement("script");
+    t.setAttribute("data-address", "https://project.example/functions/v1/public-agent");
+    t.setAttribute("data-sitekey", "1x00000000000000000000AA");
+    w.document.body.appendChild(t);
+    Object.defineProperty(w.document, "currentScript", { get: () => t, configurable: true });
+    const bodies: any[] = [];
+    (w as any).turnstile = { render: () => 0, getResponse: () => GOOD_TOKEN, reset() {} };
+    try {
+      new Function("window", "document", "fetch", await Deno.readTextFile(new URL("../../plugins/fabrik/public-agent/chat.js", import.meta.url)))(w, w.document,
+        (url: string, init: RequestInit) => { bodies.push(JSON.parse(String(init.body))); return handler!(new Request(url, init)); });
+    } catch (err) { await w.happyDOM.close(); return { bodies, answered: 0, error: String(err) }; }
+    (w as any).fabrikChatTurnstile();
+    const box = w.document.querySelector("#fabrik-chat input") as any, button = w.document.querySelector("#fabrik-chat button") as any;
+    for (const q of ["What are your opening hours?", "Do you make cakes to order?"]) {
+      box.value = q;
+      w.document.querySelector("#fabrik-chat form")!.dispatchEvent(new w.Event("submit", { cancelable: true }));
+      while (button.disabled) await new Promise((r) => setTimeout(r));
+    }
+    const answered = w.document.querySelectorAll("#fabrik-chat li.a").length;
+    await w.happyDOM.close();
+    return { bodies, answered };
+  };
+  const noRandomUUID = await oldBrowser({ getRandomValues: (b: Uint8Array) => crypto.getRandomValues(b) });
+  const noCrypto = await oldBrowser(undefined);
+  check("without crypto.randomUUID chat.js still draws the box and sends one random UUID with both questions, and with no crypto it sends none and both are answered",
+    noRandomUUID.answered === 2 && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(noRandomUUID.bodies[0]?.conversation)
+      && noRandomUUID.bodies[1]?.conversation === noRandomUUID.bodies[0].conversation
+      && noCrypto.answered === 2 && noCrypto.bodies.every((b) => !("conversation" in b)), { noRandomUUID, noCrypto });
 
   // fabrik chat-page's build and put-up, with the Brand record, the project's address and Wrangler standing in.
   const { chatPage, chatProject, widgetLine } = await import(new URL("../../plugins/fabrik/cli/chat-page.mjs", import.meta.url).href);
@@ -830,6 +867,16 @@ try {
     whole.status === 200 && whole.body.agent === "chat" && JSON.stringify(whole.body.exchanges?.map((e: any) => [e.question, e.answer, e.input_tokens, e.output_tokens])) === JSON.stringify([
       ["What are your opening hours?", "Opening hours: 8am to 4pm, Tuesday to Saturday.", 6400, 30],
       ["Do you make cakes to order?", "Services: bread, cakes to order, and wholesale for cafes.", 6400, 30]]), whole.body);
+  const crossed = await fromVisitor({ agent: "bookings", conversation: one, question: "Can I book a cake tasting?", turnstile_token: GOOD_TOKEN });
+  const [crossedKept] = await sql`select conversation::text as c, slug from fabrik_private.public_exchange where question = 'Can I book a cake tasting?'`;
+  const stillOne = await post({ action: "conversation_get", id: one }, admin);
+  check("a conversation id another agent holds is kept under a new id of the asking agent's, and the first conversation stays one agent's",
+    crossed.status === 200 && crossedKept?.slug === "bookings" && crossedKept.c !== one
+      && stillOne.body.exchanges?.length === 2 && stillOne.body.agent === "chat", { crossed, crossedKept, stillOne: stillOne.body });
+  const looseDates = await Promise.all(["11/01", "2026", "2026-02-30", "1"].map((before) => post({ action: "conversations_delete", agent: "chat", before }, admin)));
+  check("conversations_delete refuses a before that isn't a calendar date or an ISO time, and deletes nothing",
+    looseDates.every((r) => r.status === 400) && (await post({ action: "conversation_get", id: one }, admin)).body.exchanges?.length === 2,
+    looseDates.map((r) => [r.status, r.body.problem]));
   const noId = await fromVisitor({ question: "Opening hours?", turnstile_token: GOOD_TOKEN });
   const noIdToo = await fromVisitor({ question: "Opening hours again?", turnstile_token: GOOD_TOKEN });
   const unnamed = await sql`select distinct conversation::text as c from fabrik_private.public_exchange where question in ('Opening hours?', 'Opening hours again?')`;

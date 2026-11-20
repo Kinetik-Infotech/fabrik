@@ -20,8 +20,20 @@
   var business = script && (script.getAttribute("data-business") || "").trim();
   var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
-  var conversation = window.crypto.randomUUID();
+  var conversation = newId();
   var widget = null;
+
+  // A random UUID. randomUUID exists only on https and in newer browsers, so getRandomValues makes one elsewhere. With
+  // neither, the post has no conversation and the function makes an id for each question.
+  function newId() {
+    var c = window.crypto;
+    if (c && c.randomUUID) return c.randomUUID();
+    if (!c || !c.getRandomValues) return null;
+    var b = c.getRandomValues(new Uint8Array(16)), h = "";
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    for (var i = 0; i < 16; i++) h += (i === 4 || i === 6 || i === 8 || i === 10 ? "-" : "") + (b[i] + 256).toString(16).slice(1);
+    return h;
+  }
 
   var box = document.getElementById("fabrik-chat");
   if (!box) { box = document.createElement("div"); box.id = "fabrik-chat"; script.parentNode.insertBefore(box, script.nextSibling); }
@@ -126,6 +138,13 @@
     return kept;
   }
 
+  function posted(question, history, token) {
+    var body = { question: question, history: history, turnstile_token: token };
+    if (agent) body.agent = agent;
+    if (conversation) body.conversation = conversation;
+    return body;
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var question = input.value.trim();
@@ -140,8 +159,7 @@
     fetch(address, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(agent ? { agent: agent, conversation: conversation, question: question, history: history, turnstile_token: token }
-        : { conversation: conversation, question: question, history: history, turnstile_token: token }),
+      body: JSON.stringify(posted(question, history, token)),
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) { return { ok: res.ok, body: body }; });
     }).then(function (r) {

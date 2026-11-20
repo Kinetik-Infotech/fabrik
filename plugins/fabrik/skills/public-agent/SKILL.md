@@ -118,9 +118,9 @@ Give the owner what `chat-page` printed for each agent:
 
 Some website builders, such as Wix and Squarespace on lower plans, refuse a pasted script. The page's address then works as a link instead.
 
-Then ask the owner to try two questions on each new agent: one its KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second gets what INSTRUCTIONS.md says to answer when the file doesn't know.
+Before asking the owner to try the agents, call `public_conversations_list` with `limit` 1. When it gives no conversation, the chat is going up for the first time, so tell the owner about their privacy notice. Their business keeps what visitors type, which can include a name or an email address, so their website's privacy notice should say so. Offer a line they can adapt, such as "We keep the questions you ask our website chat, and its answers, to improve them. We don't keep anything that identifies you unless you type it. To have a conversation deleted, contact us." Once the owner's own questions are kept, the list is no longer empty, and the agent doesn't raise it again.
 
-The first time the chat goes up on the owner's website, tell them once about their privacy notice. Their business keeps what visitors type, which can include a name or an email address, so their website's privacy notice should say so. Offer a line they can adapt, such as "We keep the questions you ask our website chat, and its answers, to improve them. We don't keep anything that identifies you unless you type it. To have a conversation deleted, contact us." Say it once, and not again after the owner has heard it.
+Then ask the owner to try two questions on each new agent: one its KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second gets what INSTRUCTIONS.md says to answer when the file doesn't know.
 
 ## 8. Removing an agent, and turning all of them off
 
