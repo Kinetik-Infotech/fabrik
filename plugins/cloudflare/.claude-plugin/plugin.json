@@ -1,6 +1,6 @@
 {
   "name": "cloudflare",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Publishes files from your computer to Cloudflare Pages and keeps DNS records, through one profile, pages-dns, which exposes only identity, zones, DNS and Pages, confines local paths to CLOUDFLARE_CONTENT_ROOT, and never creates API tokens.",
   "author": { "name": "Joel Smalley" },
   "keywords": ["cloudflare", "dns", "pages", "connector", "mcp"],
