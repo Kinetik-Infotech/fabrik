@@ -8245,7 +8245,7 @@ notify pgrst, 'reload schema';
 -- The public agent: the chat box on the owner's website, which the public-agent hosted function answers from the
 -- KNOWLEDGE.md file in the private bucket public-agent. The bucket has no rule for a signed-in person, so only the
 -- function reads or writes it, with the project's service key. The settings row holds the Claude model and the daily
--- cap in tokens. The usage table holds each day's tokens, counted from Claude's answers, and nothing a visitor typed.
+-- cap in tokens, and the Turnstile site key the chat page draws its check with. The usage table holds each day's tokens, counted from Claude's answers, and nothing a visitor typed.
 -- Only the function reads or changes either table.
 set role fabrik_owner;
 create table if not exists fabrik_private.public_agent_setting (
@@ -8254,6 +8254,8 @@ create table if not exists fabrik_private.public_agent_setting (
  daily_cap_tokens integer not null default 500000 check (daily_cap_tokens between 1000 and 100000000),
  updated_at timestamptz not null default now()
 );
+alter table fabrik_private.public_agent_setting add column if not exists turnstile_sitekey text
+ check (turnstile_sitekey ~ '^[0-9]x[A-Za-z0-9_-]{18,60}$');
 insert into fabrik_private.public_agent_setting(id) values (true) on conflict (id) do nothing;
 create table if not exists fabrik_private.public_agent_usage (
  day date primary key,
@@ -8265,7 +8267,7 @@ revoke all on fabrik_private.public_agent_setting, fabrik_private.public_agent_u
 reset role;
 insert into storage.buckets(id, name, public) values ('public-agent', 'public-agent', false) on conflict (id) do nothing;
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent');
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

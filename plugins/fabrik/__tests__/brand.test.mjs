@@ -44,6 +44,13 @@ test("readBrand gives no brand, soon, where fabrik never answers", async () => {
   assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
 });
 
+test("strict, readBrand throws where fabrik refuses or never answers, and gives null only where there is no Brand record", async () => {
+  await assert.rejects(readBrand(() => Promise.reject(new Error("refused")), { strict: true }), /refused/);
+  await assert.rejects(readBrand(() => new Promise(() => {}), { wait: 100, strict: true }), /in time/);
+  const none = await readBrand(async fn => fn === "fabrik_get_scopes" ? { items: [{ code: "general", scope_id: "g" }] } : { items: [] }, { strict: true });
+  assert.equal(none, null);
+});
+
 test("with a person's cache, a second read of the same version skips General and the record, and a new version reads it", async () => {
   const cache = {};
   const first = fabrikWith();
