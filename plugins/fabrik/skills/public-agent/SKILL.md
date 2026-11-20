@@ -26,22 +26,25 @@ The file is at most 100,000 characters. Every question sends the whole file to C
 
 The chat box needs two keys. Both go on the card, never in the chat. When the person pastes either into the chat, tell them to delete it where they made it and make a new one for the card.
 
-Write the steps first and show the card last, so the card sits under the steps in the chat.
+The card lists the steps for each key.
 
-1. Give the person these steps for the Anthropic API key, one numbered line each:
-   1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits first. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
-   2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
-   3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else, since the chat box runs on Supabase, not on this computer.
-   4. Name the key fabrik website, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
-   5. Paste it in the card's Anthropic API key box.
-2. Then these steps for the Turnstile secret key, one numbered line each:
-   1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
-   2. Choose Add widget.
-   3. For Widget name, type fabrik chat. For Region, choose Rest of World. Under Hostname management, add the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
-   4. Choose Create. Cloudflare shows a site key and a secret key.
-   5. Paste the secret key in the card's Turnstile secret key box. Keep the site key for the line of code in section 4.
-3. Call `show_public_agent_setup`. The card says which keys are saved and whether KNOWLEDGE.md is.
-4. The person chooses Save. The card checks each key with Anthropic or Cloudflare before fabrik keeps it. End the turn.
+1. Call `show_public_agent_setup`. The card says which keys are saved and whether KNOWLEDGE.md is, and gives the steps for each key.
+2. When the person asks for help with a step, give that step again from these lists. On the Turnstile page, Add widget manually is the route. Set up with Spin hands the job to a coding agent and isn't used here.
+3. The person chooses Save. The card checks each key with Anthropic or Cloudflare before fabrik keeps it. End the turn.
+
+The Anthropic API key, in more detail:
+
+1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits first. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
+2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
+3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else, since the chat box runs on Supabase, not on this computer.
+4. Name the key fabrik website, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
+
+The Turnstile secret key, in more detail:
+
+1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
+2. Choose Add widget manually.
+3. For Widget name, type fabrik chat. For Region, choose Rest of World. Under Hostname management, add the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
+4. Choose Create. Cloudflare shows a site key and a secret key. The secret key goes on the card, and the site key goes in the line of code in section 4.
 
 This key is apart from the connections key. Saving one never turns the other on.
 
