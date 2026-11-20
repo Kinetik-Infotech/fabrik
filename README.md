@@ -21,7 +21,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Admin.** Forms filled in from what you've already told Claude. You see the form before anything is sent.
 - **Analysis.** Prices, products or options weighed up across sites, with evidence.
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
-- **Website chat.** Visitors ask questions on your website, and get answers from a page you write and from nothing else in fabrik.
+- **Website chat.** A chat page in your brand, and a chat button for your website. Visitors get answers from a page you write and from nothing else in fabrik.
 - **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
 
 ## Cards

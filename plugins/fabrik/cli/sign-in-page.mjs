@@ -1,5 +1,6 @@
 // fabrik setup --owner's sign-in page step: puts the folder build.mjs sign-in made up on the owner's Cloudflare Pages
-// with Wrangler, Cloudflare's command-line tool, and returns the page's address.
+// with Wrangler, Cloudflare's command-line tool, and returns the page's address. fabrik chat-page puts the chat page up
+// the same way, with putUpPage.
 //
 // Wrangler runs with XDG_CONFIG_HOME set to ~/.config/fabrik/wrangler, so fabrik's Cloudflare sign-in is its own and
 // never another Wrangler sign-in on the computer. When no one is signed in there, `wrangler login` opens the browser
@@ -32,7 +33,13 @@ function lastLines(text, count = 6) {
  * `ask(prompt)` answers a question and `say` prints a line. `wrangler` is the command that runs Wrangler; a test passes
  * a stand-in. Throws a PageStopped whose message is one plain line, with Wrangler's own last lines where it failed.
  */
-export async function putUpSignInPage({ ref, folder }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
+export function putUpSignInPage({ ref, folder }, options = {}) {
+  return putUpPage({ name: pagesProject(ref), folder, what: "sign-in page" }, options);
+}
+
+/** Puts the page in `folder` up on Cloudflare Pages as the project `name`, and returns its https address. `what` names
+ * the page in what it says, such as "chat page". The options are putUpSignInPage's. */
+export async function putUpPage({ name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
   // WRANGLER_NO_SKILLS_UPDATE_PROMPTS, and no terminal on Wrangler's input, keep Wrangler from asking questions of its own.
   const base = { ...env, XDG_CONFIG_HOME: wranglerHome(home), WRANGLER_SEND_METRICS: "false", WRANGLER_NO_SKILLS_UPDATE_PROMPTS: "true" };
   // npx and Wrangler read config files, such as .npmrc and wrangler.toml, from the folder they run in, and keep a
@@ -52,7 +59,7 @@ export async function putUpSignInPage({ ref, folder }, { ask, say, wrangler = WR
   const whoami = () => { const ran = run(["whoami", "--json"]); return json(ran) ?? { loggedIn: false }; };
   const failed = (what, ran) => new PageStopped(`${what} failed. Cloudflare's Wrangler said:\n${lastLines(ran.text) || "nothing"}`);
 
-  say("Putting your sign-in page up on Cloudflare Pages. The first time, this downloads Cloudflare's Wrangler tool, which takes a minute.");
+  say(`Putting your ${what} up on Cloudflare Pages. The first time, this downloads Cloudflare's Wrangler tool, which takes a minute.`);
   let me = whoami();
   if (!me.loggedIn) {
     say("A browser window opens for Cloudflare. Sign in, or make a free account, and allow Wrangler. Then come back here.");
@@ -65,13 +72,12 @@ export async function putUpSignInPage({ ref, folder }, { ask, say, wrangler = WR
   if (accounts.length > 1) {
     accounts.forEach((a, i) => say(`${i + 1}. ${a.name}`));
     while (!accountId) {
-      const n = Number((await ask("Which Cloudflare account is for fabrik's sign-in page? Type its number: ")).trim());
+      const n = Number((await ask(`Which Cloudflare account is for fabrik's ${what}? Type its number: `)).trim());
       if (Number.isInteger(n) && n >= 1 && n <= accounts.length) accountId = accounts[n - 1].id;
     }
   } else if (accounts.length === 1) accountId = accounts[0].id;
   say(`Signed in to Cloudflare as ${me.email ?? "you"}.`);
 
-  const name = pagesProject(ref);
   const listed = () => {
     const ran = run(["pages", "project", "list", "--json"]);
     const rows = json(ran);
@@ -83,7 +89,7 @@ export async function putUpSignInPage({ ref, folder }, { ask, say, wrangler = WR
     if (!made.ok) throw failed(`Creating the Pages project ${name}`, made);
   }
   const deployed = run(["pages", "deploy", folder, "--project-name", name, "--branch", "main"]);
-  if (!deployed.ok) throw failed("Putting your sign-in page up", deployed);
+  if (!deployed.ok) throw failed(`Putting your ${what} up`, deployed);
   const domain = String(listed()?.["Project Domains"] ?? "").split(",").map(d => d.trim()).find(d => /^[a-z0-9-]+\.pages\.dev$/.test(d));
   if (!domain) throw new PageStopped(`Cloudflare shows no pages.dev address for ${name}.`);
   return `https://${domain}`;

@@ -7,17 +7,22 @@
 // A visitor's question in the file gets the file's answer, and one outside it gets don't know. The request to
 // Claude holds the fixed instruction, then the file, cached, the latest turns that fit, at most 10, and 1,000 tokens. A
 // post with no Turnstile token is refused before a database connection opens, and a failed check gets 403 and calls
-// nothing. chat.js, run in a page, gets an answer to every question of a long conversation. Once today's tokens reach the cap, the answer is the resting message and
+// nothing. chat.js, run in a page, gets an answer to every question of a long conversation. A GET gives the Turnstile
+// site key once one is saved. fabrik chat-page builds the chat page from a Brand record, in its colours and with its
+// logo, and widget.js, run in a page on another website, opens the chat page in a panel, where a question gets its answer. Once today's tokens reach the cap, the answer is the resting message and
 // Claude isn't called. No row anywhere holds a question, and no reply holds the key or the secret. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 import { Window } from "npm:happy-dom@20.0.10";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 const DB = Deno.env.get("STAND_IN_DB")!;
 const FUNCTION = new URL("../../setup/functions/public-agent/index.ts", import.meta.url);
 const KEY = `sk-ant-api03-public${crypto.randomUUID().replaceAll("-", "")}`;
 const WRONG = `sk-ant-api03-wrong${crypto.randomUUID().replaceAll("-", "")}`;
 const SECRET = `0x4AAAAAAA${crypto.randomUUID().replaceAll("-", "")}`;
+const SITEKEY = "0x4AAAAAAAstandinSiteKey01";
 const SERVICE_KEY = "service-key";
 const GOOD_TOKEN = "turnstile-passed";
 const KNOWLEDGE = "# Northfield Bakery\n\nOpening hours: 8am to 4pm, Tuesday to Saturday.\nServices: bread, cakes to order, and wholesale for cafes.\n";
@@ -111,6 +116,25 @@ const post = async (body: Record<string, unknown>, bearer?: string) => {
   return { status: res.status, body: JSON.parse(text), cors: res.headers.get("Access-Control-Allow-Origin") };
 };
 const ask = (question: string, more: Record<string, unknown> = {}) => post({ question, turnstile_token: GOOD_TOKEN, ...more });
+const get = async () => {
+  const res = await handler!(new Request("http://function/", { method: "GET" }));
+  const text = await res.text();
+  replies.push(text);
+  return { status: res.status, body: JSON.parse(text), cors: res.headers.get("Access-Control-Allow-Origin"), cache: res.headers.get("Cache-Control") };
+};
+
+// Cloudflare's Wrangler, standing in: signed in to one account, it keeps the projects made and the folder deployed.
+const WRANGLER = `import { readFileSync, writeFileSync } from "node:fs";
+const state = new URL("wrangler-state.json", import.meta.url);
+const s = JSON.parse(readFileSync(state, "utf8"));
+const args = process.argv.slice(2), cmd = args.join(" ");
+const save = () => writeFileSync(state, JSON.stringify(s));
+if (cmd === "whoami --json") console.log(JSON.stringify({ loggedIn: true, email: "owner@joinery.example", accounts: [{ id: "acc-1", name: "Smith Joinery" }] }));
+else if (cmd === "pages project list --json") console.log(JSON.stringify(s.projects.map(p => ({ "Project Name": p, "Project Domains": p + ".pages.dev" }))));
+else if (args.slice(0, 3).join(" ") === "pages project create") { s.projects.push(args[3]); save(); }
+else if (args.slice(0, 2).join(" ") === "pages deploy") { s.deployed = { folder: args[2], project: args[4], branch: args[6] }; save(); }
+else { console.error("unexpected: " + cmd); process.exit(9); }
+`;
 
 try {
   const admin = crypto.randomUUID(), person = crypto.randomUUID();
@@ -161,6 +185,39 @@ try {
   res = await post({ action: "settings" }, admin);
   check("settings gives Claude Haiku 5.5 and a cap of 500,000 tokens to start, and no tokens today",
     res.body.model === "claude-haiku-5-5" && res.body.daily_cap_tokens === 500000 && res.body.today_tokens === 0, res);
+
+  // The Turnstile site key: saved beside the secret, and given to anyone with a GET.
+  const noSitekey = await get();
+  check("before a site key is saved, a GET gets 503 with the words a visitor reads",
+    noSitekey.status === 503 && noSitekey.body.problem === UNAVAILABLE && noSitekey.cors === "*", noSitekey);
+  const badSitekey = await post({ action: "set_turnstile", sitekey: "not a site key" }, admin);
+  const sameKeys = await post({ action: "set_turnstile", sitekey: SITEKEY, secret: SITEKEY }, admin);
+  const refusedSitekey = await post({ action: "set_turnstile", sitekey: SITEKEY }, person);
+  const [{ k: unsaved }] = await sql`select turnstile_sitekey as k from fabrik_private.public_agent_setting`;
+  check("a site key that isn't one, the same key twice, or a person who isn't an administrator is refused, and nothing is kept",
+    badSitekey.status === 400 && sameKeys.status === 400 && refusedSitekey.status === 403 && unsaved === null, { badSitekey, sameKeys, refusedSitekey, unsaved });
+  const verifiedBefore = verified.length;
+  res = await post({ action: "set_turnstile", sitekey: SITEKEY }, admin);
+  check("set_turnstile with a site key alone checks the saved secret with siteverify, then keeps the site key",
+    res.status === 200 && res.body.sitekey === "set" && res.body.turnstile === undefined && verified.slice(verifiedBefore).every((v) => v.secret === SECRET)
+      && verified.length === verifiedBefore + 1, res);
+  const gotSitekey = await get();
+  const checked = await post({ action: "check" }, admin);
+  const withSitekey = await post({ action: "settings" }, admin);
+  check("a GET gives the site key to anyone, and check and settings say it is saved",
+    gotSitekey.status === 200 && gotSitekey.body.sitekey === SITEKEY && gotSitekey.cors === "*" && checked.body.sitekey === "set"
+      && withSitekey.body.turnstile_sitekey === SITEKEY, { gotSitekey, checked: checked.body, withSitekey: withSitekey.body });
+  const openedBefore = connections;
+  const again = await get();
+  check("a second GET within a minute opens no database connection, and the browser may keep the answer five minutes",
+    again.body.sitekey === SITEKEY && connections === openedBefore && gotSitekey.cache === "public, max-age=300" && noSitekey.cache === null,
+    { again, connections, openedBefore, cache: gotSitekey.cache });
+  const NEW_SITEKEY = "0x4AAAAAAAstandinSiteKey02";
+  await post({ action: "set_turnstile", sitekey: NEW_SITEKEY }, admin);
+  const changed = await get();
+  await post({ action: "set_turnstile", sitekey: SITEKEY }, admin);
+  const changedBack = await get();
+  check("a site key saved with set_turnstile is what the next GET gives", changed.body.sitekey === NEW_SITEKEY && changedBack.body.sitekey === SITEKEY, { changed, changedBack });
 
   // A visitor's questions.
   const marker = `zebra${crypto.randomUUID().slice(0, 8)}`;
@@ -266,6 +323,114 @@ try {
       && lastHistory.reduce((n: number, t: any) => n + t.content.length, 0) <= 8000,
     { answers, sizes: posted.map((p) => [p.history.length, p.history.reduce((n: number, t: any) => n + t.content.length, 0)]) });
   await page.happyDOM.close();
+
+  // fabrik chat-page's build and put-up, with the Brand record, the project's address and Wrangler standing in.
+  const { chatPage, chatProject, widgetLine } = await import(new URL("../../plugins/fabrik/cli/chat-page.mjs", import.meta.url).href);
+  const { brandOf } = await import(new URL("../../plugins/fabrik/cli/lib/brand.mjs", import.meta.url).href);
+  const brandRecord = JSON.parse(await Deno.readTextFile(new URL("../../plugins/fabrik/__tests__/widgets/brand-record.json", import.meta.url)));
+  const home = await Deno.makeTempDir();
+  const tools = `${home}/wrangler`;
+  await Deno.mkdir(tools);
+  await Deno.writeTextFile(`${tools}/wrangler.mjs`, WRANGLER);
+  await Deno.writeTextFile(`${tools}/wrangler-state.json`, JSON.stringify({ projects: [] }));
+  const node = spawnSync("node", ["--version"]).status === 0 ? "node" : null;
+  const said: string[] = [];
+  const built = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)) },
+    { ask: () => Promise.reject(new Error("asked")), say: (l: string) => said.push(l), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() });
+  const wrangled = JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`));
+  const indexHtml = await Deno.readTextFile(`${built.folder}/index.html`);
+  const widgetJs = await Deno.readTextFile(`${built.folder}/widget.js`);
+  const site = `https://${chatProject("abcdefghijklmnopqrst")}.pages.dev`;
+  check("fabrik chat-page puts index.html, chat.js and widget.js up as fabrik-chat-<ref> and gives the page's address and the widget line",
+    built.site === site && built.widget === `<script src="${site}/widget.js" async></script>` && built.widget === widgetLine(site)
+      && wrangled.deployed?.project === "fabrik-chat-abcdefghijklmnopqrst" && wrangled.deployed?.folder === built.folder && wrangled.deployed?.branch === "main"
+      && ["index.html", "chat.js", "widget.js"].every((f) => existsSync(`${built.folder}/${f}`)) && said.some((l) => l.includes("Smith Joinery")),
+    { built, wrangled, said });
+  const pageBefore = await Deno.readTextFile(`${built.folder}/index.html`);
+  const deployedBefore = await Deno.readTextFile(`${tools}/wrangler-state.json`);
+  const stopped = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.reject(new Error("fabrik didn't answer in time.")) },
+    { ask: () => Promise.reject(new Error("asked")), say: () => {}, wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() })
+    .then(() => null, (err: Error) => err.message);
+  check("where the Brand record can't be read, fabrik chat-page stops and the page put up before stays as it was",
+    /couldn't read the Brand record/.test(String(stopped)) && await Deno.readTextFile(`${tools}/wrangler-state.json`) === deployedBefore
+      && await Deno.readTextFile(`${built.folder}/index.html`) === pageBefore, stopped);
+  const logo = brandRecord.payload.graph.nodes[0].attributes.logo.data_address;
+  check("the page takes the Brand record's colours in light and dark, its fonts, its logo and its name, and names the function's address",
+    indexHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && indexHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
+      && indexHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && indexHtml.includes('"Fraunces"') && indexHtml.includes(`src="${logo}"`)
+      && indexHtml.includes("<title>Smith Joinery</title>") && indexHtml.includes('data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent"')
+      && !indexHtml.includes("{{") && !indexHtml.includes("data-sitekey"),
+    indexHtml.slice(0, 1500));
+  check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
+    widgetJs.slice(0, 1200));
+
+  // widget.js on a page of another website: its button opens the chat page in a panel, and closes it again.
+  const other = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true, disableIframePageLoading: true } });
+  const odoc = other.document;
+  const wtag = odoc.createElement("script");
+  wtag.setAttribute("src", `${site}/widget.js`);
+  odoc.body.appendChild(wtag);
+  Object.defineProperty(odoc, "currentScript", { get: () => wtag, configurable: true });
+  new Function("window", "document", "URL", widgetJs)(other, odoc, URL);
+  const launcher = odoc.querySelector(".fabrik-chat-button") as any;
+  const closedFirst = { button: !!launcher, frame: odoc.querySelector("iframe"), colour: launcher?.style.background };
+  launcher.click();
+  const frame = odoc.querySelector("iframe.fabrik-chat-panel") as any;
+  const panelOpened = { src: frame?.getAttribute("src"), hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), title: frame?.title };
+  launcher.click();
+  const closed = { hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), frames: odoc.querySelectorAll("iframe").length };
+  check("on another website the button, in the brand's accent, opens the chat page in an iframe panel, and closes it again",
+    closedFirst.button && closedFirst.frame === null && /63, 166, 107|#3fa66b/i.test(String(closedFirst.colour)) && panelOpened.src === `${site}/` && panelOpened.hidden === false
+      && panelOpened.expanded === "true" && closed.hidden === true && closed.expanded === "false" && closed.frames === 1, { closedFirst, panelOpened, closed });
+  await other.happyDOM.close();
+
+  // A website's own data-accent: the icon takes the colour that reads on it.
+  const light = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  const ltag = light.document.createElement("script");
+  ltag.setAttribute("src", `${site}/widget.js`);
+  ltag.setAttribute("data-accent", "#ffe14d");
+  light.document.body.appendChild(ltag);
+  Object.defineProperty(light.document, "currentScript", { get: () => ltag, configurable: true });
+  new Function("window", "document", "URL", widgetJs)(light, light.document, URL);
+  const iconColour = String((light.document.querySelector(".fabrik-chat-button") as any)?.style.color);
+  check("with a pale data-accent, the button's icon is near black", /#111111|17, 17, 17/.test(iconColour), iconColour);
+  await light.happyDOM.close();
+
+  // The chat page the panel opens, at its own address: chat.js asks for the site key with a GET, draws the Turnstile
+  // check with it, and a question gets its answer.
+  const chat = new Window({ url: panelOpened.src ?? `${site}/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  const cdoc = chat.document;
+  cdoc.write(indexHtml);
+  const ctag = cdoc.querySelector('script[src="chat.js"]')!;
+  Object.defineProperty(cdoc, "currentScript", { get: () => ctag, configurable: true });
+  const rendered: string[] = [];
+  (chat as any).turnstile = { render: (_: unknown, o: { sitekey: string }) => { rendered.push(o.sitekey); return 0; }, getResponse: () => GOOD_TOKEN, reset() {} };
+  const methods: string[] = [];
+  const chatFetch = (url: string, init: RequestInit) => { methods.push(String(init.method)); return handler!(new Request(url, init)); };
+  new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(chat, cdoc, chatFetch);
+  while (!cdoc.querySelector('script[src*="challenges.cloudflare.com"]')) await new Promise((r) => setTimeout(r, 5));
+  (chat as any).fabrikChatTurnstile();
+  (cdoc.querySelector("#fabrik-chat input") as any).value = "What are your opening hours?";
+  cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
+  while (!cdoc.querySelector("#fabrik-chat li.a")) await new Promise((r) => setTimeout(r, 5));
+  const answered = { methods, rendered, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className };
+  check("the chat page gets the site key with a GET, draws the Turnstile check with it, and a question gets the file's answer",
+    JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
+      && answered.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && answered.kind === "a", answered);
+  await chat.happyDOM.close();
+
+  // Before the site key is saved, the chat page says what is missing.
+  const early = new Window({ url: `${site}/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  early.document.write(indexHtml);
+  const etag = early.document.querySelector('script[src="chat.js"]')!;
+  Object.defineProperty(early.document, "currentScript", { get: () => etag, configurable: true });
+  const noKey = () => Promise.resolve(Response.json({ ok: false, problem: UNAVAILABLE, setup: "sitekey" }, { status: 503 }));
+  new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(early, early.document, noKey);
+  while (!early.document.querySelector("#fabrik-chat li")) await new Promise((r) => setTimeout(r, 5));
+  const earlyLine = early.document.querySelector("#fabrik-chat li")?.textContent;
+  check("before the site key is saved, the chat page says fabrik has no Turnstile site key", /no Turnstile site key/.test(String(earlyLine)), earlyLine);
+  await early.happyDOM.close();
+  await Deno.remove(home, { recursive: true });
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);

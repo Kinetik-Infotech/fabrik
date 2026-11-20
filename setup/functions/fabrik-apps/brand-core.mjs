@@ -56,9 +56,14 @@ export function brandOf(record) {
 /** A font's family and fallbacks as CSS gives them: a generic family as it is, and every font's name in quotes. */
 export const stack = f => [`"${f.family}"`, ...f.fallback.map(n => GENERIC.has(n) ? n : `"${n}"`)].join(", ");
 /** A token in light and dark, each taking the other's value where the brand gives one only. */
+/** The brand's [light, dark] values of a token, each falling back on the other, or null where it gives neither. */
+export const pairOf = (brand, token) => {
+  const light = brand?.palette.light[token] ?? brand?.palette.dark[token], dark = brand?.palette.dark[token] ?? light;
+  return light ? [light, dark] : null;
+};
 export const both = (brand, token) => {
-  const light = brand.palette.light[token] ?? brand.palette.dark[token], dark = brand.palette.dark[token] ?? light;
-  return light ? `light-dark(${light}, ${dark})` : null;
+  const pair = pairOf(brand, token);
+  return pair ? `light-dark(${pair[0]}, ${pair[1]})` : null;
 };
 /** The @import of the brand's Google Fonts, or nothing. */
 export function fontImport(brand) {
@@ -113,27 +118,29 @@ export const markHtml = (cls) => `<img class="${cls}" alt="fabrik" src="${FABRIK
 /** The brand's logo where it has one, and fabrik's mark otherwise, as an <img> of the class given. */
 export const headLogoHtml = (brand, cls) => logoHtml(brand, cls) || markHtml(cls);
 
-/** The value of work, or null where work fails or takes longer than ms. The timer never keeps the process alive. */
-async function within(ms, work) {
+/** The value of work, or null where work fails or takes longer than ms. With strict, a failure or the wait running out
+ * throws instead. The timer never keeps the process alive. */
+async function within(ms, work, strict = false) {
   let timer;
-  const late = new Promise(done => {
-    timer = setTimeout(() => done(null), ms);
+  const late = new Promise((done, fail) => {
+    timer = setTimeout(() => strict ? fail(new Error("fabrik didn't answer in time.")) : done(null), ms);
     if (typeof timer === "object") timer?.unref?.();
     else if (typeof Deno !== "undefined") Deno.unrefTimer?.(timer);
   });
-  try { return await Promise.race([Promise.resolve().then(work).catch(() => null), late]); } finally { clearTimeout(timer); }
+  const done = Promise.resolve().then(work);
+  try { return await Promise.race([strict ? done : done.catch(() => null), late]); } finally { clearTimeout(timer); }
 }
 
 /**
  * The Brand record in General, read with call(fn, args), which runs one fabrik function as the signed-in person and
  * gives its result or throws. The newest model record in General titled Brand, in any case, is the brand. With none, no
  * grant to read General, a refusal, or no answer within BRAND_WAIT_MS, there is no brand, and the card or page keeps its
- * plain look.
+ * plain look. With strict, a refusal or no answer in time throws, and null means fabrik holds no Brand record.
  *
  * cache, where it is given, is one person's own: it keeps General's scope and the Brand version last read, so a later
  * read with the same version in force makes two calls, and skips the record, whose logo is the bulk of it.
  */
-export function readBrand(call, { cache = null, wait = BRAND_WAIT_MS } = {}) {
+export function readBrand(call, { cache = null, wait = BRAND_WAIT_MS, strict = false } = {}) {
   return within(wait, async () => {
     let general = cache?.general ?? null;
     if (!general) {
@@ -158,5 +165,5 @@ export function readBrand(call, { cache = null, wait = BRAND_WAIT_MS } = {}) {
     const brand = brandOf(await call("fabrik_show_record", { p_record: hit.record_id }));
     if (cache) Object.assign(cache, { version_id: hit.version_id, brand });
     return brand;
-  });
+  }, strict);
 }

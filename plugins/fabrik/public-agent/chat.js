@@ -1,9 +1,9 @@
-// fabrik's chat box for the owner's website. A page adds it with one script tag, which names the public-agent function's
-// address and the Turnstile widget's site key:
+// fabrik's chat box. The chat page fabrik chat-page builds adds it with one script tag, which names the public-agent
+// function's address:
 //
-//   <script src="chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-sitekey="0x4AAA..."></script>
+//   <script src="chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent"></script>
 //
-// The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
+// It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget. Each question is posted with a new Turnstile token and the latest
 // turns that fit the function's limits: at most 10 turns and 8,000 characters. The page keeps those turns in memory
 // alone, so a reload starts afresh. Each answer is shown as plain text.
@@ -56,15 +56,33 @@
     li.scrollIntoView({ block: "nearest" });
   }
 
-  if (!address || !sitekey) { line("This chat box needs data-address and data-sitekey on its script tag.", "problem"); form.hidden = true; return; }
+  if (!address) { line("This chat box needs data-address on its script tag.", "problem"); form.hidden = true; return; }
 
   window.fabrikChatTurnstile = function () {
     widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible" });
   };
-  var api = document.createElement("script");
-  api.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=fabrikChatTurnstile";
-  api.async = true; api.defer = true;
-  document.head.appendChild(api);
+  function loadTurnstile() {
+    var api = document.createElement("script");
+    api.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=fabrikChatTurnstile";
+    api.async = true; api.defer = true;
+    document.head.appendChild(api);
+  }
+  if (sitekey) loadTurnstile();
+  else fetch(address, { method: "GET" }).then(function (res) {
+    return res.json().catch(function () { return {}; });
+  }).then(function (body) {
+    if (body.setup === "sitekey") {
+      line("This chat isn't set up yet: fabrik has no Turnstile site key. Save it on the public agent card.", "a problem");
+      form.hidden = true;
+      return;
+    }
+    if (typeof body.sitekey !== "string" || !body.sitekey) throw new Error("no site key");
+    sitekey = body.sitekey;
+    loadTurnstile();
+  }).catch(function () {
+    line("The assistant can't answer right now. Try again later.", "a problem");
+    form.hidden = true;
+  });
 
   // The latest turns that fit the function's limits. Older turns are left out.
   function fitting() {
