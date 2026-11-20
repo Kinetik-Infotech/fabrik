@@ -1,6 +1,6 @@
 // The fabrik plugin's skills and its agent, read as files: each connector tool a skill names is one fabrik-apps
 // serves, each skill the agent names is a folder of skills, the routine skills pass the humanizer's checks, and no
-// skill names another product's commands. Run with: node --test
+// skill names another product's commands. Run with: node scripts/test.mjs plugins/fabrik/__tests__/skills.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";

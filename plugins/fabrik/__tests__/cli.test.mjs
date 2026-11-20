@@ -1,6 +1,6 @@
 // The fabrik command at a terminal, as a person runs it, against a local stand-in for Supabase's Auth
 // and REST endpoints. Its drawing runs the fabrik plugin's own scripts, with Python 3.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/fabrik/__tests__/cli.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

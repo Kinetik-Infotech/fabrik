@@ -7,6 +7,7 @@ You are the Claude Code session a human started on their home folder to set fabr
 Before the human types a password or token in a Terminal tab, tell them that nothing will show. They type or paste it once, then press Enter. Never ask for a password or token in the chat.
 
 1. **Prerequisites.** Check each one, and install what is missing or out of date before going on:
+   - **The operating system.** A Mac needs macOS 15 or later, since Homebrew has no ready-built Poppler for older ones. Windows needs Windows 10 version 1809 or later, the oldest that runs winget. On an older system, `fabrik setup` stops with one line naming the update. Ask the human to update first.
    - **Node.js 26.** Any other version will not do. `installCommand()` in `plugins/fabrik/cli/node-version.mjs` in this repository gives the install for each system. An install that prompts for the computer's password runs in a Terminal tab with `run_in_terminal`, where the human types it.
    - **Git.** Install it with the system's usual installer if it is missing.
 
