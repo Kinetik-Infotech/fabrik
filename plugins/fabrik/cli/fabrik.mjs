@@ -320,7 +320,7 @@ export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(
     const out = JSON.parse((await database.callTool("rpc", { function: fn, schema: SCHEMA, args: callArgs })).content[0].text);
     if (!out.ok) throw new Error(out.problem);
     return out.result;
-  });
+  }, { strict: true, wait: 30_000 });
   const { site, widget } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere }, { ask, say, home });
   return { ok: true, site, widget };
 }

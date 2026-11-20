@@ -261,9 +261,15 @@ async function setTurnstile(givenSecret: unknown, givenSitekey: unknown) {
   if (got.codes.includes("invalid-input-secret") || got.codes.includes("missing-input-secret"))
     throw refuse(422, `Cloudflare refused the ${candidate ? "" : "saved "}secret key. Nothing was kept.`);
   if (candidate) await vaultSet(TURNSTILE_NAME, candidate, "The secret key of the website chat box's Cloudflare Turnstile widget, set with the set_turnstile action");
-  if (sitekey) await sql`update fabrik_private.public_agent_setting set turnstile_sitekey = ${sitekey}, updated_at = now() where id`;
+  if (sitekey) { await sql`update fabrik_private.public_agent_setting set turnstile_sitekey = ${sitekey}, updated_at = now() where id`; siteKeyKept = null; }
   return { ok: true, ...(candidate ? { turnstile: "set" } : {}), ...(sitekey ? { sitekey: "set" } : {}) };
 }
+
+/** The site key this instance of the function read last, and when. */
+let siteKeyKept: { sitekey: string; at: number } | null = null;
+const SITEKEY_KEEP_MS = 60_000;
+const sitekeyReply = (sitekey: string) => new Response(JSON.stringify({ sitekey }),
+  { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300", ...CORS } });
 
 /** The chat page's site key, for anyone: { sitekey }, or 503 when none is saved. */
 async function sitekeyOf() {
@@ -322,11 +328,17 @@ async function changeSettings(args: Record<string, unknown>) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method === "GET") {
+    // A saved site key is kept in memory for a minute, and the browser keeps it five, so page loads seldom reach the
+    // database. A new key reaches every page within six minutes.
+    if (siteKeyKept && Date.now() - siteKeyKept.at < SITEKEY_KEEP_MS) return sitekeyReply(siteKeyKept.sitekey);
     const db = seam.connect();
     try {
       return await runs.run({ sql: db, secrets: [] }, async () => {
-        try { return json(200, await sitekeyOf()); }
-        catch (err) { if (err instanceof Refusal) return json(err.status, err.body); throw err; }
+        try {
+          const { sitekey } = await sitekeyOf();
+          siteKeyKept = { sitekey, at: Date.now() };
+          return sitekeyReply(sitekey);
+        } catch (err) { if (err instanceof Refusal) return json(err.status, err.body); throw err; }
       });
     } finally { await db.end(); }
   }

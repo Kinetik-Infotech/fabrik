@@ -16,9 +16,18 @@
   window.fabrikChatWidget = true;
   var built = { "data-accent": "{{ACCENT}}", "data-on-accent": "{{ON_ACCENT}}" };
   var COLOUR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  // The text colour that reads best on a colour, near black or white, as fabrik chat-page's onColour works it out.
+  function onColour(hex) {
+    var h = hex.slice(1);
+    if (h.length === 3) h = h.replace(/./g, "$&$&");
+    var lin = function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    var l = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+    // 0.0056 is #111111's luminance.
+    return (l + 0.05) / (0.0056 + 0.05) > 1.05 / (l + 0.05) ? "#111111" : "#ffffff";
+  }
   var given = script.getAttribute("data-accent");
   var accent = given && COLOUR.test(given) ? given : built["data-accent"];
-  var onAccent = given && COLOUR.test(given) ? "#ffffff" : built["data-on-accent"];
+  var onAccent = given && COLOUR.test(given) ? onColour(given) : built["data-on-accent"];
   var page = new URL(".", script.src).href;
 
   var CHAT = '<svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>';

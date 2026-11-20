@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { both, fontImport, headLogoHtml, stack } from "./lib/brand.mjs";
+import { fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
 import { putUpPage, WRANGLER } from "./sign-in-page.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -52,11 +52,7 @@ export function onColour(hex) {
 }
 
 /** The brand's value of a token in light and dark, or fabrik's own where the brand gives neither. */
-function token(brand, name) {
-  const light = brand?.palette.light[name] ?? brand?.palette.dark[name];
-  const dark = brand?.palette.dark[name] ?? light;
-  return light ? [light, dark] : FABRIK[name];
-}
+const token = (brand, name) => pairOf(brand, name) ?? FABRIK[name];
 
 /** The page's style: the fonts' @import, then its tokens in light and dark. */
 export function pageStyle(brand) {
@@ -92,10 +88,13 @@ export function buildChatPage({ brand, address, folder }) {
 
 /**
  * Builds the chat page for the project ref and puts it up. url is the project's address, and readBrand() gives the
- * brand or null. The options are putUpPage's. Returns { site, widget, folder }.
+ * brand, null when fabrik holds none, or throws when it can't be read. A failed read puts nothing up, so a live page
+ * never loses its brand. The options are putUpPage's. Returns { site, widget, folder }.
  */
 export async function chatPage({ ref, url, readBrand }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
-  const brand = await readBrand();
+  let brand;
+  try { brand = await readBrand(); }
+  catch (err) { throw new Error(`fabrik couldn't read the Brand record, so the chat page wasn't put up: ${err instanceof Error ? err.message : err}`); }
   const folder = chatFolder(ref, home);
   buildChatPage({ brand, address: `${url}/functions/v1/public-agent`, folder });
   say(brand ? `Built the chat page in ${brand.name || "the business"}'s brand.` : "Built the chat page in fabrik's own look, since fabrik holds no Brand record.");
