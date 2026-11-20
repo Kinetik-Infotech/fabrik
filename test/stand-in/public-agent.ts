@@ -1,16 +1,22 @@
 // The public-agent hosted function, run against the step's own copy of the build, with Anthropic's API, Cloudflare's
 // siteverify and Supabase's Storage and Auth answered here. Nothing outside this computer is called.
 //
-// An administrator sets the key, the Turnstile secret and KNOWLEDGE.md. A person who isn't one is refused each, and a
-// wrong key or secret is not kept.
+// An administrator sets the key, the Turnstile secret and an agent's files. A person who isn't one is refused each, and
+// a wrong key or secret is not kept. The agent chat, which upgrade 0014 makes from the one chat box, takes its old
+// KNOWLEDGE.md.
 //
-// A visitor's question in the file gets the file's answer, and one outside it gets don't know. The request to
-// Claude holds the fixed instruction, then the file, cached, the latest turns that fit, at most 10, and 1,000 tokens. A
-// post with no Turnstile token is refused before a database connection opens, and a failed check gets 403 and calls
-// nothing. chat.js, run in a page, gets an answer to every question of a long conversation. A GET gives the Turnstile
-// site key once one is saved. fabrik chat-page builds the chat page from a Brand record, in its colours and with its
-// logo, and widget.js, run in a page on another website, opens the chat page in a panel, where a question gets its answer. Once today's tokens reach the cap, the answer is the resting message and
-// Claude isn't called. No row anywhere holds a question, and no reply holds the key or the secret. run.sh runs it.
+// A visitor's question in the file gets the file's answer, and one outside it gets don't know. The request to Claude
+// holds the agent's INSTRUCTIONS.md, which starts as the starting text, then AGENTS.md, then KNOWLEDGE.md, cached
+// together, the latest turns that fit, at most 10, and 1,000 tokens. Three agents each answer from their own files, and
+// each one's cap counts its own tokens. AGENTS.md follows a new name or purpose and a removed agent, and an emptied
+// INSTRUCTIONS.md stays empty. A post with no Turnstile token is refused before a database connection opens, and a
+// failed check gets 403 and calls nothing.
+//
+// chat.js, run in a page, gets an answer to every question of a long conversation. A GET gives the Turnstile site key
+// once one is saved. fabrik chat-page builds a page for each agent and a list of them from a Brand record, in its colours
+// and with its logo. widget.js, run in a page on another website, opens the page of the agent data-agent names in a
+// panel, where a question gets that agent's answer. Once today's tokens reach the cap, the answer is the resting message
+// and Claude isn't called. No row anywhere holds a question, and no reply holds the key or the secret. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 import { Window } from "npm:happy-dom@20.0.10";
@@ -44,12 +50,14 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   if (req.method === "GET" && url.pathname.startsWith("/v1/models/")) {
     const id = url.pathname.slice("/v1/models/".length);
     if (!id.startsWith("claude-")) return Response.json({ type: "error", error: { type: "not_found_error", message: id } }, { status: 404 });
+    // A model the organisation's key may not use.
+    if (id.includes("locked")) return Response.json({ type: "error", error: { type: "permission_error", message: id } }, { status: 403 });
     return Response.json({ type: "model", id, display_name: id, created_at: "2026-09-01T00:00:00Z" });
   }
   if (req.method === "POST" && url.pathname === "/v1/messages") {
     const body = await req.json();
     sent.push(body);
-    const file = String(body.system?.[1]?.text ?? "");
+    const file = String(body.system?.at(-1)?.text ?? "");
     const words = String(body.messages.at(-1).content).toLowerCase().match(/[a-z]{4,}/g) ?? [];
     const line = file.split("\n").find((l) => words.some((w) => l.toLowerCase().includes(w)));
     const text = String(body.messages.at(-1).content).includes("long answer") ? `Long answer. ${"z".repeat(817)}`
@@ -76,17 +84,31 @@ const cloudflare = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   return Response.json(response === GOOD_TOKEN ? { success: true, "error-codes": [] } : { success: false, "error-codes": ["invalid-input-response"] });
 });
 
-// Supabase's Storage, for the service key alone: an upload keeps the file and inserts its row, as Storage does.
-let stored: string | null = null;
+// Supabase's Storage, for the service key alone: an upload keeps the file and inserts its row, as Storage does. A move
+// renames a file, and a delete removes it.
+const files = new Map<string, string>();
 const supabase = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const path = new URL(req.url).pathname;
-  if (path !== "/storage/v1/object/public-agent/KNOWLEDGE.md" || req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`)
-    return Response.json({ statusCode: "403", error: "Unauthorized" }, { status: 400 });
-  if (req.method === "GET") return stored === null ? Response.json({ statusCode: "404", error: "not_found" }, { status: 400 }) : new Response(stored);
-  stored = await req.text();
-  await sql`insert into storage.objects(bucket_id, name, metadata) values ('public-agent', 'KNOWLEDGE.md', ${sql.json({ size: stored.length })})
+  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) return Response.json({ statusCode: "403", error: "Unauthorized" }, { status: 400 });
+  if (path === "/storage/v1/object/move" && req.method === "POST") {
+    const { bucketId, sourceKey, destinationKey } = await req.json();
+    if (bucketId !== "public-agent" || !files.has(sourceKey)) return Response.json({ statusCode: "404", error: "not_found" }, { status: 400 });
+    files.set(destinationKey, files.get(sourceKey)!);
+    files.delete(sourceKey);
+    await sql`update storage.objects set name = ${destinationKey} where bucket_id = 'public-agent' and name = ${sourceKey}`;
+    return Response.json({ message: "Successfully moved" });
+  }
+  const name = /^\/storage\/v1\/object\/public-agent\/([a-z0-9/.-]+|KNOWLEDGE\.md)$/.exec(path)?.[1];
+  if (!name) return Response.json({ statusCode: "403", error: "Unauthorized" }, { status: 400 });
+  if (req.method === "GET") return files.has(name) ? new Response(files.get(name)) : Response.json({ statusCode: "404", error: "not_found" }, { status: 400 });
+  if (req.method === "DELETE") {
+    if (!files.delete(name)) return Response.json({ statusCode: "404", error: "not_found" }, { status: 400 });
+    return Response.json({ message: "Successfully deleted" });
+  }
+  files.set(name, await req.text());
+  await sql`insert into storage.objects(bucket_id, name, metadata) values ('public-agent', ${name}, ${sql.json({ size: files.get(name)!.length })})
     on conflict do nothing`;
-  return Response.json({ Key: "public-agent/KNOWLEDGE.md" });
+  return Response.json({ Key: `public-agent/${name}` });
 });
 
 Deno.env.set("SUPABASE_URL", `http://127.0.0.1:${supabase.addr.port}`);
@@ -95,7 +117,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 let handler: ((req: Request) => Promise<Response>) | undefined;
 const serve = Deno.serve;
 (Deno as unknown as { serve: unknown }).serve = (h: typeof handler) => { handler = h; return { finished: Promise.resolve(), shutdown() {} }; };
-const { seam, INSTRUCTION, RESTING, UNAVAILABLE, NOT_CHECKED } = await import(FUNCTION.href);
+const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED } = await import(FUNCTION.href);
 (Deno as unknown as { serve: unknown }).serve = serve;
 seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
@@ -145,6 +167,10 @@ try {
 
   const [bucket] = await sql`select public from storage.buckets where id = 'public-agent'`;
   check("the build makes the private bucket public-agent", bucket?.public === false, bucket);
+  // A project whose one chat box answered from KNOWLEDGE.md before there were many agents: upgrade 0014 made it the
+  // agent chat.
+  files.set("KNOWLEDGE.md", KNOWLEDGE);
+  await sql`insert into fabrik_private.public_agent(slug, name) values ('chat', 'Chat')`;
 
   // Before setup, a visitor is told the assistant can't answer, and nothing outside is called.
   let res = await ask("When are you open?");
@@ -155,13 +181,15 @@ try {
     preflight.status === 204 && preflight.headers.get("Access-Control-Allow-Origin") === "*" && /content-type/.test(preflight.headers.get("Access-Control-Allow-Headers") ?? ""), preflight.status);
 
   // The settings actions, for an administrator alone.
-  for (const action of ["check", "set_key", "set_turnstile", "remove_key", "knowledge_get", "knowledge_save", "settings"]) {
-    res = await post({ action, key: KEY, secret: SECRET, text: KNOWLEDGE }, person);
+  for (const action of ["check", "set_key", "set_turnstile", "remove_key", "agents_list", "agent_create", "agent_change", "agent_remove",
+    "knowledge_get", "knowledge_save", "instructions_get", "instructions_save", "settings"]) {
+    res = await post({ action, agent: "chat", name: "Hijacked", key: KEY, secret: SECRET, text: KNOWLEDGE }, person);
     if (res.status !== 403) check(`a person who isn't an administrator is refused ${action}`, false, res);
   }
   res = await post({ action: "check" });
   check("a person who isn't an administrator is refused every action, and an action with no sign-in gets 401",
-    res.status === 401 && stored === null && (await sql`select count(*)::int as n from vault.secrets`)[0].n === 0, res);
+    res.status === 401 && JSON.stringify([...files.keys()]) === '["KNOWLEDGE.md"]'
+      && (await sql`select name from fabrik_private.public_agent`).map((r) => r.name).join() === "Chat" && (await sql`select count(*)::int as n from vault.secrets`)[0].n === 0, res);
   res = await post({ action: "set_key", key: WRONG }, admin);
   check("a key Anthropic refuses is not kept", res.status === 422 && (await sql`select count(*)::int as n from vault.secrets`)[0].n === 0, res);
   res = await post({ action: "set_key", key: KEY }, admin);
@@ -172,17 +200,25 @@ try {
   check("a Turnstile secret Cloudflare refuses is not kept", res.status === 422 && res.body.problem === "Cloudflare refused the secret key. Nothing was kept.", res);
   res = await post({ action: "set_turnstile", secret: SECRET }, admin);
   check("set_turnstile keeps the secret once siteverify takes it", res.status === 200 && res.body.turnstile === "set", res);
-  res = await post({ action: "knowledge_save", text: "x".repeat(100_001) }, admin);
-  check("a KNOWLEDGE.md over 100,000 characters is refused", res.status === 400 && stored === null, res);
-  res = await post({ action: "knowledge_save", text: KNOWLEDGE }, admin);
-  const got = await post({ action: "knowledge_get" }, admin);
+  const looked = await post({ action: "check" }, admin);
+  check("check reads the agents' files and saves or moves none of them",
+    looked.body.agents?.[0]?.knowledge === true && looked.body.agents?.[0]?.instructions === "starting"
+      && JSON.stringify([...files.keys()]) === '["KNOWLEDGE.md"]', { looked: looked.body, files: [...files.keys()] });
+  const [moved, movedToo] = await Promise.all([post({ action: "knowledge_get", agent: "chat" }, admin), post({ action: "knowledge_get", agent: "chat" }, admin)]);
+  check("the agent chat's first read moves the KNOWLEDGE.md the one chat box answered from to agents/chat/knowledge.md, and a read at the same moment gets it too",
+    moved.body.text === KNOWLEDGE && movedToo.body.text === KNOWLEDGE && JSON.stringify([...files.keys()]) === '["agents/chat/knowledge.md"]',
+    { moved, movedToo, files: [...files.keys()] });
+  res = await post({ action: "knowledge_save", agent: "chat", text: "x".repeat(100_001) }, admin);
+  check("a KNOWLEDGE.md over 100,000 characters is refused", res.status === 400 && files.get("agents/chat/knowledge.md") === KNOWLEDGE, res);
+  res = await post({ action: "knowledge_save", agent: "chat", text: KNOWLEDGE }, admin);
+  const got = await post({ action: "knowledge_get", agent: "chat" }, admin);
   check("knowledge_save keeps KNOWLEDGE.md and knowledge_get reads it back", res.status === 200 && got.body.text === KNOWLEDGE, { res, got });
   const [{ n: queued }] = await sql`select count(*)::int as n from file_search.file_version where bucket_id = 'public-agent'`;
   check("KNOWLEDGE.md isn't queued for fabrik's file search", queued === 0, queued);
   res = await post({ action: "check" }, admin);
   check("check says the key is available, the secret set and the file there",
-    res.body.key === "available" && res.body.turnstile === "set" && res.body.knowledge === true, res);
-  res = await post({ action: "settings" }, admin);
+    res.body.key === "available" && res.body.turnstile === "set" && res.body.agents?.[0]?.knowledge === true, res);
+  res = await post({ action: "settings", agent: "chat" }, admin);
   check("settings gives Claude Haiku 5.5 and a cap of 500,000 tokens to start, and no tokens today",
     res.body.model === "claude-haiku-5-5" && res.body.daily_cap_tokens === 500000 && res.body.today_tokens === 0, res);
 
@@ -224,8 +260,9 @@ try {
   res = await ask("What are your opening hours?");
   check("a question the file answers gets the file's answer", res.status === 200 && res.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && res.cors === "*", res);
   const first = sent.at(-1);
-  check("Claude gets the fixed instruction, then the file with cache_control, the default model and at most 1,000 tokens",
-    first.model === "claude-haiku-5-5" && first.max_tokens === 1000 && first.system[0].text === INSTRUCTION && !first.system[0].cache_control
+  check("the agent chat's first question saves the starting text as its INSTRUCTIONS.md, and with one agent Claude gets it, then KNOWLEDGE.md with cache_control, the default model and at most 1,000 tokens",
+    files.get("agents/chat/instructions.md") === STARTING && first.model === "claude-haiku-5-5" && first.max_tokens === 1000 && first.system.length === 2
+      && first.system[0].text === STARTING && !first.system[0].cache_control
       && first.system[1].text === `<knowledge>\n${KNOWLEDGE}\n</knowledge>` && first.system[1].cache_control?.type === "ephemeral" && !first.tools, first);
   const history = Array.from({ length: 12 }, (_, i) => [{ role: "user", content: `Earlier question ${i}` }, { role: "assistant", content: `Earlier answer ${i}` }]).flat();
   res = await ask(`What is your home address, ${marker}?`, { history });
@@ -253,20 +290,23 @@ try {
   // The daily cap. The most an answer can cost is held before Claude is called. Four answers of 1,030 tokens make 4,120,
   // with each one's 6,000 tokens of cache read counted at 600. Under a cap of 5,000 there's less room than one answer's
   // 1,000 tokens of output, so the answer is the resting message.
-  res = await post({ action: "settings", daily_cap_tokens: 5000 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 5000 }, admin);
   const held = sent.length;
   const short = await ask("What services do you offer?");
-  const afterHold = await post({ action: "settings" }, admin);
+  const afterHold = await post({ action: "settings", agent: "chat" }, admin);
   check("an answer whose most would pass the cap gets the resting message, Claude isn't called, and nothing stays held",
     short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 4120, { short, afterHold });
-  res = await post({ action: "settings", daily_cap_tokens: 4000 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 4000 }, admin);
   check("settings counts today's tokens from Claude's usage, a cache read at a tenth, and sets the cap", res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 4000, res);
   const before = sent.length;
   res = await ask("What services do you offer?");
   check("once today's tokens reach the cap, the answer is the resting message and Claude isn't called",
     res.status === 200 && res.body.answer === RESTING && sent.length === before, res);
-  res = await post({ action: "settings", model: "gpt-4" }, admin);
+  res = await post({ action: "settings", agent: "chat", model: "gpt-4" }, admin);
   check("a model that isn't Claude's is refused", res.status === 400, res);
+  res = await post({ action: "settings", page: "https://elsewhere.example", daily_cap_tokens: 9000 }, admin);
+  const [{ p: pageAfter }] = await sql`select page_address as p from fabrik_private.public_agent_setting`;
+  check("settings with a cap and no agent is refused, and the page's address it gave isn't saved", res.status === 400 && pageAfter === null, { res, pageAfter });
 
   // Nothing holds a question.
   const tables = await sql`select format('%I.%I', table_schema, table_name) as t from information_schema.tables
@@ -276,22 +316,99 @@ try {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like $1`, [`%${marker}%`]);
     if (n) holding.push(t);
   }
-  const [usage] = await sql`select tokens from fabrik_private.public_agent_usage where day = (now() at time zone 'utc')::date`;
+  const [usage] = await sql`select tokens from fabrik_private.public_agent_usage where slug = 'chat' and day = (now() at time zone 'utc')::date`;
   check(`no row in any of ${tables.length} tables holds a question, and the usage row holds today's tokens`, holding.length === 0 && Number(usage?.tokens) === 4120, { holding, usage });
 
   // The hold counts bytes, so a question in any language can't pass the cap. 2,000 Chinese characters are 6,000 bytes:
   // with 4,120 spent, a cap of 10,120 leaves too little room for them.
-  res = await post({ action: "settings", daily_cap_tokens: 10120 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 10120 }, admin);
   const beforeChinese = sent.length;
   const chinese = await ask("营".repeat(2000));
   check("a 2,000-character question in Chinese is held at its 6,000 bytes, so it gets the resting message under a cap of 10,120",
     chinese.body.answer === RESTING && sent.length === beforeChinese, chinese);
   // A reply that breaks after Claude has charged for it still puts its own tokens in place of what was held.
-  res = await post({ action: "settings", daily_cap_tokens: 500000 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 500000 }, admin);
   const broken = await ask("Tell me about the broken reply");
-  const afterBroken = await post({ action: "settings" }, admin);
+  const afterBroken = await post({ action: "settings", agent: "chat" }, admin);
   check("a reply the function can't read gets the words a visitor reads, and today's tokens hold its 1,030, not what was held",
     broken.status === 500 && broken.body.problem === UNAVAILABLE && afterBroken.body.today_tokens === 4120 + 1030, { broken, afterBroken });
+
+  // Three agents. Each answers from its own files, and Claude's system prompt holds its INSTRUCTIONS.md, AGENTS.md and
+  // KNOWLEDGE.md and nothing else.
+  const BOOKINGS = "Tables: book by phone on 01234 567890.\n";
+  const CAKES = "Celebration cakes: order a week ahead.\n";
+  const BEA = "You are Bea, who takes the bakery's bookings. Speak briskly and kindly.\n";
+  const badSlug = await post({ action: "agent_create", agent: "Bookings!", name: "Bookings" }, admin);
+  const madeBookings = await post({ action: "agent_create", agent: "bookings", name: "Bookings", purpose: "Books a table." }, admin);
+  const madeCakes = await post({ action: "agent_create", agent: "cakes", name: "Cakes", purpose: "Answers questions about celebration cakes." }, admin);
+  const twice = await post({ action: "agent_create", agent: "cakes", name: "Cakes again" }, admin);
+  check("agent_create makes an agent with its slug, name and purpose, and refuses a slug that isn't one or is taken",
+    badSlug.status === 400 && madeBookings.body.slug === "bookings" && madeCakes.body.purpose === "Answers questions about celebration cakes."
+      && twice.status === 409 && files.get("agents/cakes/instructions.md") === STARTING, { badSlug, madeBookings, madeCakes, twice });
+  await post({ action: "settings", page: "https://fabrik-chat-abc.pages.dev/" }, admin);
+  const AGENTS_MD = "- Chat, https://fabrik-chat-abc.pages.dev/chat/\n- Bookings, https://fabrik-chat-abc.pages.dev/bookings/: Books a table.\n" +
+    "- Cakes, https://fabrik-chat-abc.pages.dev/cakes/: Answers questions about celebration cakes.\n";
+  check("AGENTS.md lists every agent, one line each, with its name, its page's address and its purpose", files.get("agents.md") === AGENTS_MD, files.get("agents.md"));
+  await post({ action: "knowledge_save", agent: "bookings", text: BOOKINGS }, admin);
+  await post({ action: "knowledge_save", agent: "cakes", text: CAKES }, admin);
+  await post({ action: "instructions_save", agent: "bookings", text: BEA }, admin);
+  const askedChat = await ask("What are your opening hours?");
+  const chatSystem = sent.at(-1).system;
+  const askedBookings = await ask("How do I book tables?", { agent: "bookings" });
+  const bookingsSystem = sent.at(-1).system;
+  const askedCakes = await ask("Can I order celebration cakes?", { agent: "cakes" });
+  const cakesSystem = sent.at(-1).system;
+  const block = (text: string, cached = false) => JSON.stringify({ type: "text", text, ...(cached ? { cache_control: { type: "ephemeral" } } : {}) });
+  const holds = (system: unknown[], parts: string[]) => JSON.stringify(system) === `[${parts.join(",")}]`;
+  check("each agent answers from its own files, and Claude's system prompt is its INSTRUCTIONS.md, AGENTS.md and KNOWLEDGE.md, cached together, and nothing else",
+    askedChat.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && askedBookings.body.answer === "Tables: book by phone on 01234 567890."
+      && askedCakes.body.answer === "Celebration cakes: order a week ahead."
+      && holds(chatSystem, [block(STARTING), block(`<agents>\n${AGENTS_MD}\n</agents>`), block(`<knowledge>\n${KNOWLEDGE}\n</knowledge>`, true)])
+      && holds(bookingsSystem, [block(BEA), block(`<agents>\n${AGENTS_MD}\n</agents>`), block(`<knowledge>\n${BOOKINGS}\n</knowledge>`, true)])
+      && holds(cakesSystem, [block(STARTING), block(`<agents>\n${AGENTS_MD}\n</agents>`), block(`<knowledge>\n${CAKES}\n</knowledge>`, true)]),
+    { askedChat, askedBookings, askedCakes, chatSystem, bookingsSystem, cakesSystem });
+  const callsBefore = sent.length;
+  const unknown = await ask("Hi", { agent: "nobody" });
+  check("a question to an agent fabrik doesn't have gets 404 and calls nothing", unknown.status === 404 && sent.length === callsBefore, unknown);
+
+  // Each agent's cap counts its own tokens.
+  const tokensOf = async () => Object.fromEntries((await post({ action: "agents_list" }, admin)).body.agents.map((a: any) => [a.slug, a.today_tokens]));
+  const counted = await tokensOf();
+  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 2000 }, admin);
+  const restingBookings = await ask("How do I book tables?", { agent: "bookings" });
+  const stillCakes = await ask("Can I order celebration cakes?", { agent: "cakes" });
+  check("each agent's cap counts its own tokens: Bookings rests at its cap, and Cakes still answers",
+    counted.chat === 5150 + 1030 && counted.bookings === 1030 && counted.cakes === 1030 && restingBookings.body.answer === RESTING
+      && stillCakes.body.answer === "Celebration cakes: order a week ahead.", { counted, restingBookings, stillCakes });
+  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 500000 }, admin);
+
+  // An emptied INSTRUCTIONS.md stays empty.
+  await post({ action: "instructions_save", agent: "bookings", text: "" }, admin);
+  await ask("How do I book tables?", { agent: "bookings" });
+  const emptySystem = sent.at(-1).system;
+  const emptyGot = await post({ action: "instructions_get", agent: "bookings" }, admin);
+  const emptyCheck = (await post({ action: "check" }, admin)).body.agents;
+  check("an emptied INSTRUCTIONS.md stays empty, and Claude then gets AGENTS.md and KNOWLEDGE.md alone",
+    files.get("agents/bookings/instructions.md") === "" && emptyGot.body.text === ""
+      && holds(emptySystem, [block(`<agents>\n${AGENTS_MD}\n</agents>`), block(`<knowledge>\n${BOOKINGS}\n</knowledge>`, true)])
+      && JSON.stringify(emptyCheck.map((a: any) => a.instructions)) === '["starting","empty","starting"]', { emptySystem, emptyGot, emptyCheck });
+
+  // The key is checked against every agent's model, not one.
+  await sql`update fabrik_private.public_agent set model = 'claude-locked-1' where slug = 'bookings'`;
+  const lockedCheck = (await post({ action: "check" }, admin)).body;
+  await sql`update fabrik_private.public_agent set model = 'claude-haiku-5-5' where slug = 'bookings'`;
+  check("check says Anthropic refuses the key when one agent's model is one the key may not use", lockedCheck.key === "refused", lockedCheck);
+
+  // AGENTS.md follows a new name and purpose, on one line however it was typed, and a removed agent.
+  await post({ action: "agent_change", agent: "cakes", name: "Celebration cakes", purpose: "Cakes for birthdays\nand weddings." }, admin);
+  const renamed = files.get("agents.md");
+  const removed = await post({ action: "agent_remove", agent: "cakes" }, admin);
+  const afterRemove = files.get("agents.md");
+  const [{ n: cakesTokens }] = await sql`select count(*)::int as n from fabrik_private.public_agent_usage where slug = 'cakes'`;
+  check("AGENTS.md changes when an agent is renamed or removed, and a removed agent's files and tokens go",
+    renamed === AGENTS_MD.replace("- Cakes, https://fabrik-chat-abc.pages.dev/cakes/: Answers questions about celebration cakes.", "- Celebration cakes, https://fabrik-chat-abc.pages.dev/cakes/: Cakes for birthdays and weddings.")
+      && removed.body.removed === true && afterRemove === "- Chat, https://fabrik-chat-abc.pages.dev/chat/\n- Bookings, https://fabrik-chat-abc.pages.dev/bookings/: Books a table.\n"
+      && !files.has("agents/cakes/knowledge.md") && !files.has("agents/cakes/instructions.md") && cakesTokens === 0, { renamed, removed, afterRemove, cakesTokens });
 
   // chat.js in a page, posting to the function. Each answer is 830 characters, so after nine of them the last 10 turns
   // would pass 8,000 characters. chat.js sends the latest turns that fit, and every question gets its answer.
@@ -335,40 +452,58 @@ try {
   await Deno.writeTextFile(`${tools}/wrangler-state.json`, JSON.stringify({ projects: [] }));
   const node = spawnSync("node", ["--version"]).status === 0 ? "node" : null;
   const said: string[] = [];
-  const built = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)) },
-    { ask: () => Promise.reject(new Error("asked")), say: (l: string) => said.push(l), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() });
+  // The agents and the page's address, read and saved with public-agent's own actions, as the administrator.
+  const action = async (body: Record<string, unknown>) => { const r = await post(body, admin); if (r.status !== 200) throw new Error(r.body.problem); return r.body; };
+  const readAgents = async () => (await action({ action: "agents_list" })).agents;
+  const savePage = (page: string) => action({ action: "settings", page });
+  const options = { ask: () => Promise.reject(new Error("asked")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() };
+  const built = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)), readAgents, savePage },
+    { ...options, say: (l: string) => said.push(l) });
   const wrangled = JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`));
-  const indexHtml = await Deno.readTextFile(`${built.folder}/index.html`);
+  const rootHtml = await Deno.readTextFile(`${built.folder}/index.html`);
+  const bookingsHtml = await Deno.readTextFile(`${built.folder}/bookings/index.html`);
   const widgetJs = await Deno.readTextFile(`${built.folder}/widget.js`);
   const site = `https://${chatProject("abcdefghijklmnopqrst")}.pages.dev`;
-  check("fabrik chat-page puts index.html, chat.js and widget.js up as fabrik-chat-<ref> and gives the page's address and the widget line",
-    built.site === site && built.widget === `<script src="${site}/widget.js" async></script>` && built.widget === widgetLine(site)
+  check("fabrik chat-page puts a page for each agent, the list of agents, chat.js and widget.js up as fabrik-chat-<ref>, and gives each agent's page and widget line",
+    built.site === site && JSON.stringify(built.agents) === JSON.stringify([
+      { slug: "chat", name: "Chat", page: `${site}/chat/`, widget: `<script src="${site}/widget.js" data-agent="chat" async></script>` },
+      { slug: "bookings", name: "Bookings", page: `${site}/bookings/`, widget: widgetLine(site, "bookings") }])
       && wrangled.deployed?.project === "fabrik-chat-abcdefghijklmnopqrst" && wrangled.deployed?.folder === built.folder && wrangled.deployed?.branch === "main"
-      && ["index.html", "chat.js", "widget.js"].every((f) => existsSync(`${built.folder}/${f}`)) && said.some((l) => l.includes("Smith Joinery")),
+      && ["index.html", "chat/index.html", "bookings/index.html", "chat.js", "widget.js"].every((f) => existsSync(`${built.folder}/${f}`)) && said.some((l) => l.includes("Smith Joinery")),
     { built, wrangled, said });
-  const pageBefore = await Deno.readTextFile(`${built.folder}/index.html`);
+  check("fabrik chat-page saves the page's address, and AGENTS.md then gives each agent's page",
+    files.get("agents.md") === `- Chat, ${site}/chat/\n- Bookings, ${site}/bookings/: Books a table.\n`, files.get("agents.md"));
+  const pageBefore = rootHtml;
   const deployedBefore = await Deno.readTextFile(`${tools}/wrangler-state.json`);
-  const stopped = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.reject(new Error("fabrik didn't answer in time.")) },
-    { ask: () => Promise.reject(new Error("asked")), say: () => {}, wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() })
-    .then(() => null, (err: Error) => err.message);
-  check("where the Brand record can't be read, fabrik chat-page stops and the page put up before stays as it was",
-    /couldn't read the Brand record/.test(String(stopped)) && await Deno.readTextFile(`${tools}/wrangler-state.json`) === deployedBefore
-      && await Deno.readTextFile(`${built.folder}/index.html`) === pageBefore, stopped);
+  const stopped = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.reject(new Error("fabrik didn't answer in time.")), readAgents, savePage },
+    { ...options, say: () => {} }).then(() => null, (err: Error) => err.message);
+  const noAgents = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(null), readAgents: () => Promise.resolve([]), savePage },
+    { ...options, say: () => {} }).then(() => null, (err: Error) => err.message);
+  check("where the Brand record can't be read, or there's no agent, fabrik chat-page stops and the pages put up before stay as they were",
+    /couldn't read the Brand record/.test(String(stopped)) && /no public agent yet/.test(String(noAgents)) && await Deno.readTextFile(`${tools}/wrangler-state.json`) === deployedBefore
+      && await Deno.readTextFile(`${built.folder}/index.html`) === pageBefore, { stopped, noAgents });
   const logo = brandRecord.payload.graph.nodes[0].attributes.logo.data_address;
-  check("the page takes the Brand record's colours in light and dark, its fonts, its logo and its name, and names the function's address",
-    indexHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && indexHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
-      && indexHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && indexHtml.includes('"Fraunces"') && indexHtml.includes(`src="${logo}"`)
-      && indexHtml.includes("<title>Smith Joinery</title>") && indexHtml.includes('data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent"')
-      && !indexHtml.includes("{{") && !indexHtml.includes("data-sitekey"),
-    indexHtml.slice(0, 1500));
+  check("an agent's page takes the Brand record's colours in light and dark, its fonts and its logo, with the agent's name, and names the function's address and the agent",
+    bookingsHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && bookingsHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
+      && bookingsHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && bookingsHtml.includes('"Fraunces"') && bookingsHtml.includes(`src="${logo}"`)
+      && bookingsHtml.includes("<title>Bookings | Smith Joinery</title>") && bookingsHtml.includes("<h1>Bookings</h1>")
+      && bookingsHtml.includes('<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings"></script>')
+      && !bookingsHtml.includes("{{") && !bookingsHtml.includes("data-sitekey"),
+    bookingsHtml.slice(0, 1500));
+  check("the root page, in the brand, lists the agents by name and purpose, each linked to its page",
+    rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<a href="chat/"><strong>Chat</strong></a>')
+      && rootHtml.includes('<a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a>') && !rootHtml.includes("<script") && !rootHtml.includes("{{"),
+    rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
     widgetJs.slice(0, 1200));
 
-  // widget.js on a page of another website: its button opens the chat page in a panel, and closes it again.
+  // widget.js on a page of another website, naming the agent Bookings: its button opens Bookings' page in a panel, and
+  // closes it again.
   const other = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true, disableIframePageLoading: true } });
   const odoc = other.document;
   const wtag = odoc.createElement("script");
   wtag.setAttribute("src", `${site}/widget.js`);
+  wtag.setAttribute("data-agent", "bookings");
   odoc.body.appendChild(wtag);
   Object.defineProperty(odoc, "currentScript", { get: () => wtag, configurable: true });
   new Function("window", "document", "URL", widgetJs)(other, odoc, URL);
@@ -379,29 +514,33 @@ try {
   const panelOpened = { src: frame?.getAttribute("src"), hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), title: frame?.title };
   launcher.click();
   const closed = { hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), frames: odoc.querySelectorAll("iframe").length };
-  check("on another website the button, in the brand's accent, opens the chat page in an iframe panel, and closes it again",
-    closedFirst.button && closedFirst.frame === null && /63, 166, 107|#3fa66b/i.test(String(closedFirst.colour)) && panelOpened.src === `${site}/` && panelOpened.hidden === false
+  check("on another website the button, in the brand's accent, opens the page of the agent data-agent names in an iframe panel, and closes it again",
+    closedFirst.button && closedFirst.frame === null && /63, 166, 107|#3fa66b/i.test(String(closedFirst.colour)) && panelOpened.src === `${site}/bookings/` && panelOpened.hidden === false
       && panelOpened.expanded === "true" && closed.hidden === true && closed.expanded === "false" && closed.frames === 1, { closedFirst, panelOpened, closed });
   await other.happyDOM.close();
 
   // A website's own data-accent: the icon takes the colour that reads on it.
-  const light = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  const light = new Window({ url: "https://joinery-shop.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true, disableIframePageLoading: true } });
   const ltag = light.document.createElement("script");
   ltag.setAttribute("src", `${site}/widget.js`);
   ltag.setAttribute("data-accent", "#ffe14d");
   light.document.body.appendChild(ltag);
   Object.defineProperty(light.document, "currentScript", { get: () => ltag, configurable: true });
   new Function("window", "document", "URL", widgetJs)(light, light.document, URL);
-  const iconColour = String((light.document.querySelector(".fabrik-chat-button") as any)?.style.color);
+  const lightButton = light.document.querySelector(".fabrik-chat-button") as any;
+  const iconColour = String(lightButton?.style.color);
   check("with a pale data-accent, the button's icon is near black", /#111111|17, 17, 17/.test(iconColour), iconColour);
+  lightButton.click();
+  const oldLine = light.document.querySelector("iframe.fabrik-chat-panel")?.getAttribute("src");
+  check("a widget line with no data-agent, as one from before there were many agents, opens the agent chat", oldLine === `${site}/chat/`, oldLine);
   await light.happyDOM.close();
 
-  // The chat page the panel opens, at its own address: chat.js asks for the site key with a GET, draws the Turnstile
-  // check with it, and a question gets its answer.
-  const chat = new Window({ url: panelOpened.src ?? `${site}/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  // Bookings' page, which the panel opens at its own address: chat.js asks for the site key with a GET, draws the
+  // Turnstile check with it, and a question gets Bookings' answer.
+  const chat = new Window({ url: panelOpened.src ?? `${site}/bookings/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
   const cdoc = chat.document;
-  cdoc.write(indexHtml);
-  const ctag = cdoc.querySelector('script[src="chat.js"]')!;
+  cdoc.write(bookingsHtml);
+  const ctag = cdoc.querySelector('script[src="../chat.js"]')!;
   Object.defineProperty(cdoc, "currentScript", { get: () => ctag, configurable: true });
   const rendered: string[] = [];
   (chat as any).turnstile = { render: (_: unknown, o: { sitekey: string }) => { rendered.push(o.sitekey); return 0; }, getResponse: () => GOOD_TOKEN, reset() {} };
@@ -410,19 +549,19 @@ try {
   new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(chat, cdoc, chatFetch);
   while (!cdoc.querySelector('script[src*="challenges.cloudflare.com"]')) await new Promise((r) => setTimeout(r, 5));
   (chat as any).fabrikChatTurnstile();
-  (cdoc.querySelector("#fabrik-chat input") as any).value = "What are your opening hours?";
+  (cdoc.querySelector("#fabrik-chat input") as any).value = "How do I book tables?";
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
   while (!cdoc.querySelector("#fabrik-chat li.a")) await new Promise((r) => setTimeout(r, 5));
-  const answered = { methods, rendered, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className };
-  check("the chat page gets the site key with a GET, draws the Turnstile check with it, and a question gets the file's answer",
+  const answered = { methods, rendered, answer: cdoc.querySelector("#fabrik-chat li.a")?.textContent, kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
+  check("an agent's page gets the site key with a GET, draws the Turnstile check with it, and a question gets that agent's answer",
     JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
-      && answered.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && answered.kind === "a", answered);
+      && answered.answer === "Tables: book by phone on 01234 567890." && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
   await chat.happyDOM.close();
 
   // Before the site key is saved, the chat page says what is missing.
-  const early = new Window({ url: `${site}/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
-  early.document.write(indexHtml);
-  const etag = early.document.querySelector('script[src="chat.js"]')!;
+  const early = new Window({ url: `${site}/bookings/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  early.document.write(bookingsHtml);
+  const etag = early.document.querySelector('script[src="../chat.js"]')!;
   Object.defineProperty(early.document, "currentScript", { get: () => etag, configurable: true });
   const noKey = () => Promise.resolve(Response.json({ ok: false, problem: UNAVAILABLE, setup: "sitekey" }, { status: 503 }));
   new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(early, early.document, noKey);

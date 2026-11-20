@@ -5,15 +5,16 @@
 .pa-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .pa-form ol { margin: 4px 0 6px; padding-left: 20px; display: grid; gap: 2px; color: var(--fg); }
 .pa-form h3 { margin: 6px 0 0; font-size: 14px; }
+.pa-agents { margin: 4px 0 8px; padding-left: 20px; display: grid; gap: 2px; }
 </style>
 <div class="fk">
-  <div class="fk-head"><h2>Public agent</h2></div>
+  <div class="fk-head"><h2>Public agents</h2></div>
   <div id="fk-body">
-    <p class="fk-sub">The chat box on your website answers visitors from KNOWLEDGE.md alone. Anthropic charges your business's API key for each answer. Type the keys here, not in the chat.</p>
+    <p class="fk-sub">Each public agent answers your website's visitors from its KNOWLEDGE.md, as its INSTRUCTIONS.md tells it. Anthropic charges your business's API key for every agent's answers. Type the keys here, not in the chat.</p>
     <p id="pa-state"></p>
     <p id="pa-turnstile"></p>
     <p id="pa-sitekey"></p>
-    <p id="pa-knowledge"></p>
+    <ul class="pa-agents" id="pa-agents"></ul>
     <form class="pa-form" id="pa-form" autocomplete="off">
       <h3>Anthropic API key</h3>
       <ol>
@@ -44,16 +45,27 @@
   </div>
 </div>
 <script>
-// The public agent card: it shows whether the chat box has its Anthropic API key, its Turnstile secret key and site key,
-// and its KNOWLEDGE.md, from show_public_agent_setup's result. Save calls public_agent_setup_save with whichever keys
+// The public agent card: it shows whether the public agents have their Anthropic API key and their Turnstile secret key
+// and site key, and lists the agents with the state of each one's KNOWLEDGE.md and INSTRUCTIONS.md, from
+// show_public_agent_setup's result. Save calls public_agent_setup_save with whichever keys
 // are typed, each kept only once Anthropic or Cloudflare takes it. Turn off calls public_agent_off, which removes the Anthropic
 // API key. Both send the pass from the result's _meta, which the model never sees.
 var SAID = {}, PASS = "";
-function showState(key, turnstile, sitekey, knowledge) {
+function showAgents(agents, said) {
+  var list = $("pa-agents");
+  list.textContent = "";
+  if (!agents.length) { var none = document.createElement("li"); none.textContent = "No public agent yet. Ask Claude to add one."; list.appendChild(none); return; }
+  agents.forEach(function (a) {
+    var li = document.createElement("li");
+    li.textContent = a.name + " (" + a.slug + "): KNOWLEDGE.md " + (a.knowledge ? "is saved" : "isn't saved yet") +
+      ", and INSTRUCTIONS.md " + (said[a.instructions] || "is unknown") + ".";
+    list.appendChild(li);
+  });
+}
+function showState(key, turnstile, sitekey) {
   $("pa-state").textContent = SAID[key] || "";
   $("pa-turnstile").textContent = turnstile === "set" ? "The Turnstile secret key is saved." : turnstile === "missing" ? "The Turnstile secret key isn't saved yet." : "";
   $("pa-sitekey").textContent = sitekey === "set" ? "The Turnstile site key is saved." : sitekey === "missing" ? "The Turnstile site key isn't saved yet." : "";
-  if (knowledge !== undefined) $("pa-knowledge").textContent = knowledge === true ? "KNOWLEDGE.md is saved." : knowledge === false ? "KNOWLEDGE.md isn't saved yet. Ask Claude to write it with you." : "";
   $("pa-off").hidden = key === "missing";
 }
 function say(text, refused) { var p = $("pa-said"); p.className = refused ? "fk-refused" : ""; p.textContent = text; }
@@ -78,13 +90,14 @@ $("pa-form").addEventListener("submit", function (e) {
 $("pa-off").addEventListener("click", function () {
   busy(true);
   card.call("public_agent_off", { pass: PASS }).then(function (r) {
-    if (r && !r.isError) { KEY = "missing"; showState(KEY, TURNSTILE, SITEKEY); say("The chat box is off. KNOWLEDGE.md and the Turnstile keys stay.", false); }
+    if (r && !r.isError) { KEY = "missing"; showState(KEY, TURNSTILE, SITEKEY); say("The agents are off. Their files and the Turnstile keys stay.", false); }
     else say("Not turned off: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not turned off: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });
 onResult(function (given, meta) {
   SAID = given.said || {}; PASS = meta.pass || ""; KEY = given.key; TURNSTILE = given.turnstile; SITEKEY = given.sitekey;
   if (given.page_host) $("pa-host").textContent = given.page_host;
-  showState(given.key, given.turnstile, given.sitekey, given.knowledge);
+  showState(given.key, given.turnstile, given.sitekey);
+  showAgents(given.agents || [], given.instructions_said || {});
 });
 </script>

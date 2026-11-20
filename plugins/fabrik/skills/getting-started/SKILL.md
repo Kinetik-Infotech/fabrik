@@ -129,7 +129,7 @@ Getting started ends when one routine's design is in force. The other objectives
 - **Agent:**
   1. Draws a list card, as the card rules' "The list card" says. It has one row per objective. Each row's fields are its routine and the next stage that routine needs.
   2. Offers the objective the person named as most pressing, with "Start it" and "Not now". On "Start it", it carries on at its routine's next stage.
-  3. When fabrik is for a business with a website, it calls `public_knowledge_get`. For an administrator with no KNOWLEDGE.md saved, it says fabrik can put a chat box on the website. The box answers visitors from a page the person writes. It asks whether to set it up, with "Set it up" and "Not now". On "Set it up", it follows the `fabrik:public-agent` skill.
+  3. When fabrik is for a business with a website, it calls `public_agents_list`. For an administrator with no public agent, it says fabrik can put a chat box on the website. The box answers visitors from a page the person writes. It asks whether to set it up, with "Set it up" and "Not now". On "Set it up", it follows the `fabrik:public-agent` skill.
 - **Evidence:** the list card's data file.
 
 ## When the person changes something

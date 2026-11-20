@@ -121,3 +121,31 @@ check fabrik $FABRIK/upgrades $FABRIK/setup.sql \
   "'fabrik','fabrik_private','fabrik_storage','fabrik_task'" fabrik_private.schema_upgrade
 check "file search" $FABRIK/file-search-upgrades $FABRIK/file-search.sql \
   "'file_search'" file_search.schema_upgrade
+
+# Upgrade 0014 over a project whose chat box answered visitors: the agent chat takes the settings' model and cap and
+# the day's tokens, and the settings lose both. Over a project that never used the chat box, it makes no agent.
+agent_check() {
+  git -C "$ROOT" show "682e03d:setup/setup.sql" > "$OUT/base.sql" || { echo "FAIL 0014's base is not in this repository"; exit 1; }
+  start
+  run "$OUT/base.sql" "0014's base does not build"
+  echo "update fabrik_private.public_agent_setting set model = 'claude-sonnet-5-5', daily_cap_tokens = 7000;
+    insert into fabrik_private.public_agent_usage(day, tokens) values ('2026-11-19', 1234);
+    insert into storage.objects(bucket_id, name) values ('public-agent', 'KNOWLEDGE.md');" > "$OUT/used.sql"
+  run "$OUT/used.sql" "the base's public agent settings could not be set"
+  run "$ROOT/setup/upgrades/0014-public-agents.sql" "0014 did not apply over a used chat box"
+  run "$ROOT/setup/upgrades/0014-public-agents.sql" "0014 did not apply twice over a used chat box"
+  got=$("$PG/psql" -h "$DIR" -p "$PORT" -d fabrik -U postgres -tA -c "select string_agg(a.slug||' '||a.name||' '||a.model||' '||a.daily_cap_tokens||' '||u.slug||' '||u.tokens, ';')
+    from fabrik_private.public_agent a join fabrik_private.public_agent_usage u on u.slug = a.slug")
+  stop
+  [ "$got" = "chat Chat claude-sonnet-5-5 7000 chat 1234" ] \
+    || { echo "FAIL 0014 over a used chat box gives the agents and tokens: $got"; exit 1; }
+  echo "ok - 0014 over a used chat box makes the agent chat, with the settings' model and cap and the day's tokens"
+  start
+  run "$OUT/base.sql" "0014's base does not build"
+  run "$ROOT/setup/upgrades/0014-public-agents.sql" "0014 did not apply over an unused chat box"
+  got=$("$PG/psql" -h "$DIR" -p "$PORT" -d fabrik -U postgres -tA -c "select count(*) from fabrik_private.public_agent")
+  stop
+  [ "$got" = 0 ] || { echo "FAIL 0014 over a chat box never used makes $got agents"; exit 1; }
+  echo "ok - 0014 over a chat box never used makes no agent"
+}
+agent_check
