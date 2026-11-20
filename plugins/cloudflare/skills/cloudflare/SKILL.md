@@ -70,10 +70,29 @@ Before deployment, verify the artifact manifest and checksum. Preview branches a
 production requires an explicit operator request for the selected artifact. Report the previous
 observable state and rollback instructions after every mutation.
 
+## A domain moved to another account
+
+When a domain is added to a second Cloudflare account, Cloudflare scans its old records and copies them. A CNAME that pointed at a `pages.dev` or `workers.dev` address comes back as proxied A and AAAA records holding Cloudflare's own addresses. Every site on it then answers 403, since its Pages project or Worker stays on the old account.
+
+1. Put each Pages project and Worker up again on the account that now holds the domain. A Worker's database is exported from the old account and loaded into a new one, and the Worker's settings name the new account and database.
+2. Add each address to its new Pages project as a custom domain. A Worker's custom domain makes its own record.
+3. For each Pages address, delete the copied A and AAAA records and add one proxied CNAME to the new project's `pages.dev` address. The custom domain page in the dashboard shows that address.
+4. Fetch each address and check it serves the right page.
+
+A Pages project's custom domain must be on the same account as the domain. A proxied CNAME to a Pages project on another account works for a while, then Cloudflare deactivates the custom domain and the address answers 403.
+
+## Where the tools stop
+
+These tools can't delete a record. A sign-in made with Wrangler can't change DNS records at all. In both cases, do the step in the person's Cloudflare dashboard with Claude in Chrome, where they're already signed in:
+
+- Open `https://dash.cloudflare.com/<account id>/<domain>/dns/records`.
+- Say which records go and which come, and do it once the person approves. Leave mail records, such as MX and TXT, as they are.
+- Read the records back on the same page, then fetch each address.
+
 ## Scope
 
 In scope: the operations listed above, against one Cloudflare account and artifacts under
 `CLOUDFLARE_CONTENT_ROOT`.
 
-Out of scope, deliberately: token creation, deletes, D1, R2, tunnels, Access, driving the dashboard,
-completing consent pages and building source.
+Out of scope for the tools, deliberately: token creation, deletes, D1, R2, tunnels, Access,
+completing consent pages and building source. A delete or a change the tools can't make goes through the dashboard, as above.
