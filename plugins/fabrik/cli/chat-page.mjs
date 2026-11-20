@@ -17,7 +17,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
+import { FABRIK_MARK, fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
 import { publishPage, WRANGLER } from "./sign-in-page.mjs";
 import { DomainNotReady, ownDomain } from "./chat-domain.mjs";
 
@@ -85,9 +85,11 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const fill = (text, values) => text.replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => values[k]);
   const template = readFileSync(join(SOURCE, "page.html"), "utf8");
   const style = pageStyle(brand), logo = headLogoHtml(brand, "logo");
+  // The tab's icon: the brand's logo where it has one, and fabrik's mark otherwise.
+  const icon = esc(brand?.logo?.src || FABRIK_MARK);
   const list = `<ul class="agents">${agents.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
-  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, MAIN: list, SCRIPT: "" });
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
   const fallback = agents.some(a => a.slug === "chat") ? "chat" : "";
@@ -98,7 +100,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
-      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo,
+      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo, ICON: icon,
       MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"></script>`,
     }));
   }
@@ -130,6 +132,8 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage, doma
     folder, deploy: put.deploy },
     { ask, say, home, ...domains }).catch(err => {
     if (!(err instanceof DomainNotReady)) throw err;
+    // An address fabrik put back on Pages is still the chat's address.
+    if (err.site) { say(err.message); return err.site; }
     say(`${err.message} Meanwhile the pages are at ${put.site}.`);
     return put.site;
   });
