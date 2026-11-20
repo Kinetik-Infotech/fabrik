@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Importing from other apps
 
 fabrik brings in exports from LinkedIn, Notion, Obsidian, Substack and X. Imports run in a Code session in your `fabrik` folder.

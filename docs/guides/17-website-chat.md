@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Chat on your website
 
 fabrik can put a chat box on your website that answers visitors' questions. It answers from one page you write, called KNOWLEDGE.md, and from nothing else in fabrik. It never reads your records, files or email. A visitor can find out anything in that page, so put in only what you'd put on your website.

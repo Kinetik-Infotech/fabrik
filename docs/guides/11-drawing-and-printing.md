@@ -1,3 +1,5 @@
+<img src="../../site/brand/favicon.svg" width="40" height="40" alt="">
+
 # Drawing boards and graphs, and printing
 
 fabrik draws what it holds as cards in any Claude app, and as pages and PDFs in a Code session.
