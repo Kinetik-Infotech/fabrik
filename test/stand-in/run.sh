@@ -154,7 +154,7 @@ step_versions() {
 # and two claims never take one row. It ends in a PASS notice, and a failure stops psql.
 step_claim_once() {
   echo "== claim-once.sql"
-  psql -U supabase_admin -q -v budget_upgrade="$ROOT/setup/file-search-upgrades/0005-worker-budget.sql" -f "$HERE/claim-once.sql" >"$WORK/out" 2>&1
+  psql -U supabase_admin -q -v budget_upgrade="$ROOT/setup/file-search-upgrades/0005-worker-budget.sql" -v retired_upgrade="$ROOT/setup/file-search-upgrades/0008-retired-chunks.sql" -f "$HERE/claim-once.sql" >"$WORK/out" 2>&1
   status=$?
   grep -oE "(ok - |PASS: |FAIL: ).*" "$WORK/out"
   [ "$status" -eq 0 ] && grep -q "PASS: claim-once" "$WORK/out" || { cat "$WORK/out"; exit 1; }
