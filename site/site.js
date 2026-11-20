@@ -28,6 +28,7 @@
   var tape = document.querySelector('.tape'), bar = document.querySelector('.topbar');
   if (!tape) return;
   var svg = tape.querySelector('svg'), paths = tape.querySelectorAll('.edge, .band'), ticks = tape.querySelector('.ticks');
+  var walker = tape.querySelector('.walker'), rest = null;
   var still = window.matchMedia('(prefers-reduced-motion: reduce)'), wide = window.matchMedia('(min-width: 900px)');
   var NS = 'http://www.w3.org/2000/svg', marks = [];
 
@@ -58,8 +59,21 @@
     var done = still.matches || !wide.matches || room <= 0 ? 1 : Math.min(1, Math.max(0.02, window.scrollY / room));
     paths.forEach(function (p) { p.setAttribute('stroke-dashoffset', String(1 - done)); });
     marks.forEach(function (m, i) { m.classList.toggle('on', done >= (i + 1) / 10); });
+    // The stick person stands just past the tape's end.
+    if (walker && wide.matches) {
+      var len = paths[0].getTotalLength(), pt = paths[0].getPointAtLength(len * done);
+      walker.setAttribute('transform', 'translate(' + pt.x + ' ' + Math.min(pt.y + 28, tape.clientHeight - 4) + ') scale(1.4)');
+    }
+  }
+  // The legs and arms swing while the page scrolls, and stop a moment after it stops.
+  function walk() {
+    if (!walker || still.matches) return;
+    walker.classList.add('walking');
+    clearTimeout(rest);
+    rest = setTimeout(function () { walker.classList.remove('walking'); }, 220);
   }
   window.addEventListener('scroll', draw, { passive: true });
+  window.addEventListener('scroll', walk, { passive: true });
   window.addEventListener('resize', build);
   still.addEventListener('change', draw);
   wide.addEventListener('change', build);
