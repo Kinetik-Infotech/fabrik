@@ -43,7 +43,7 @@ The Turnstile secret key, in more detail:
 
 1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
 2. Choose Add widget manually.
-3. For Widget name, type fabrik chat. For Region, choose Rest of World. Under Hostname management, add the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
+3. For Widget name, type fabrik chat. Under Hostname management, type the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
 4. Choose Create. Cloudflare shows a site key and a secret key. The secret key goes on the card, and the site key goes in the line of code in section 4.
 
 This key is apart from the connections key. Saving one never turns the other on.
