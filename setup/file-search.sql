@@ -73,7 +73,7 @@ create table file_search.chunk (
  body text not null check (length(body) between 1 and 4000),
  words tsvector generated always as (to_tsvector('english'::regconfig, body)) stored,
  embedding extensions.vector(384),
- state text not null default 'waiting' check (state in ('waiting','embedded','failed')),
+ state text not null default 'waiting' check (state in ('waiting','embedded','failed','retired')),
  attempts integer not null default 0 check (attempts>=0),
  last_attempt_at timestamptz,
  error text,
@@ -861,29 +861,34 @@ language sql volatile set search_path=pg_catalog as $$
  select * from file_search.claim_sentences(p_limit, 2147483647)
 $$;
 
--- A retired version's waiting sentences are retired, and a version that comes back makes them wait again.
-create or replace function file_search.retire_sentences(p_version_id uuid) returns integer
-language sql volatile set search_path=pg_catalog as $$
- with r as (update file_search.chunk_sentence s set state='retired' from file_search.chunk c
-  where c.version_id=p_version_id and s.chunk_id=c.chunk_id and s.state='waiting' returning 1)
- select count(*)::integer from r
-$$;
-revoke all on function file_search.retire_sentences(uuid) from public, anon, authenticated;
-create or replace function file_search.sentences_follow_version() returns trigger
+-- A retired version's waiting chunks and sentences are retired, and a version that comes back makes them wait again,
+-- so no claim passes over them. A purged version's chunks are deleted with it.
+create or replace function file_search.retire_chunks(p_version_id uuid) returns integer
+language plpgsql volatile set search_path=pg_catalog as $$
+declare n integer;
+begin
+ update file_search.chunk_sentence s set state='retired' from file_search.chunk c
+ where c.version_id=p_version_id and s.chunk_id=c.chunk_id and s.state='waiting';
+ update file_search.chunk set state='retired' where version_id=p_version_id and state='waiting';
+ get diagnostics n=row_count;
+ return n;
+end $$;
+revoke all on function file_search.retire_chunks(uuid) from public, anon, authenticated;
+create or replace function file_search.chunks_follow_version() returns trigger
 language plpgsql set search_path=pg_catalog as $$
 begin
  if new.state='retired' then
-  perform file_search.retire_sentences(new.version_id);
+  perform file_search.retire_chunks(new.version_id);
  elsif old.state='retired' and new.state<>'purged' then
+  update file_search.chunk set state='waiting' where version_id=new.version_id and state='retired';
   update file_search.chunk_sentence s set state='waiting' from file_search.chunk c
   where c.version_id=new.version_id and s.chunk_id=c.chunk_id and s.state='retired';
  end if;
  return null;
 end $$;
-revoke all on function file_search.sentences_follow_version() from public, anon, authenticated;
-drop trigger if exists sentences_follow_version on file_search.file_version;
-create trigger sentences_follow_version after update of state on file_search.file_version
- for each row when (old.state is distinct from new.state) execute function file_search.sentences_follow_version();
+revoke all on function file_search.chunks_follow_version() from public, anon, authenticated;
+create trigger chunks_follow_version after update of state on file_search.file_version
+ for each row when (old.state is distinct from new.state) execute function file_search.chunks_follow_version();
 
 -- One sentence's vector, as '[n,n,...]', recorded as soon as it is made; or its error.
 create or replace function file_search.record_sentence_vector(p_sentence_id uuid, p_embedding text, p_error text)
@@ -1746,4 +1751,4 @@ revoke all on function file_search.graph_held_chunks() from public, anon;
 grant execute on function file_search.graph_held_chunks() to authenticated;
 
 -- The upgrades this build already contains, so a new project has none pending.
-insert into file_search.schema_upgrade(id) values ('0001-baseline'), ('0002-sentence-claim'), ('0003-graph-reader'), ('0004-claim-once'), ('0005-worker-budget'), ('0006-claim-source'), ('0007-any-word') on conflict (id) do nothing;
+insert into file_search.schema_upgrade(id) values ('0001-baseline'), ('0002-sentence-claim'), ('0003-graph-reader'), ('0004-claim-once'), ('0005-worker-budget'), ('0006-claim-source'), ('0007-any-word'), ('0008-retired-chunks') on conflict (id) do nothing;
