@@ -1,13 +1,16 @@
-// fabrik chat-page: builds the public agent's chat page in the business's brand, and puts it up on Cloudflare Pages.
+// fabrik chat-page: builds the public agents' chat pages in the business's brand, and puts them up on Cloudflare Pages.
 //
 //   node fabrik.mjs chat-page [--project <ref> --email <email>]
 //
-// It reads the Brand record as the signed-in person, and the public-agent function's address from the sign-in's project.
-// It writes index.html, chat.js and widget.js into ~/.config/fabrik/chat/<ref>, a folder of fabrik's own outside the
-// owner's folder, made again each run. It puts them up with Wrangler as the Pages project fabrik-chat-<ref>, on the same
-// Cloudflare sign-in as the sign-in page, and prints the page's address and the line that puts the chat button on a
-// website. With no Brand record, the page takes fabrik's own look. The page holds no key: chat.js asks public-agent for
-// the Turnstile site key.
+// It reads the Brand record and the list of public agents as the signed-in person, and the public-agent function's
+// address from the sign-in's project. It writes a chat page for each agent at <slug>/index.html, an index.html that
+// lists the agents, chat.js and widget.js into ~/.config/fabrik/chat/<ref>. That folder is fabrik's own, outside the
+// owner's folder, and made again each run.
+//
+// It puts them up with Wrangler as the Pages project fabrik-chat-<ref>, on the same Cloudflare sign-in as the sign-in
+// page. Then it saves the address with public-agent, for AGENTS.md, and prints each agent's page and the line that puts
+// its chat button on a website. With no Brand record, the pages take fabrik's own look.
+// The pages hold no key: chat.js asks public-agent for the Turnstile site key.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -23,8 +26,8 @@ export const SOURCE = resolve(HERE, "..", "public-agent");
 export const chatFolder = (ref, home = homedir()) => join(home, ".config", "fabrik", "chat", ref);
 /** The Pages project of one fabrik project's chat page. */
 export const chatProject = ref => `fabrik-chat-${ref}`;
-/** The line that puts the chat button on any website. */
-export const widgetLine = site => `<script src="${site}/widget.js" async></script>`;
+/** The line that puts an agent's chat button on any website. */
+export const widgetLine = (site, slug) => `<script src="${site}/widget.js" data-agent="${slug}" async></script>`;
 
 /** fabrik's own look, for each token the brand leaves out: fabrik.tech's paper, navy and gold, Fraunces and Inter. */
 const FABRIK = {
@@ -68,36 +71,56 @@ export function pageStyle(brand) {
 }`;
 }
 
-/** Writes the chat page into folder: index.html in the brand, chat.js, and widget.js with the brand's accent. */
-export function buildChatPage({ brand, address, folder }) {
+const SLUG = /^[a-z0-9-]{1,40}$/;
+
+/** Writes the chat pages into folder: a page in the brand for each agent at <slug>/index.html, index.html listing the
+ * agents, chat.js, and widget.js with the brand's accent. agents is [{ slug, name, purpose }], at least one. */
+export function buildChatPage({ brand, address, folder, agents }) {
   if (!/^https?:\/\/[^\s"'<>]+$/.test(String(address))) throw new Error(`${address} is not the public-agent function's address.`);
-  const name = brand?.name?.trim() || "Ask a question";
+  if (!Array.isArray(agents) || !agents.length) throw new Error("fabrik has no public agent yet, so there's no chat page to put up. Add an agent first.");
+  for (const a of agents) if (!SLUG.test(String(a?.slug))) throw new Error(`${a?.slug} is not an agent's slug.`);
+  const business = brand?.name?.trim() || "";
   const fill = (text, values) => text.replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => values[k]);
-  const page = fill(readFileSync(join(SOURCE, "page.html"), "utf8"), {
-    TITLE: esc(name), NAME: esc(name), STYLE: pageStyle(brand), LOGO: headLogoHtml(brand, "logo"), ADDRESS: esc(address),
-  });
+  const template = readFileSync(join(SOURCE, "page.html"), "utf8");
+  const style = pageStyle(brand), logo = headLogoHtml(brand, "logo");
+  const list = `<ul class="agents">${agents.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
+    `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
   const widget = fill(readFileSync(join(SOURCE, "widget.js"), "utf8"), { ACCENT: accent, ON_ACCENT: onColour(accent) });
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
-  writeFileSync(join(folder, "index.html"), page);
+  writeFileSync(join(folder, "index.html"), root);
+  for (const a of agents) {
+    mkdirSync(join(folder, a.slug), { mode: 0o700 });
+    writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
+      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo,
+      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"></script>`,
+    }));
+  }
   writeFileSync(join(folder, "chat.js"), readFileSync(join(SOURCE, "chat.js")));
   writeFileSync(join(folder, "widget.js"), widget);
-  return ["index.html", "chat.js", "widget.js"];
+  return ["index.html", ...agents.map(a => `${a.slug}/index.html`), "chat.js", "widget.js"];
 }
 
 /**
- * Builds the chat page for the project ref and puts it up. url is the project's address, and readBrand() gives the
- * brand, null when fabrik holds none, or throws when it can't be read. A failed read puts nothing up, so a live page
- * never loses its brand. The options are putUpPage's. Returns { site, widget, folder }.
+ * Builds the chat pages for the project ref and puts them up. url is the project's address. readBrand() gives the
+ * brand, null when fabrik holds none, or throws when it can't be read. readAgents() gives the agents, or throws. A
+ * failed read puts nothing up, so a live page never loses its brand or an agent. savePage(site) saves the address with
+ * public-agent. The options are putUpPage's. Returns { site, agents: [{ slug, name, page, widget }], folder }.
  */
-export async function chatPage({ ref, url, readBrand }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
-  let brand;
+export async function chatPage({ ref, url, readBrand, readAgents, savePage }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
+  let brand, agents;
   try { brand = await readBrand(); }
   catch (err) { throw new Error(`fabrik couldn't read the Brand record, so the chat page wasn't put up: ${err instanceof Error ? err.message : err}`); }
+  try { agents = await readAgents(); }
+  catch (err) { throw new Error(`fabrik couldn't read the public agents, so the chat page wasn't put up: ${err instanceof Error ? err.message : err}`); }
   const folder = chatFolder(ref, home);
-  buildChatPage({ brand, address: `${url}/functions/v1/public-agent`, folder });
-  say(brand ? `Built the chat page in ${brand.name || "the business"}'s brand.` : "Built the chat page in fabrik's own look, since fabrik holds no Brand record.");
+  buildChatPage({ brand, address: `${url}/functions/v1/public-agent`, folder, agents });
+  say(brand ? `Built ${agents.length === 1 ? "the chat page" : `${agents.length} chat pages`} in ${brand.name || "the business"}'s brand.`
+    : "Built the chat pages in fabrik's own look, since fabrik holds no Brand record.");
   const site = await putUpPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
-  return { site, widget: widgetLine(site), folder };
+  try { await savePage(site); }
+  catch (err) { say(`fabrik couldn't save the address for AGENTS.md: ${err instanceof Error ? err.message : err}. The agents can't give each other's addresses until chat-page runs again.`); }
+  return { site, agents: agents.map(a => ({ slug: a.slug, name: a.name, page: `${site}/${a.slug}/`, widget: widgetLine(site, a.slug) })), folder };
 }

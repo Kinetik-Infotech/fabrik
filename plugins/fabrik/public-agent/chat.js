@@ -1,7 +1,7 @@
-// fabrik's chat box. The chat page fabrik chat-page builds adds it with one script tag, which names the public-agent
-// function's address:
+// fabrik's chat box. Each agent's chat page, which fabrik chat-page builds, adds it with one script tag, which names the
+// public-agent function's address and the agent's slug:
 //
-//   <script src="chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent"></script>
+//   <script src="../chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-agent="chat"></script>
 //
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget. Each question is posted with a new Turnstile token and the latest
@@ -12,6 +12,7 @@
   var script = document.currentScript;
   var address = script && script.getAttribute("data-address");
   var sitekey = script && script.getAttribute("data-sitekey");
+  var agent = script && script.getAttribute("data-agent");
   var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
   var widget = null;
@@ -109,7 +110,8 @@
     fetch(address, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: question, history: history, turnstile_token: token }),
+      body: JSON.stringify(agent ? { agent: agent, question: question, history: history, turnstile_token: token }
+        : { question: question, history: history, turnstile_token: token }),
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) { return { ok: res.ok, body: body }; });
     }).then(function (r) {
