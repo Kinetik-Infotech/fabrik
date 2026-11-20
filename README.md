@@ -23,6 +23,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Publishing.** Websites of any size, put live on your own Cloudflare account under your own web address.
 - **Chatbot.** Chat agents in your brand, each with its own page on your own domain and a chat button for your website. Each one answers visitors from pages you write, in the name, voice and rules you give it, and from nothing else in fabrik. You edit their files with Claude as Claude Docs, and keep every conversation in your own Supabase project.
 - **Work.** In any application with a connector or plugin, Claude can do the work for you, better than you can.
+- **Look.** The Claude desktop and mobile apps show fabrik's colours in every session: cream in light mode, navy in dark mode, and an amber accent.
 
 ## Cards
 
