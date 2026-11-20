@@ -132,6 +132,8 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage, doma
     folder, deploy: put.deploy },
     { ask, say, home, ...domains }).catch(err => {
     if (!(err instanceof DomainNotReady)) throw err;
+    // An address fabrik put back on Pages is still the chat's address.
+    if (err.site) { say(err.message); return err.site; }
     say(`${err.message} Meanwhile the pages are at ${put.site}.`);
     return put.site;
   });
