@@ -44,7 +44,7 @@ function upgrader(ledgers, { old = false, refuse = null } = {}) {
 }
 const fabrikUpTo = n => ["0001-baseline", "0002-set-based-lookups", "0003-second-factor", "0004-graph-reader", "0005-private-sessions",
   "0006-record-source", "0007-ported-tools", "0008-mailbox", "0009-save-version-check", "0010-mail-send", "0011-mail-signature", "0012-public-agent", "0013-public-agent-sitekey", "0014-public-agents", "0015-public-exchanges"].slice(0, n);
-const SEARCH = ["0001-baseline", "0002-sentence-claim", "0003-graph-reader", "0004-claim-once", "0005-worker-budget", "0006-claim-source", "0007-any-word"];
+const SEARCH = ["0001-baseline", "0002-sentence-claim", "0003-graph-reader", "0004-claim-once", "0005-worker-budget", "0006-claim-source", "0007-any-word", "0008-retired-chunks"];
 
 test("update --check names the upgrades the project lacks, with what each brings, and the functions that changed, fabrik-upgrade first", async t => {
   const { call } = upgrader({ fabrik: fabrikUpTo(8), file_search: SEARCH });
