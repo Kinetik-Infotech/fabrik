@@ -57,11 +57,17 @@ The file is at most 100,000 characters. Every question sends the agent's three f
 
 ## 4. The chat pages
 
-fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare Pages hosts them, on the Cloudflare account fabrik's sign-in page uses.
+fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare Pages hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
-2. It prints the pages' address, such as `https://fabrik-chat-<ref>.pages.dev`, and for each agent its page and the line for the website. Keep them for sections 5 and 7.
-3. It may ask which Cloudflare account to use, or say Cloudflare's sign-in didn't finish. Then ask the person to run the same command in a Terminal tab and answer there.
+2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
+3. When the domain's DNS isn't on that Cloudflare account, it prints one CNAME record. The owner adds it where they manage the domain's DNS, and the command waits for Cloudflare to finish. Cloudflare can take several minutes to issue the certificate.
+4. It prints the pages' address, such as `https://chat.example.com`, and for each agent its page and the line for the website. Keep them for sections 5 and 7.
+5. It may ask which Cloudflare account to use, or ask for Cloudflare's permission to read the domains. It may say Cloudflare's sign-in didn't finish, or didn't give that permission. Then ask the person to run the same command in a Terminal tab and answer there.
+
+When the pages move to a new address, the command says to add it to the Turnstile widget. Tell the owner to add it under Hostname management, beside the address already there. Until they do, Turnstile refuses visitors at the new address, and the chat answers no one there.
+
+If Cloudflare refuses the domain, or doesn't finish within 15 minutes, the command says why and gives the pages at the pages.dev address. A refused domain isn't kept, so the next run asks again. An unfinished one is kept, and the next run carries on from there.
 
 It also saves the address with fabrik, so AGENTS.md gives each agent's page. Run it again after an agent is added or removed. A page asks for the Turnstile site key each time it opens, so a new key needs no new page. When the Brand record changes, ask the owner whether to put the pages up again in the new look. Once they approve, run the command again.
 
@@ -84,7 +90,7 @@ The Turnstile keys, in more detail:
 
 1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
 2. Choose Add widget manually.
-3. For Widget name, type fabrik chat. Under Hostname management, type the pages' address without `https://`, such as fabrik-chat-abc.pages.dev. The owner's own website needs no entry, since the chat runs on the chat pages. For Widget mode, leave Managed.
+3. For Widget name, type fabrik chat. Under Hostname management, type the pages' address without `https://`, such as chat.example.com. The owner's own website needs no entry, since the chat runs on the chat pages. For Widget mode, leave Managed.
 4. Choose Create. Cloudflare shows a site key and a secret key. Both go on the card.
 
 The Anthropic API key is apart from the connections key. Saving one never turns the other on.
@@ -104,14 +110,12 @@ Change either with `public_agent_settings_change`, once the owner approves the n
 
 Give the owner what `chat-page` printed for each agent:
 
-- The agent's page, such as `https://fabrik-chat-<ref>.pages.dev/bookings/`. They can link to it from their website, an email or a social profile. The root address lists every agent.
-- The line for the website, `<script src="https://fabrik-chat-<ref>.pages.dev/widget.js" data-agent="bookings" async></script>`. Pasted into a page, it draws a round button in the brand's colour in the bottom right corner, which opens that agent in a panel.
+- The agent's page, such as `https://chat.example.com/bookings/`. They can link to it from their website, an email or a social profile. The root address lists every agent.
+- The line for the website, `<script src="https://chat.example.com/widget.js" data-agent="bookings" async></script>`. Pasted into a page, it draws a round button in the brand's colour in the bottom right corner, which opens that agent in a panel.
 
 Some website builders, such as Wix and Squarespace on lower plans, refuse a pasted script. The page's address then works as a link instead.
 
 Then ask the owner to try two questions on each new agent: one its KNOWLEDGE.md answers, and one it doesn't. The first gets the file's answer. The second gets what INSTRUCTIONS.md says to answer when the file doesn't know.
-
-The owner may want the pages at their own domain, such as chat.example.com. They add it to the Pages project fabrik-chat-<ref> in Cloudflare. The Turnstile widget then needs that hostname too.
 
 ## 8. Removing an agent, and turning all of them off
 

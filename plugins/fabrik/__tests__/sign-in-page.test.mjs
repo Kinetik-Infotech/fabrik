@@ -19,8 +19,8 @@ const save = () => writeFileSync(state, JSON.stringify(s));
 const cmd = args.join(" ");
 if (cmd === "whoami --json") {
   if (!s.signedIn) { console.log(JSON.stringify({ loggedIn: false })); process.exit(1); }
-  console.log(JSON.stringify({ loggedIn: true, email: "olive@owner.example", accounts: s.accounts }));
-} else if (args[0] === "login") { s.signedIn = s.loginWorks; save(); }
+  console.log(JSON.stringify({ loggedIn: true, email: "olive@owner.example", accounts: s.accounts, ...(s.scopes ? { tokenPermissions: s.scopes } : {}) }));
+} else if (args[0] === "login") { s.signedIn = s.loginWorks; if (s.scopes) s.scopes = [...(s.grants ?? args.slice(2)), "offline_access"]; save(); }
 else if (cmd === "pages project list --json") {
   console.log(JSON.stringify(s.projects.map(p => ({ "Project Name": p, "Project Domains": p + "-3x7.pages.dev", "Git Provider": "No" }))));
 } else if (args.slice(0, 3).join(" ") === "pages project create") { s.projects.push(args[3]); save(); console.log("Successfully created the project."); }
@@ -51,7 +51,7 @@ function stage(t, state) {
 test("no one signed in: the browser sign-in runs, the project is made, the page deployed and its address read, all under fabrik's own Wrangler sign-in", async t => {
   const s = stage(t, { signedIn: false });
   assert.equal(await s.go(), `https://${NAME}-3x7.pages.dev`);
-  assert.deepEqual(s.log().map(x => x.args.join(" ")), ["whoami --json", "login --scopes account:read user:read pages:write", "whoami --json", "pages project list --json",
+  assert.deepEqual(s.log().map(x => x.args.join(" ")), ["whoami --json", "login --scopes account:read user:read pages:write zone:read", "whoami --json", "pages project list --json",
     `pages project create ${NAME} --production-branch main`, `pages deploy ${s.page} --project-name ${NAME} --branch main`, "pages project list --json"]);
   assert.ok(s.log().every(x => x.xdg === wranglerHome(s.home)), "every call uses fabrik's own sign-in");
   // Wrangler asks nothing of its own, such as installing its skills: no call has a terminal to answer on.
@@ -69,6 +69,21 @@ test("signed in, with the project there: no sign-in, no second project, the page
   assert.equal(await s.go(), `https://${NAME}-3x7.pages.dev`);
   assert.ok(!s.log().some(x => x.args[0] === "login" || x.args.includes("create")), JSON.stringify(s.log()));
   assert.ok(s.log().every(x => x.account === "acc-1" || x.args[0] === "whoami"), "the one account is named on each call after whoami");
+});
+
+test("a sign-in from before fabrik read domains signs in again once, asking for zone:read, and a full one doesn't", async t => {
+  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write"] });
+  await s.go();
+  assert.deepEqual(s.log().filter(x => x.args[0] === "login").map(x => x.args.join(" ")), ["login --scopes account:read user:read pages:write zone:read"]);
+  assert.ok(s.said.includes("fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."), s.said.join("\n"));
+  await s.go();
+  assert.equal(s.log().filter(x => x.args[0] === "login").length, 1, "the second run signs in no more");
+});
+
+test("a sign-in that still lacks zone:read stops and says so, rather than going on with no domains", async t => {
+  const s = stage(t, { scopes: ["user:read", "offline_access", "account:read", "pages:write"], grants: ["account:read", "user:read", "pages:write"] });
+  await assert.rejects(s.go(), { message: "Cloudflare's sign-in didn't give fabrik zone:read. Run the command again, and allow Wrangler everything it asks for in the browser." });
+  assert.ok(!s.log().some(x => x.args[0] === "pages"), "nothing is put up");
 });
 
 test("a sign-in that sees two accounts: the owner picks one by number, asked again off the list, and every call after names it", async t => {

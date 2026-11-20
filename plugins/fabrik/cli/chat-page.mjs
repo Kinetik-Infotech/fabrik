@@ -1,6 +1,6 @@
 // fabrik chat-page: builds the public agents' chat pages in the business's brand, and puts them up on Cloudflare Pages.
 //
-//   node fabrik.mjs chat-page [--project <ref> --email <email>]
+//   node fabrik.mjs chat-page [--domain <address>] [--project <ref> --email <email>]
 //
 // It reads the Brand record and the list of public agents as the signed-in person, and the public-agent function's
 // address from the sign-in's project. It writes a chat page for each agent at <slug>/index.html, an index.html that
@@ -8,8 +8,9 @@
 // owner's folder, and made again each run.
 //
 // It puts them up with Wrangler as the Pages project fabrik-chat-<ref>, on the same Cloudflare sign-in as the sign-in
-// page. Then it saves the address with public-agent, for AGENTS.md, and prints each agent's page and the line that puts
-// its chat button on a website. With no Brand record, the pages take fabrik's own look.
+// page. chat-domain.mjs then puts them at an address on the owner's own domain, such as chat.example.com, or keeps the
+// pages.dev one. Then it saves the address with public-agent, for AGENTS.md, and prints each agent's page and the line
+// that puts its chat button on a website. With no Brand record, the pages take fabrik's own look.
 // The pages hold no key: chat.js asks public-agent for the Turnstile site key.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -17,7 +18,8 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
-import { putUpPage, WRANGLER } from "./sign-in-page.mjs";
+import { publishPage, WRANGLER } from "./sign-in-page.mjs";
+import { DomainNotReady, ownDomain } from "./chat-domain.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** The folder that holds chat.js, widget.js and page.html, the template of index.html. */
@@ -109,9 +111,10 @@ export function buildChatPage({ brand, address, folder, agents }) {
  * Builds the chat pages for the project ref and puts them up. url is the project's address. readBrand() gives the
  * brand, null when fabrik holds none, or throws when it can't be read. readAgents() gives the agents, or throws. A
  * failed read puts nothing up, so a live page never loses its brand or an agent. savePage(site) saves the address with
- * public-agent. The options are putUpPage's. Returns { site, agents: [{ slug, name, page, widget }], folder }.
+ * public-agent. domain is --domain's value, if any. The options are putUpPage's, with ownDomain's seams under domains.
+ * Returns { site, agents: [{ slug, name, page, widget }], folder }.
  */
-export async function chatPage({ ref, url, readBrand, readAgents, savePage }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
+export async function chatPage({ ref, url, readBrand, readAgents, savePage, domain }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env, domains = {} } = {}) {
   let brand, agents;
   try { brand = await readBrand(); }
   catch (err) { throw new Error(`fabrik couldn't read the Brand record, so the chat page wasn't put up: ${err instanceof Error ? err.message : err}`); }
@@ -121,7 +124,14 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage }, { 
   buildChatPage({ brand, address: `${url}/functions/v1/public-agent`, folder, agents });
   say(brand ? `Built ${agents.length === 1 ? "the chat page" : `${agents.length} chat pages`} in ${brand.name || "the business"}'s brand.`
     : "Built the chat pages in fabrik's own look, since fabrik holds no Brand record.");
-  const site = await putUpPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
+  const put = await publishPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
+  // Where the own domain isn't ready, the pages are still up at pages.dev, so the agents' addresses are given there.
+  const site = await ownDomain({ ref, project: chatProject(ref), pagesHost: new URL(put.site).host, accountId: put.accountId, token: put.token, given: domain },
+    { ask, say, home, ...domains }).catch(err => {
+    if (!(err instanceof DomainNotReady)) throw err;
+    say(`${err.message} Meanwhile the pages are at ${put.site}.`);
+    return put.site;
+  });
   try { await savePage(site); }
   catch (err) { say(`fabrik couldn't save the address for AGENTS.md: ${err instanceof Error ? err.message : err}. The agents can't give each other's addresses until chat-page runs again.`); }
   return { site, agents: agents.map(a => ({ slug: a.slug, name: a.name, page: `${site}/${a.slug}/`, widget: widgetLine(site, a.slug) })), folder };
