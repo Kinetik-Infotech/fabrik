@@ -16,14 +16,14 @@
 // stops the run with Claude Code's or the sign-in's message, and every step before it stays done.
 import process from "node:process";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { accountEmail } from "./lib/session.mjs";
 import { readActor } from "./lib/actor-file.mjs";
 import { nodeMismatch } from "./node-version.mjs";
-import { ASSISTANT } from "./lib/session-folder.mjs";
+import { ASSISTANT, FABRIK_PLUGIN, fabrikAgents } from "./lib/session-folder.mjs";
 import { ownerSetup } from "./owner-setup.mjs";
 import { holdTyping } from "./management.mjs";
 
@@ -45,7 +45,7 @@ export const SETUP_USAGE = `Usage: node fabrik.mjs setup [--folder <folder>] --e
 
 setup sets up a folder for one person in their fabrik: the folder, ~/${DEFAULT_FOLDER} unless --folder names
 another, where you put files for your agent and your agent keeps its work, the agent the folder works with,
-${DEFAULT_AGENT} unless --agent names another, that agent's plugin from the ${MARKETPLACE_NAME} marketplace, and
+${DEFAULT_AGENT} unless --agent names another of the fabrik plugin's agents, the fabrik plugin itself, and
 the person's sign-in as --email. A session opened on the folder then works as that person. --url and --key give
 the project's address and publishable key, from the Supabase dashboard's Connect button; without them the sign-in
 asks. --new-password replaces the first password.
@@ -84,22 +84,11 @@ export function parseSetup(argv) {
   return out;
 }
 
-/** Each agent in a plugin of the marketplace, as <plugin>:<agent>, from the plugins' agents folders. */
-export function marketplaceAgents(marketplace = MARKETPLACE) {
+/** Each agent that works in fabrik, from the fabrik plugin's folder in the marketplace. */
+export function workingAgents(marketplace = MARKETPLACE) {
   const listed = JSON.parse(readFileSync(join(marketplace, ".claude-plugin", "marketplace.json"), "utf-8")).plugins ?? [];
-  const agents = [];
-  for (const plugin of listed) {
-    if (typeof plugin.source !== "string") continue;
-    const folder = join(marketplace, plugin.source, "agents");
-    let files = [];
-    try { files = readdirSync(folder).filter(f => f.endsWith(".md")).sort(); } catch { continue; }
-    for (const file of files) {
-      const text = readFileSync(join(folder, file), "utf-8");
-      const name = /^---\r?\n[\s\S]*?^name:\s*(\S+)\s*$/m.exec(text)?.[1] ?? file.slice(0, -3);
-      agents.push(`${plugin.name}:${name}`);
-    }
-  }
-  return agents;
+  const source = listed.find(plugin => plugin.name === FABRIK_PLUGIN)?.source;
+  return typeof source === "string" ? fabrikAgents(join(marketplace, source)) : [];
 }
 
 // On Windows, claude may be a .cmd that only a shell runs, and a shell takes one command line.
@@ -206,14 +195,14 @@ export function setup(argv, { home = homedir(), signInArgs, signInPath, marketpl
   const mismatch = nodeMismatch();
   if (mismatch) { fail(mismatch); return 1; }
   try {
-    const agents = marketplaceAgents(marketplace);
-    if (!agents.includes(o.agent)) throw new StepFailed(`${o.agent} is not an agent in the ${MARKETPLACE_NAME} marketplace. Its agents are: ${agents.join(", ")}.`);
+    const agents = workingAgents(marketplace);
+    if (!agents.includes(o.agent)) throw new StepFailed(`${o.agent} is not an agent that works in ${MARKETPLACE_NAME}. Its agents are: ${agents.join(", ")}.`);
     // The owner pastes a token later: typing before its prompt is held unshown, as management.mjs's holdTyping says.
     if (o.owner) holdTyping();
     const folder = resolve(o.folder ?? join(home, DEFAULT_FOLDER));
     makeFolder(folder, say);
     writeAgentSetting(folder, o.agent, say);
-    const plugin = o.agent.split(":")[0];
+    const plugin = FABRIK_PLUGIN;
     // Only fabrik's own repository on GitHub is kept. A marketplace added from a folder is read in place, so the fabrik
     // command is not where the agent runs it, and one from any other source is not fabrik's.
     const had = claudeList(["plugin", "marketplace", "list"], "plugin marketplaces").find(m => m.name === MARKETPLACE_NAME);

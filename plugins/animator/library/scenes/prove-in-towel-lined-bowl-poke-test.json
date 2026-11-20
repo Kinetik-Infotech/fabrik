@@ -1,0 +1,133 @@
+{
+ "id": "s5",
+ "title": "Prove at room temperature",
+ "dur": 20,
+ "clock": [
+  [
+   0,
+   446
+  ],
+  [
+   5,
+   447
+  ],
+  [
+   13,
+   553
+  ]
+ ],
+ "vo": "Line a bowl with a clean tea towel, and flour it well. Lay the dough in, seam side up. Cover it, and leave it at room temperature for an hour and a half to 2 hours, until it looks puffy. Poke it with a floured finger. When the dent springs back slowly, it's ready.",
+ "voUS": "Line a bowl with a clean tea towel, and flour it well. Lay the dough in, seam side up. Cover it, and leave it at room temperature for an hour and a half to 2 hours, until it looks puffy. Poke it with a floured finger. When the dent springs back slowly, it's ready.",
+ "cap": [
+  [
+   0,
+   "Line a bowl with a well-floured tea towel. Lay the dough in, seam side up."
+  ],
+  [
+   5.6,
+   "Cover and leave at room temperature for 1½ to 2 hours, until puffy."
+  ],
+  [
+   13.4,
+   "Poke it with a floured finger. When the dent springs back slowly, it's ready."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Line a bowl with a well-floured tea towel. Lay the dough in, seam side up."
+  ],
+  [
+   5.6,
+   "Cover and leave at room temperature for 1½ to 2 hours, until puffy."
+  ],
+  [
+   13.4,
+   "Poke it with a floured finger. When the dent springs back slowly, it's ready."
+  ]
+ ],
+ "svg": "<path d=\"M560 380 Q560 650 800 650 Q1040 650 1040 380 Z\" class=\"f-w\"/>\n<path d=\"M576 380 Q576 632 800 632 Q1024 632 1024 380 Z\" class=\"f-s2 lt\"/>\n<path d=\"M562 382 Q540 420 528 470 L548 474 Q558 424 576 390 Z\" class=\"f-s2 lt\"/>\n<path d=\"M1038 382 Q1060 420 1072 470 L1052 474 Q1042 424 1024 390 Z\" class=\"f-s2 lt\"/>\n<g class=\"f-w lt\"><circle cx=\"600\" cy=\"500\" r=\"3\"/><circle cx=\"640\" cy=\"580\" r=\"3\"/><circle cx=\"960\" cy=\"560\" r=\"3\"/><circle cx=\"1000\" cy=\"480\" r=\"3\"/></g>\n<g id=\"s5-dg\" data-o=\"b\"><path d=\"M610 470 Q610 618 800 618 Q990 618 990 470 Q800 446 610 470 Z\" class=\"f-d ln\"/><path d=\"M770 452 L800 470 L830 452 M800 470 L800 446\" class=\"lt\"/></g>\n<path d=\"M560 380 Q560 650 800 650 Q1040 650 1040 380\" class=\"ln\"/>\n<line x1=\"545\" y1=\"380\" x2=\"1055\" y2=\"380\" class=\"ln\"/>\n<rect id=\"s5-cv\" x=\"540\" y=\"358\" width=\"520\" height=\"22\" rx=\"6\" class=\"f-s ln\"/>\n<text id=\"s5-h\" class=\"t-mono\" x=\"340\" y=\"470\" text-anchor=\"middle\">1½–2 h</text>\n<text id=\"s5-rt\" class=\"t-sm\" x=\"340\" y=\"515\" text-anchor=\"middle\">ROOM TEMPERATURE</text>\n<g id=\"s5-pk\"><circle cx=\"1290\" cy=\"470\" r=\"90\" class=\"f-d ln\"/><text class=\"t-sm\" x=\"1290\" y=\"610\" text-anchor=\"middle\">FLOURED POKE</text><text class=\"t-sm\" x=\"1290\" y=\"645\" text-anchor=\"middle\">SPRINGS BACK SLOWLY</text></g>\n<circle id=\"s5-dt\" cx=\"1290\" cy=\"470\" r=\"22\" class=\"f-s lt\"/>",
+ "tw": [
+  [
+   "s5-dg",
+   0.6,
+   1.8,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -120,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "s5-cv",
+   4.6,
+   5.6,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "y": [
+     -40,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s5-h",
+   5.8
+  ],
+  [
+   "fadeUp",
+   "s5-rt",
+   6.2
+  ],
+  [
+   "s5-dg",
+   6,
+   12.6,
+   {
+    "sy": [
+     1,
+     1.18
+    ]
+   }
+  ],
+  [
+   "fadeOut",
+   "s5-cv",
+   13.2
+  ],
+  [
+   "fadeUp",
+   "s5-pk",
+   13.6
+  ],
+  [
+   "pop",
+   "s5-dt",
+   15
+  ],
+  [
+   "s5-dt",
+   16,
+   19.4,
+   {
+    "s": [
+     1,
+     0.45
+    ]
+   },
+   "l"
+  ]
+ ],
+ "uses": []
+}

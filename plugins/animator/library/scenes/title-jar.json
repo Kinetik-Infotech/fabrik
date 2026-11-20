@@ -1,0 +1,83 @@
+{
+ "id": "s1",
+ "title": "Sourdough starter",
+ "dur": 10,
+ "clock": null,
+ "vo": "Sourdough starter, made from flour and water over about a week. It makes one jar of about 150 grams, to keep, feed and bake with.",
+ "voUS": "Sourdough starter, made from flour and water over about a week. It makes one jar of about 5 ounces, to keep, feed and bake with.",
+ "cap": [
+  [
+   0,
+   "Flour, water and about a week. It makes one jar of about 150 g."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Flour, water and about a week. It makes one jar of about 5 oz."
+  ]
+ ],
+ "svg": "<text id=\"s1-t1\" class=\"t-disp\" x=\"800\" y=\"290\" text-anchor=\"middle\">SOURDOUGH</text>\n<text id=\"s1-t2\" class=\"t-disp grey\" x=\"800\" y=\"380\" text-anchor=\"middle\">STARTER</text>\n<line id=\"s1-rule\" x1=\"660\" y1=\"432\" x2=\"940\" y2=\"432\" class=\"lt\"/>\n<path d=\"M740 470 L740 615 Q740 630 755 630 L845 630 Q860 630 860 615 L860 470 Z\" class=\"f-w\"/>\n<rect id=\"s1-fill\" data-o=\"b\" x=\"746\" y=\"478\" width=\"108\" height=\"146\" rx=\"8\" class=\"f-l\"/>\n<circle id=\"s1-u0\" cx=\"770\" cy=\"560\" r=\"5\" class=\"f-w lt\"/><circle id=\"s1-u1\" cx=\"815\" cy=\"590\" r=\"6\" class=\"f-w lt\"/><circle id=\"s1-u2\" cx=\"835\" cy=\"540\" r=\"4\" class=\"f-w lt\"/>\n<path d=\"M740 470 L740 615 Q740 630 755 630 L845 630 Q860 630 860 615 L860 470\" class=\"ln\"/>\n<text id=\"s1-y\" class=\"t-m24\" x=\"800\" y=\"690\" text-anchor=\"middle\" data-us=\"1 JAR · ABOUT 5 oz\">1 JAR · ABOUT 150 g</text>",
+ "tw": [
+  [
+   "fadeUp",
+   "s1-t1",
+   0.4,
+   2
+  ],
+  [
+   "fadeUp",
+   "s1-t2",
+   1.2,
+   2
+  ],
+  [
+   "s1-rule",
+   2,
+   3.6,
+   {
+    "sx": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s1-fill",
+   3,
+   5,
+   {
+    "sy": [
+     0,
+     0.7
+    ]
+   },
+   "o"
+  ],
+  [
+   "pop",
+   "s1-u0",
+   4.2,
+   0.6
+  ],
+  [
+   "pop",
+   "s1-u1",
+   4.6,
+   0.6
+  ],
+  [
+   "pop",
+   "s1-u2",
+   5,
+   0.6
+  ],
+  [
+   "fadeUp",
+   "s1-y",
+   5.4,
+   1.2
+  ]
+ ],
+ "uses": []
+}

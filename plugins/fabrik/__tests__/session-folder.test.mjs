@@ -47,3 +47,26 @@ test("the reconnect command names fabrik's assistant when the folder named anoth
   assert.equal(r.agent, "fabrik:assistant");
   assert.equal(r.agentFrom, "fabrik's own agent");
 });
+
+test("the reconnect command names fabrik's assistant when the folder named another plugin of the fabrik marketplace", async t => {
+  const { reconnectCommand } = await import("../cli/lib/session-folder.mjs");
+  const { workingAgents } = await import("../cli/setup.mjs");
+  const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { dirname, join, resolve } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const configDir = mkdtempSync(join(tmpdir(), "fabrik-config-"));
+  t.after(() => rmSync(configDir, { recursive: true, force: true }));
+  mkdirSync(join(configDir, "plugins"));
+  const installed = name => [{ scope: "user", installPath: join(root, "plugins", name), version: "1.0.0" }];
+  writeFileSync(join(configDir, "plugins", "installed_plugins.json"), JSON.stringify({ version: 2, plugins: {
+    "fabrik@fabrik": installed("fabrik"), "trip-agent@fabrik": installed("trip-agent"), "animator@fabrik": installed("animator") } }));
+  for (const agent of ["trip-agent:travel-agent", "animator:animator"]) {
+    const r = reconnectCommand("/x/trips", { setting: agent, earlier: { email: "a@b.c", agent }, configDir, platform: "darwin" });
+    assert.equal(r.agent, "fabrik:assistant");
+    assert.equal(r.agentFrom, "fabrik's own agent");
+  }
+  // The agent the command names is one setup takes.
+  assert.ok(workingAgents(root).includes(reconnectCommand("/x/trips", { setting: "fabrik:assistant", configDir, platform: "darwin" }).agent));
+});

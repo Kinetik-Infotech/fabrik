@@ -1,0 +1,312 @@
+{
+ "id": "s5",
+ "title": "Day 3: keep 50 g",
+ "dur": 16,
+ "clock": [
+  [
+   0,
+   3420
+  ],
+  [
+   16,
+   3428
+  ]
+ ],
+ "vo": "Day three, at about 9 in the morning. You may see bubbles and smell something sharp. Weigh 50 grams of it into your clean spare jar, and discard the rest. Feed it 50 grams of wholemeal rye flour and 50 grams of water at about 26 degrees. Stir, mark the level, cover loosely, and leave it for a day.",
+ "voUS": "Day three, at about 9 in the morning. You may see bubbles and smell something sharp. Weigh 50 grams of it, about three and a half tablespoons, into your clean spare jar, and discard the rest. Feed it half a cup of wholemeal rye flour and three and a half tablespoons of water at about 79 degrees. Stir, mark the level, cover loosely, and leave it for a day.",
+ "cap": [
+  [
+   0,
+   "Day 3, 9 am: weigh 50 g into your clean spare jar and discard the rest."
+  ],
+  [
+   8.4,
+   "Feed it 50 g wholemeal rye flour and 50 g water at about 26 °C. Stir, mark and cover."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "Day 3, 9 am: weigh 50 g (3½ tbsp) into your clean spare jar and discard the rest."
+  ],
+  [
+   8.4,
+   "Feed it ½ cup wholemeal rye flour and 3½ tbsp water at about 79 °F. Stir, mark and cover."
+  ]
+ ],
+ "svg": "<path d=\"M200 300 L200 600 Q200 620 220 620 L380 620 Q400 620 400 600 L400 300 Z\" class=\"f-w\"/>\n<rect id=\"s5-fa\" data-o=\"b\" x=\"208\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<circle id=\"s5a-u0\" cx=\"235\" cy=\"520\" r=\"7\" class=\"f-w lt\"/>\n<circle id=\"s5a-u1\" cx=\"270\" cy=\"480\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s5a-u2\" cx=\"322\" cy=\"500\" r=\"8\" class=\"f-w lt\"/>\n<circle id=\"s5a-u3\" cx=\"360\" cy=\"470\" r=\"5\" class=\"f-w lt\"/>\n<circle id=\"s5a-u4\" cx=\"250\" cy=\"580\" r=\"6\" class=\"f-w lt\"/>\n<circle id=\"s5a-u5\" cx=\"345\" cy=\"560\" r=\"7\" class=\"f-w lt\"/>\n<path d=\"M200 300 L200 600 Q200 620 220 620 L380 620 Q400 620 400 600 L400 300\" class=\"ln\"/>\n<text id=\"s5-dis\" class=\"t-sm\" x=\"300\" y=\"665\" text-anchor=\"middle\">DISCARD THE REST</text>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300 Z\" class=\"f-w\"/>\n<rect id=\"s5-fb\" data-o=\"b\" x=\"648\" y=\"312\" width=\"184\" height=\"300\" rx=\"12\" class=\"f-l\"/>\n<path d=\"M640 300 L640 600 Q640 620 660 620 L820 620 Q840 620 840 600 L840 300\" class=\"ln\"/>\n<rect x=\"600\" y=\"622\" width=\"280\" height=\"58\" rx=\"10\" class=\"f-s ln\"/>\n<rect x=\"670\" y=\"634\" width=\"140\" height=\"36\" class=\"f-w lt\"/>\n<text id=\"s5-n\" class=\"t-m24\" x=\"740\" y=\"661\" text-anchor=\"middle\" data-suffix=\" g\">0 g</text>\n<ellipse id=\"s5-bl\" cx=\"300\" cy=\"240\" rx=\"56\" ry=\"28\" class=\"f-l ln\"/>\n<path id=\"s5-fl\" d=\"M690 200 Q740 140 790 200 Z\" class=\"f-s ln\"/>\n<path id=\"s5-wa\" d=\"M740 150 Q708 196 740 216 Q772 196 740 150 Z\" class=\"f-wa ln\"/>\n<g id=\"s5-r0\"><text class=\"t-mono\" x=\"960\" y=\"300\" data-us=\"3½ tbsp\">50 g</text><text class=\"t-lbl\" x=\"1120\" y=\"300\">KEEP</text></g>\n<g id=\"s5-r1\"><text class=\"t-mono\" x=\"960\" y=\"380\" data-us=\"½ cup\">50 g</text><text class=\"t-lbl\" x=\"1120\" y=\"380\">RYE FLOUR</text></g>\n<g id=\"s5-r2\"><text class=\"t-mono\" x=\"960\" y=\"460\" data-us=\"3½ tbsp\">50 g</text><text class=\"t-lbl\" x=\"1120\" y=\"460\">WATER</text></g>\n<g id=\"s5-temp\" class=\"chip light\"><rect/><text x=\"974\" y=\"560\" data-us=\"WATER AT ABOUT 79 °F\">WATER AT ABOUT 26 °C</text></g>",
+ "tw": [
+  [
+   "s5-fa",
+   0,
+   0.1,
+   {
+    "sy": [
+     0.75,
+     0.75
+    ]
+   }
+  ],
+  [
+   "s5-bl",
+   0.8,
+   1.2,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s5-bl",
+   1.2,
+   2.4,
+   {
+    "x": [
+     0,
+     440
+    ]
+   }
+  ],
+  [
+   "s5-bl",
+   2.4,
+   3.4,
+   {
+    "y": [
+     0,
+     300
+    ]
+   },
+   "i"
+  ],
+  [
+   "fadeOut",
+   "s5-bl",
+   3.3,
+   0.3
+  ],
+  [
+   "s5-fa",
+   1,
+   1.6,
+   {
+    "sy": [
+     0.75,
+     0.6
+    ]
+   }
+  ],
+  [
+   "s5-fb",
+   3.3,
+   4,
+   {
+    "sy": [
+     0,
+     0.15
+    ]
+   },
+   "o"
+  ],
+  [
+   "s5-n",
+   3.3,
+   4.2,
+   {
+    "n": [
+     0,
+     50
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s5-r0",
+   3.6
+  ],
+  [
+   "s5-fa",
+   4.6,
+   5.6,
+   {
+    "o": [
+     1,
+     0.35
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s5-dis",
+   4.8
+  ],
+  [
+   "s5-fl",
+   6,
+   6.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s5-fl",
+   6.4,
+   7.6,
+   {
+    "y": [
+     0,
+     300
+    ]
+   },
+   "i"
+  ],
+  [
+   "fadeOut",
+   "s5-fl",
+   7.5,
+   0.3
+  ],
+  [
+   "s5-fb",
+   7.6,
+   8.4,
+   {
+    "sy": [
+     0.15,
+     0.3
+    ]
+   }
+  ],
+  [
+   "s5-n",
+   7.6,
+   8.4,
+   {
+    "n": [
+     50,
+     100
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s5-r1",
+   7.2
+  ],
+  [
+   "s5-wa",
+   9,
+   9.4,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "s5-wa",
+   9.4,
+   10.6,
+   {
+    "y": [
+     0,
+     300
+    ]
+   },
+   "i"
+  ],
+  [
+   "fadeOut",
+   "s5-wa",
+   10.5,
+   0.3
+  ],
+  [
+   "s5-fb",
+   10.6,
+   11.4,
+   {
+    "sy": [
+     0.3,
+     0.45
+    ]
+   }
+  ],
+  [
+   "s5-n",
+   10.6,
+   11.4,
+   {
+    "n": [
+     100,
+     150
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s5-r2",
+   10.2
+  ],
+  [
+   "fadeUp",
+   "s5-temp",
+   11.6
+  ],
+  [
+   "pop",
+   "s5a-u0",
+   0.2,
+   0.5
+  ],
+  [
+   "pop",
+   "s5a-u1",
+   0.35,
+   0.5
+  ],
+  [
+   "pop",
+   "s5a-u2",
+   0.5,
+   0.5
+  ],
+  [
+   "pop",
+   "s5a-u3",
+   0.6499999999999999,
+   0.5
+  ],
+  [
+   "pop",
+   "s5a-u4",
+   0.8,
+   0.5
+  ],
+  [
+   "pop",
+   "s5a-u5",
+   0.95,
+   0.5
+  ]
+ ],
+ "uses": [
+  {
+   "ingredient": "rye",
+   "grams": 50
+  },
+  {
+   "ingredient": "water",
+   "grams": 50
+  }
+ ]
+}

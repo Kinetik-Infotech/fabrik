@@ -1,0 +1,10 @@
+{
+  "name": "animator",
+  "description": "Turns a recipe request into an animated, narrated recipe video for animated.recipes: an original whole-food recipe, drawn as SVG scenes, checked, narrated and rendered to MP4.",
+  "version": "0.2.1",
+  "author": {
+    "name": "Kinetik Infotech Ltd"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Kinetik-Infotech/kinetik-marketplace"
+}
