@@ -76,7 +76,36 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
 
 // Cloudflare's siteverify: the secret SECRET, and the token GOOD_TOKEN, pass.
 const verified: { secret: string; response: string }[] = [];
+// Cloudflare's API, for the token TOKEN on the account acc-1: two domains whose DNS Cloudflare runs, and the Pages
+// projects' custom domains. A custom domain turns active on the third time it's asked for, unless it's under
+// stuck.example, which stays pending.
+const CF_TOKEN = "cf-token-1";
+const zonesHeld = [{ name: "joinery.example", type: "full" }, { name: "smithjoinery.example", type: "full" }];
+const customDomains = new Map<string, { project: string; asked: number }>();
+const cfCalls: string[] = [];
+const cloudflareApi = (req: Request, url: URL) => {
+  cfCalls.push(`${req.method} ${url.pathname.slice("/client/v4".length)}`);
+  if (req.headers.get("Authorization") !== `Bearer ${CF_TOKEN}`) return Response.json({ success: false, errors: [{ code: 10000, message: "Authentication error" }] }, { status: 403 });
+  if (url.pathname === "/client/v4/zones" && url.searchParams.get("account.id") === "acc-1")
+    return Response.json({ success: true, errors: [], result: zonesHeld, result_info: { page: 1, total_pages: 1 } });
+  const m = /^\/client\/v4\/accounts\/acc-1\/pages\/projects\/([^/]+)\/domains(?:\/([^/]+))?$/.exec(url.pathname);
+  if (!m) return Response.json({ success: false, errors: [{ code: 7003, message: "No route for that URI" }] }, { status: 404 });
+  return (async () => {
+    if (req.method === "POST") {
+      const { name } = await req.json();
+      customDomains.set(name, { project: m[1], asked: 0 });
+      return Response.json({ success: true, errors: [], result: { name, status: "initializing" } });
+    }
+    const d = customDomains.get(decodeURIComponent(m[2] ?? ""));
+    if (!d || d.project !== m[1]) return Response.json({ success: false, errors: [{ code: 8000021, message: "The domain you have requested does not exist." }] }, { status: 404 });
+    d.asked++;
+    const status = !m[2]!.endsWith(".stuck.example") && d.asked >= 3 ? "active" : "pending";
+    return Response.json({ success: true, errors: [], result: { name: m[2], status, verification_data: { status } } });
+  })();
+};
 const cloudflare = Deno.serve({ port: 0, onListen() {} }, async (req) => {
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/client/v4/")) return cloudflareApi(req, url);
   const form = await req.formData();
   const secret = String(form.get("secret") ?? ""), response = String(form.get("response") ?? "");
   verified.push({ secret, response });
@@ -151,7 +180,9 @@ const state = new URL("wrangler-state.json", import.meta.url);
 const s = JSON.parse(readFileSync(state, "utf8"));
 const args = process.argv.slice(2), cmd = args.join(" ");
 const save = () => writeFileSync(state, JSON.stringify(s));
-if (cmd === "whoami --json") console.log(JSON.stringify({ loggedIn: true, email: "owner@joinery.example", accounts: [{ id: "acc-1", name: "Smith Joinery" }] }));
+if (cmd === "whoami --json") console.log(JSON.stringify({ loggedIn: true, email: "owner@joinery.example", accounts: [{ id: "acc-1", name: "Smith Joinery" }],
+  tokenPermissions: ["account:read", "user:read", "pages:write", "zone:read", "offline_access"] }));
+else if (cmd === "auth token --json") console.log(JSON.stringify({ type: "oauth", token: "${CF_TOKEN}" }));
 else if (cmd === "pages project list --json") console.log(JSON.stringify(s.projects.map(p => ({ "Project Name": p, "Project Domains": p + ".pages.dev" }))));
 else if (args.slice(0, 3).join(" ") === "pages project create") { s.projects.push(args[3]); save(); }
 else if (args.slice(0, 2).join(" ") === "pages deploy") { s.deployed = { folder: args[2], project: args[4], branch: args[6] }; save(); }
@@ -456,15 +487,33 @@ try {
   const action = async (body: Record<string, unknown>) => { const r = await post(body, admin); if (r.status !== 200) throw new Error(r.body.problem); return r.body; };
   const readAgents = async () => (await action({ action: "agents_list" })).agents;
   const savePage = (page: string) => action({ action: "settings", page });
-  const options = { ask: () => Promise.reject(new Error("asked")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject() };
+  // Cloudflare's API and the DNS stand in too. resolve gives what the DNS answers for a host, and isDomain says
+  // outside.example is a domain itself.
+  const dnsAnswers = new Map<string, boolean[]>();
+  const domains = { api: `http://127.0.0.1:${cloudflare.addr.port}/client/v4`, pause: () => Promise.resolve(), tries: 5,
+    resolve: (host: string) => Promise.resolve(dnsAnswers.get(host)?.shift() ?? true), isDomain: (host: string) => Promise.resolve(host === "outside.example") };
+  const domainAnswers = ["3", "1", ""], asked: string[] = [];
+  const options = { ask: () => Promise.reject(new Error("This command needs an interactive terminal.")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject(), domains };
   const built = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)), readAgents, savePage },
-    { ...options, say: (l: string) => said.push(l) });
+    { ...options, say: (l: string) => said.push(l), ask: (q: string) => { asked.push(q); return Promise.resolve(domainAnswers.shift()!); } });
   const wrangled = JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`));
   const rootHtml = await Deno.readTextFile(`${built.folder}/index.html`);
   const bookingsHtml = await Deno.readTextFile(`${built.folder}/bookings/index.html`);
   const widgetJs = await Deno.readTextFile(`${built.folder}/widget.js`);
-  const site = `https://${chatProject("abcdefghijklmnopqrst")}.pages.dev`;
-  check("fabrik chat-page puts a page for each agent, the list of agents, chat.js and widget.js up as fabrik-chat-<ref>, and gives each agent's page and widget line",
+  const pagesHost = `${chatProject("abcdefghijklmnopqrst")}.pages.dev`;
+  const site = "https://chat.joinery.example";
+  check("fabrik chat-page lists the Cloudflare account's domains, asks which one again after an answer off the list, and asks for the subdomain, chat on Return",
+    said.includes("1. joinery.example") && said.includes("2. smithjoinery.example") && said.includes("3 is not one of the numbers or a domain such as example.com.")
+      && JSON.stringify(asked) === JSON.stringify([
+        `Which domain is the chat for? Type its number, or another domain. Press Return to keep ${pagesHost}: `,
+        `Which domain is the chat for? Type its number, or another domain. Press Return to keep ${pagesHost}: `,
+        "Which subdomain of joinery.example? Press Return for chat: "]), { said, asked });
+  check("it adds chat.joinery.example to fabrik-chat-<ref> once, and asks Cloudflare for its status until it's active, saying each new status",
+    JSON.stringify(cfCalls) === JSON.stringify(["GET /zones", "GET /accounts/acc-1/pages/projects/fabrik-chat-abcdefghijklmnopqrst/domains/chat.joinery.example",
+      "POST /accounts/acc-1/pages/projects/fabrik-chat-abcdefghijklmnopqrst/domains", ...Array(3).fill("GET /accounts/acc-1/pages/projects/fabrik-chat-abcdefghijklmnopqrst/domains/chat.joinery.example")])
+      && said.includes("Cloudflare is setting up chat.joinery.example: initializing.") && said.includes("Cloudflare is setting up chat.joinery.example: pending.")
+      && said.includes("chat.joinery.example is ready.") && !said.some((l) => l.includes("CNAME")), { cfCalls, said });
+  check("fabrik chat-page puts a page for each agent, the list of agents, chat.js and widget.js up as fabrik-chat-<ref>, and gives each agent's page and widget line at the own domain",
     built.site === site && JSON.stringify(built.agents) === JSON.stringify([
       { slug: "chat", name: "Chat", page: `${site}/chat/`, widget: `<script src="${site}/widget.js" data-agent="chat" async></script>` },
       { slug: "bookings", name: "Bookings", page: `${site}/bookings/`, widget: widgetLine(site, "bookings") }])
@@ -473,6 +522,37 @@ try {
     { built, wrangled, said });
   check("fabrik chat-page saves the page's address, and AGENTS.md then gives each agent's page",
     files.get("agents.md") === `- Chat, ${site}/chat/\n- Bookings, ${site}/bookings/: Books a table.\n`, files.get("agents.md"));
+  check("fabrik keeps the address beside the pages", JSON.parse(await Deno.readTextFile(`${home}/.config/fabrik/chat/abcdefghijklmnopqrst.json`)).host === "chat.joinery.example",
+    await Deno.readTextFile(`${home}/.config/fabrik/chat/abcdefghijklmnopqrst.json`));
+  cfCalls.length = 0;
+  const rerun = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)), readAgents, savePage },
+    { ...options, say: () => {} });
+  check("a later run reuses the address without asking, and adds nothing", rerun.site === site
+    && JSON.stringify(cfCalls) === JSON.stringify(["GET /zones", "GET /accounts/acc-1/pages/projects/fabrik-chat-abcdefghijklmnopqrst/domains/chat.joinery.example"]), cfCalls);
+
+  // A domain whose DNS is elsewhere, a domain itself, and a domain Cloudflare doesn't finish, each on a project of its own.
+  const quiet = (page: string) => { void page; return Promise.resolve(); };
+  const putUpFor = (ref: string, domain: string, lines: string[] = []) => chatPage({ ref, url: `https://${ref}.supabase.co`, readBrand: () => Promise.resolve(null), readAgents, savePage: quiet, domain },
+    { ...options, say: (l: string) => lines.push(l) }).then((r: { site: string }) => r.site, (err: Error) => `stopped: ${err.message}`);
+  const cnameSaid: string[] = [];
+  dnsAnswers.set("chat.outside.example", [false, true]);
+  const cnameSite = await putUpFor("bcdefghijklmnopqrstu", "chat.outside.example", cnameSaid);
+  check("for a domain whose DNS is elsewhere, fabrik prints the CNAME record to the pages.dev address, says once it sees it, and waits until it's active",
+    cnameSite === "https://chat.outside.example"
+      && cnameSaid.includes("Your domain's DNS isn't on this Cloudflare account. Add this record where you manage the DNS of outside.example: Name chat, type CNAME, target fabrik-chat-bcdefghijklmnopqrstu.pages.dev. fabrik waits for it.")
+      && cnameSaid.includes("fabrik sees the CNAME record for chat.outside.example.") && cnameSaid.at(-1) === "chat.outside.example is ready.", cnameSaid);
+  cfCalls.length = 0;
+  const apex = [await putUpFor("cdefghijklmnopqrstuv", "joinery.example"), await putUpFor("cdefghijklmnopqrstuv", "outside.example")];
+  check("a domain itself is refused, in Cloudflare or outside it, and nothing is added",
+    apex[0] === "stopped: fabrik puts the chat on a subdomain, such as chat.joinery.example, so your website at joinery.example stays as it is."
+      && apex[1] === "stopped: fabrik puts the chat on a subdomain, such as chat.outside.example, so your website at outside.example stays as it is."
+      && !cfCalls.some((c) => c.startsWith("POST")), { apex, cfCalls });
+  const stuck = await putUpFor("defghijklmnopqrstuvw", "help.stuck.example");
+  check("where Cloudflare doesn't finish within the limit, fabrik stops and says the pages.dev address works meanwhile",
+    stuck.startsWith("stopped: Cloudflare hasn't finished setting up help.stuck.example after a minute. It says pending. The pages stay up at https://fabrik-chat-defghijklmnopqrstuvw.pages.dev meanwhile."), stuck);
+  const kept = await putUpFor("efghijklmnopqrstuvwx", "pages.dev");
+  check("--domain pages.dev keeps the pages.dev address", kept === "https://fabrik-chat-efghijklmnopqrstuvwx.pages.dev", kept);
+
   const pageBefore = rootHtml;
   const deployedBefore = await Deno.readTextFile(`${tools}/wrangler-state.json`);
   const stopped = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.reject(new Error("fabrik didn't answer in time.")), readAgents, savePage },

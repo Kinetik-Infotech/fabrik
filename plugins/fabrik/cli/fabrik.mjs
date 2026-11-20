@@ -10,7 +10,7 @@
 //   node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
 //   node fabrik.mjs upgrade <signed upgrade file> [--project <ref> --email <email>]
 //   node fabrik.mjs update --check | --apply
-//   node fabrik.mjs chat-page [--project <ref> --email <email>]
+//   node fabrik.mjs chat-page [--domain <address>] [--project <ref> --email <email>]
 //   node fabrik.mjs import maxy <export folder> [--project <ref> --email <email>] [--labels <label map>]
 //   node fabrik.mjs [--project <ref> --email <email>] <name> [<argument>=<value> ...]
 //
@@ -53,7 +53,7 @@ export const USAGE = `Usage: node fabrik.mjs setup [--folder <folder>] --email <
        node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
        node fabrik.mjs upgrade <signed upgrade file> [--project <ref> --email <email>]
        node fabrik.mjs import maxy <export folder> [--project <ref> --email <email>] [--labels <label map>]
-       node fabrik.mjs chat-page [--project <ref> --email <email>]
+       node fabrik.mjs chat-page [--domain <address>] [--project <ref> --email <email>]
        node fabrik.mjs [--project <ref> --email <email>] <name> [<argument>=<value> ...]
 
 setup sets up a folder for one person in their fabrik: the folder, ~/fabrik unless --folder
@@ -76,8 +76,10 @@ public agent's KNOWLEDGE.md. It writes import-report.json in the folder, and exi
 reason other than a label the import skips or a link with a missing end. Run again, it loads nothing twice.
 
 chat-page builds a chat page for each public agent in your brand, from the Brand record, and a page that lists them. It
-puts the pages up on Cloudflare Pages, with the Cloudflare sign-in fabrik's sign-in page uses. It prints each agent's page
-and the line that puts its chat button on any website. Run it again after you add or remove an agent.
+puts the pages up on Cloudflare Pages, with the Cloudflare sign-in fabrik's sign-in page uses, at an address on your own
+domain, such as chat.example.com. It lists the domains on that Cloudflare account and asks which one, unless --domain
+names the address. --domain pages.dev keeps the pages.dev address. Later runs use the same address without asking. It
+prints each agent's page and the line that puts its chat button on any website. Run it again after you add or remove an agent.
 
 upgrade applies one signed upgrade to your fabrik, as you, when you are an administrator. The file is the request
 scripts/sign-upgrade.mjs writes. fabrik-upgrade applies it only when fabrik's upgrade key signed it, in order.
@@ -307,7 +309,7 @@ export async function updateCommand(argv, cwd = process.cwd(), home = homedir(),
 export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(), say = () => {}, ask = askLine) {
   const options = {};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--project" || argv[i] === "--email") {
+    if (argv[i] === "--project" || argv[i] === "--email" || argv[i] === "--domain") {
       if (argv[i + 1] === undefined) return { ok: false, problem: `${argv[i]} needs a value.` };
       options[argv[i].slice(2)] = argv[++i];
     } else return { ok: false, problem: `${argv[i]} is not an option. ${USAGE}` };
@@ -328,7 +330,7 @@ export async function chatPageCommand(argv, cwd = process.cwd(), home = homedir(
     if (!got?.ok) throw new Error(got?.problem ?? "public-agent gave nothing back.");
     return got;
   };
-  const { site, agents } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere,
+  const { site, agents } = await chatPage({ ref: who.ref, url, readBrand: readBrandHere, domain: options.domain,
     readAgents: async () => (await agentAction({ action: "agents_list" })).agents,
     savePage: page => agentAction({ action: "settings", page }) }, { ask, say, home });
   return { ok: true, site, agents };

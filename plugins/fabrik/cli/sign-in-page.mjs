@@ -4,8 +4,8 @@
 //
 // Wrangler runs with XDG_CONFIG_HOME set to ~/.config/fabrik/wrangler, so fabrik's Cloudflare sign-in is its own and
 // never another Wrangler sign-in on the computer. When no one is signed in there, `wrangler login` opens the browser
-// for the owner's Cloudflare sign-in or a new free account. The Pages project is fabrik-sign-in-<ref>, created when it
-// is missing, and the address is read from `wrangler pages project list --json`.
+// for the owner's Cloudflare sign-in or a new free account, asking for SCOPES. The Pages project is fabrik-sign-in-<ref>,
+// created when it is missing, and the address is read from `wrangler pages project list --json`.
 import { spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -14,6 +14,9 @@ import process from "node:process";
 
 /** The Wrangler setup runs, through npx, at a fixed version. */
 export const WRANGLER = ["npx", "--yes", "wrangler@4.123.0"];
+/** The access fabrik's Cloudflare sign-in asks for: the account and the person, the Pages projects with their custom
+ * domains, and reading the account's domains (zones). Wrangler adds offline_access itself. */
+export const SCOPES = ["account:read", "user:read", "pages:write", "zone:read"];
 /** The folder that holds fabrik's own Cloudflare sign-in, as XDG_CONFIG_HOME. */
 export const wranglerHome = (home = homedir()) => join(home, ".config", "fabrik", "wrangler");
 /** The folder setup makes one fabrik project's sign-in page in, beside fabrik's Cloudflare sign-in, never in the owner's folder. */
@@ -39,7 +42,13 @@ export function putUpSignInPage({ ref, folder }, options = {}) {
 
 /** Puts the page in `folder` up on Cloudflare Pages as the project `name`, and returns its https address. `what` names
  * the page in what it says, such as "chat page". The options are putUpSignInPage's. */
-export async function putUpPage({ name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
+export async function putUpPage(page, options = {}) {
+  return (await publishPage(page, options)).site;
+}
+
+/** putUpPage, giving { site, accountId, token }: token() gives the sign-in's access token for Cloudflare's API, read
+ * with `wrangler auth token --json`, which refreshes it when it has expired. */
+export async function publishPage({ name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
   // WRANGLER_NO_SKILLS_UPDATE_PROMPTS, and no terminal on Wrangler's input, keep Wrangler from asking questions of its own.
   const base = { ...env, XDG_CONFIG_HOME: wranglerHome(home), WRANGLER_SEND_METRICS: "false", WRANGLER_NO_SKILLS_UPDATE_PROMPTS: "true" };
   // npx and Wrangler read config files, such as .npmrc and wrangler.toml, from the folder they run in, and keep a
@@ -61,10 +70,13 @@ export async function putUpPage({ name, folder, what }, { ask, say, wrangler = W
 
   say(`Putting your ${what} up on Cloudflare Pages. The first time, this downloads Cloudflare's Wrangler tool, which takes a minute.`);
   let me = whoami();
-  if (!me.loggedIn) {
-    say("A browser window opens for Cloudflare. Sign in, or make a free account, and allow Wrangler. Then come back here.");
-    // Only the access the page needs; Wrangler adds offline_access itself.
-    run(["login", "--scopes", "account:read", "user:read", "pages:write"], { terminal: true });
+  // A sign-in from before fabrik asked for all of SCOPES signs in again once. whoami lists an OAuth sign-in's scopes
+  // as tokenPermissions, and an API token's not at all.
+  const lacking = Array.isArray(me.tokenPermissions) ? SCOPES.filter(s => !me.tokenPermissions.includes(s)) : [];
+  if (!me.loggedIn || lacking.length) {
+    say(me.loggedIn ? "fabrik needs Cloudflare's permission to read your domains. A browser window opens for Cloudflare. Allow Wrangler, then come back here."
+      : "A browser window opens for Cloudflare. Sign in, or make a free account, and allow Wrangler. Then come back here.");
+    run(["login", "--scopes", ...SCOPES], { terminal: true });
     me = whoami();
     if (!me.loggedIn) throw new PageStopped("Cloudflare's sign-in did not finish. Wrangler waits two minutes for you to sign in and allow it in the browser.");
   }
@@ -92,5 +104,11 @@ export async function putUpPage({ name, folder, what }, { ask, say, wrangler = W
   if (!deployed.ok) throw failed(`Putting your ${what} up`, deployed);
   const domain = String(listed()?.["Project Domains"] ?? "").split(",").map(d => d.trim()).find(d => /^[a-z0-9-]+\.pages\.dev$/.test(d));
   if (!domain) throw new PageStopped(`Cloudflare shows no pages.dev address for ${name}.`);
-  return `https://${domain}`;
+  const token = () => {
+    const ran = run(["auth", "token", "--json"]);
+    const got = json(ran)?.token;
+    if (!ran.ok || typeof got !== "string" || !got) throw failed("Reading fabrik's Cloudflare sign-in", ran);
+    return got;
+  };
+  return { site: `https://${domain}`, accountId, token };
 }
