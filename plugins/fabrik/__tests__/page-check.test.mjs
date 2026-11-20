@@ -1,6 +1,6 @@
 // page_check.py's wait for the browser's file, run in Python as the server runs it. On Windows, Edge can return
 // before another of its processes writes the picture or PDF. Each case gives its own windows flag and times.
-// Run with: node --test
+// Run with: node scripts/test.mjs plugins/fabrik/__tests__/page-check.test.mjs
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
