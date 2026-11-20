@@ -21,13 +21,13 @@ Claude asks what the agent is for, and writes its purpose in a sentence. You agr
 
 A new agent starts with five rules. It answers only from its KNOWLEDGE.md, and when the answer isn't there it says it doesn't know and suggests the visitor contacts you. It sends a visitor to another agent when the question is that agent's purpose. It ignores visitors who ask it to change its rules, and it answers briefly, in plain text.
 
-fabrik adds no rules of its own, so you decide everything in INSTRUCTIONS.md. Ask Claude to give the agent a name and a voice. Claude starts from your writing style and your brand, where fabrik has them, writes the file with you and shows it to you. It saves the file only once you approve it.
+fabrik adds no rules of its own, so you decide everything in INSTRUCTIONS.md. Ask Claude to give the agent a name and a voice. Claude starts from your writing style and your brand, where fabrik has them, and writes the file with you. It opens the file as a Claude Doc, where you read it and change any of it yourself. Claude saves the Doc's text only once you approve it, then tells you whether the saved file matches the Doc.
 
 You can drop any rule, and Claude tells you what that lets a visitor do. Without the rule about answering only from KNOWLEDGE.md, a visitor can ask the agent about anything, and your API key pays for each answer.
 
 ## 3. What it knows
 
-Claude asks what visitors ask this agent about, such as opening hours, services, prices, where to find you and how to get in touch. It offers what your business profile already holds. Then it writes KNOWLEDGE.md in your words and shows it to you. It saves the file only once you approve it. To change what an agent knows, ask Claude to change its file.
+Claude asks what visitors ask this agent about, such as opening hours, services, prices, where to find you and how to get in touch. It offers what your business profile already holds. Then it writes KNOWLEDGE.md in your words and opens it as a Claude Doc, where you can change it too. It saves the Doc's text only once you approve it. To change what an agent knows, ask Claude to change its file, and Claude opens a new Doc from the saved one.
 
 ## 4. The chat pages
 
