@@ -160,7 +160,7 @@ Start each page from this one. Change the title, and the text in `<main>`.
   h3 { font-size: 10.5pt; font-weight: 600; line-height: 1.3; margin: 5mm 0 2mm; }
   h1, h2, h3 { break-after: avoid; }
   strong, b { font-weight: 600; }
-  code, pre { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 0.9em; }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
   p, li { orphans: 3; widows: 3; }
   blockquote { margin: 4mm 0; padding: 2mm 5mm; border-left: 0.5pt solid rgba(31,30,29,.24); color: #5f5e5a; }
   table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 3mm 0; }

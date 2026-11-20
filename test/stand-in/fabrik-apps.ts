@@ -597,8 +597,8 @@ try {
       && JSON.stringify(form.emailFill) === JSON.stringify(["off", ""]) && JSON.stringify(form.shown) === JSON.stringify(["text", "Hide", "true"]) && form.hidden === "password"
       && form.note === "Invalid login credentialsCheck that this is the email and password you chose for fabrik, not your Claude or Supabase login. Forgotten it? In your Supabase dashboard, open Authentication, then Users, and send yourself a password recovery." && form.header.trim() === "fabrik", form);
   check("the sign-in folder ships the fonts with their licences and fabrik's icon, and _headers lets the pages load them from their own address only",
-    ["fonts/Inter-300-600-normal.woff2", "fonts/IBMPlexMono-500-normal.woff2", "fonts/IBMPlexMono-600-normal.woff2", "icon.svg", "password.js"].every(f => existsAt(`${folder}/${f}`))
-      && /SIL Open Font License/.test(inFolder("fonts/Inter-LICENSE.txt")) && /SIL Open Font License/.test(inFolder("fonts/IBMPlexMono-LICENSE.txt"))
+    ["fonts/Inter-300-600-normal.woff2", "fonts/Fraunces-400-600-normal.woff2", "icon.svg", "password.js"].every(f => existsAt(`${folder}/${f}`))
+      && /SIL Open Font License/.test(inFolder("fonts/Inter-LICENSE.txt")) && /SIL Open Font License/.test(inFolder("fonts/Fraunces-LICENSE.txt"))
       && inFolder("_headers").split("\n").filter(l => l.includes("Content-Security-Policy")).every(l => l.includes("font-src 'self'") && l.includes("img-src 'self'") && l.includes("default-src 'none'")), inFolder("_headers"));
   const CLAUDE = "https://claude.ai/api/mcp/auth_callback";
   const fromClaude = await consent({ client: { id: "claude-1", name: "Claude" }, redirect_uri: CLAUDE });

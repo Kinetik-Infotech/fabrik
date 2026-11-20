@@ -11,6 +11,8 @@ fabrik's `public-agent` hosted function answers each question with Claude, throu
 
 Only an administrator sets it up. When `fabrik_get_actor` gives another `authority_class`, tell the person an administrator sets up the public agent, and stop.
 
+When the connector has no `public_knowledge_get` tool, Claude connected to fabrik before the update that added it. Ask the person to reconnect fabrik in Settings, then Connectors, and then to open a new session and ask again. Opening a new session without reconnecting doesn't show the tool.
+
 ## 1. KNOWLEDGE.md
 
 1. Call `public_knowledge_get`. When it gives text, show it and ask what to change.
@@ -24,18 +26,21 @@ The file is at most 100,000 characters. Every question sends the whole file to C
 
 The chat box needs two keys. Both go on the card, never in the chat. When the person pastes either into the chat, tell them to delete it where they made it and make a new one for the card.
 
-1. Call `show_public_agent_setup`. The card says which keys are saved and whether KNOWLEDGE.md is.
-2. Give the person these steps for the Anthropic API key, one numbered line each:
+Write the steps first and show the card last, so the card sits under the steps in the chat.
+
+1. Give the person these steps for the Anthropic API key, one numbered line each:
    1. On a Claude Max, Ultra or Team plan, claim the plan's monthly API credits first. On claude.ai, open Settings, then Billing, and under "API credits" choose Link organization. Without one of those plans, buy credits in the Claude Console under Billing.
    2. Open the Claude Console at platform.claude.com, in the organization that gets the credits.
    3. Start a new API key. Where the Console asks "Where does your code run?", choose Somewhere else, since the chat box runs on Supabase, not on this computer.
    4. Name the key fabrik website, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
-   5. Paste it on the card.
-3. Then these steps for the Turnstile widget, one numbered line each:
-   1. Sign in to the Cloudflare dashboard at dash.cloudflare.com. A free account is enough.
-   2. Open Turnstile and choose Add widget.
-   3. Name it fabrik chat, add the website's hostname, such as example.com, and leave the widget mode at Managed.
-   4. Create it. Copy the site key for the script tag in section 4, and paste the secret key on the card.
+   5. Paste it in the card's Anthropic API key box.
+2. Then these steps for the Turnstile secret key, one numbered line each:
+   1. Open dash.cloudflare.com/?to=/:account/turnstile and sign in. It opens the Turnstile page of the person's Cloudflare account. A free account is enough.
+   2. Choose Add widget.
+   3. For Widget name, type fabrik chat. For Region, choose Rest of World. Under Hostname management, add the website's address without `https://`, such as example.com. For Widget mode, leave Managed.
+   4. Choose Create. Cloudflare shows a site key and a secret key.
+   5. Paste the secret key in the card's Turnstile secret key box. Keep the site key for the line of code in section 4.
+3. Call `show_public_agent_setup`. The card says which keys are saved and whether KNOWLEDGE.md is.
 4. The person chooses Save. The card checks each key with Anthropic or Cloudflare before fabrik keeps it. End the turn.
 
 This key is apart from the connections key. Saving one never turns the other on.
