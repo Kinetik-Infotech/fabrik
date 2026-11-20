@@ -59,17 +59,18 @@ The file is at most 100,000 characters. Every question sends the agent's three f
 
 ## 4. The chat pages
 
-fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare Pages hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com.
+fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
-3. When the domain's DNS isn't on that Cloudflare account, it prints one CNAME record. The owner adds it where they manage the domain's DNS, and the command waits for Cloudflare to finish. Cloudflare can take several minutes to issue the certificate.
-4. It prints the pages' address, such as `https://chat.example.com`, and for each agent its page and the line for the website. Keep them for sections 5 and 7.
-5. It may ask which Cloudflare account to use, or ask for Cloudflare's permission to read the domains. It may say Cloudflare's sign-in didn't finish, or didn't give that permission. Then ask the person to run the same command in a Terminal tab and answer there.
+3. When the domain's DNS is on that Cloudflare account, the owner adds no record. fabrik puts the pages up a second time on Cloudflare, as `fabrik-chat-<ref>`, and Cloudflare makes the address's DNS record and certificate. If the address already has a DNS record, the command names it and gives the pages at the pages.dev address. Ask the owner to delete that record on Cloudflare's DNS page for the domain, then run the command again. Never delete a DNS record yourself.
+4. When the domain's DNS isn't on that Cloudflare account, it prints one CNAME record. The owner adds it where they manage the domain's DNS, and the command waits for Cloudflare to finish. Cloudflare can take several minutes to issue the certificate.
+5. It prints the pages' address, such as `https://chat.example.com`, and for each agent its page and the line for the website. Keep them for sections 5 and 7.
+6. It may ask which Cloudflare account to use, or ask for Cloudflare's permission to read the domains and put the chat pages on them. It may say Cloudflare's sign-in didn't finish, or didn't give that permission. Then ask the person to run the same command in a Terminal tab and answer there.
 
 When the pages move to a new address, the command says to add it to the Turnstile widget. Tell the owner to add it under Hostname management, beside the address already there. Until they do, Turnstile refuses visitors at the new address, and the chat answers no one there.
 
-If Cloudflare refuses the domain, or doesn't finish within 15 minutes, the command says why and gives the pages at the pages.dev address. A refused domain isn't kept, so the next run asks again. An unfinished one is kept, and the next run carries on from there.
+If Cloudflare refuses the address, or something else on the account already has it, the command says why. Then it gives the pages at the pages.dev address. It does the same when Cloudflare doesn't finish within 15 minutes. A refused domain isn't kept, so the next run asks again. An unfinished one is kept, and the next run carries on from there.
 
 It also saves the address with fabrik, so AGENTS.md gives each agent's page. Run it again after an agent is added or removed. A page asks for the Turnstile site key each time it opens, so a new key needs no new page. When the Brand record changes, ask the owner whether to put the pages up again in the new look. Once they approve, run the command again.
 
