@@ -1,0 +1,132 @@
+{
+ "id": "s7",
+ "title": "Heat the pot",
+ "dur": 24,
+ "clock": null,
+ "vo": "For the last 45 minutes of the prove, put the empty pot, with its lid on, into the cold oven. Heat the oven to 250 degrees Celsius, or 230 with a fan. Don't oil the pot: the baking paper stops the loaf sticking. Check the knob on the lid. If it isn't rated to 250 degrees, unscrew it, or cover the hole with foil.",
+ "voUS": "For the last 45 minutes of the prove, put the empty pot, with its lid on, into the cold oven. Heat the oven to 480 degrees Fahrenheit, or 445 with convection. Don't oil the pot: the baking paper stops the loaf sticking. Check the knob on the lid. If it isn't rated to 480 degrees, unscrew it, or cover the hole with foil.",
+ "cap": [
+  [
+   0,
+   "For the last 45 minutes, put the empty pot, lid on, in the cold oven."
+  ],
+  [
+   5.4,
+   "Heat the oven to 250 °C (230 °C fan)."
+  ],
+  [
+   10.4,
+   "Don't oil the pot: the baking paper stops the loaf sticking."
+  ],
+  [
+   15,
+   "If the lid knob is rated below 250 °C, unscrew it or cover the hole with foil."
+  ]
+ ],
+ "capUS": [
+  [
+   0,
+   "For the last 45 minutes, put the empty pot, lid on, in the cold oven."
+  ],
+  [
+   5.4,
+   "Heat the oven to 480 °F (445 °F convection)."
+  ],
+  [
+   10.4,
+   "Don't oil the pot: the baking paper stops the loaf sticking."
+  ],
+  [
+   15,
+   "If the lid knob is rated below 480 °F, unscrew it or cover the hole with foil."
+  ]
+ ],
+ "svg": "<rect x=\"300\" y=\"180\" width=\"480\" height=\"500\" rx=\"12\" class=\"f-w ln\"/>\n<line x1=\"300\" y1=\"240\" x2=\"780\" y2=\"240\" class=\"ln\"/>\n<circle cx=\"350\" cy=\"210\" r=\"12\" class=\"ln\"/><circle cx=\"400\" cy=\"210\" r=\"12\" class=\"ln\"/>\n<rect x=\"340\" y=\"270\" width=\"400\" height=\"370\" rx=\"8\" class=\"f-s lt\"/>\n\n<line x1=\"340\" y1=\"622\" x2=\"740\" y2=\"622\" class=\"lt\"/>\n<g id=\"s7-pot\"><rect x=\"380\" y=\"515\" width=\"20\" height=\"16\" class=\"f-g ln\"/><rect x=\"680\" y=\"515\" width=\"20\" height=\"16\" class=\"f-g ln\"/><path d=\"M400 500 L400 600 Q400 620 420 620 L660 620 Q680 620 680 600 L680 500 Z\" class=\"f-g ln\"/><path d=\"M388 500 Q540 450 692 500 Z\" class=\"f-g ln\"/><rect id=\"s7-kn\" x=\"525\" y=\"458\" width=\"30\" height=\"18\" rx=\"4\" class=\"f-i\"/></g>\n<g id=\"s7-ht\"><path d=\"M450 420 Q430 395 450 370 Q470 345 450 320\" class=\"lt\"/><path d=\"M540 420 Q520 395 540 370 Q560 345 540 320\" class=\"lt\"/><path d=\"M630 420 Q610 395 630 370 Q650 345 630 320\" class=\"lt\"/></g>\n<text id=\"s7-t\" class=\"t-mono\" x=\"860\" y=\"290\" data-us=\"480 °F\">250 °C</text>\n<text id=\"s7-f\" class=\"t-sm\" x=\"860\" y=\"335\" data-us=\"445 °F CONVECTION\">230 °C FAN</text>\n<g id=\"s7-c\" class=\"chip light\"><rect/><text x=\"874\" y=\"410\">45 MIN · EMPTY POT, LID ON</text></g>\n<text id=\"s7-no\" class=\"t-sm\" x=\"860\" y=\"480\">NO OIL: THE PAPER STOPS STICKING</text>\n<text id=\"s7-k1\" class=\"t-sm\" x=\"860\" y=\"560\" data-us=\"KNOB RATED BELOW 480 °F?\">KNOB RATED BELOW 250 °C?</text>\n<text id=\"s7-k2\" class=\"t-sm\" x=\"860\" y=\"600\">UNSCREW IT OR FOIL THE HOLE</text>\n<g id=\"s7-z\"><circle cx=\"1390\" cy=\"590\" r=\"56\" class=\"f-w lt\"/><path d=\"M1340 616 Q1390 596 1440 616\" class=\"ln\"/><rect x=\"1372\" y=\"580\" width=\"36\" height=\"22\" rx=\"5\" class=\"f-i\"/></g>",
+ "tw": [
+  [
+   "s7-pot",
+   0.6,
+   2,
+   {
+    "o": [
+     0,
+     1
+    ],
+    "x": [
+     -40,
+     0
+    ]
+   },
+   "o"
+  ],
+  [
+   "fadeUp",
+   "s7-c",
+   2.6
+  ],
+  [
+   "fadeUp",
+   "s7-t",
+   5.4
+  ],
+  [
+   "fadeUp",
+   "s7-f",
+   6
+  ],
+  [
+   "s7-ht",
+   6.2,
+   8.6,
+   {
+    "o": [
+     0,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s7-no",
+   10.4
+  ],
+  [
+   "s7-kn",
+   15,
+   15.4,
+   {
+    "s": [
+     1,
+     1.4
+    ]
+   }
+  ],
+  [
+   "s7-kn",
+   15.4,
+   15.8,
+   {
+    "s": [
+     1.4,
+     1
+    ]
+   }
+  ],
+  [
+   "fadeUp",
+   "s7-k1",
+   15
+  ],
+  [
+   "pop",
+   "s7-z",
+   15.6
+  ],
+  [
+   "fadeUp",
+   "s7-k2",
+   17.4
+  ]
+ ],
+ "uses": []
+}

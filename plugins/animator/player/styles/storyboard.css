@@ -1,0 +1,25 @@
+/* B. Storyboard: paper, clean pencil-grey lines, grey marker fills, one red, typed screenplay lettering */
+.stage.st-board { --sbg: #FBFAF6; --sink: #2C2F33; --sgrey: #7B8188; --lw: 2.6px; --lt: 1.6px; }
+.stage.st-board { --sink: #3A3E44; }
+.st-board svg .f-d { fill: #E3E5E8; } .st-board svg .f-w { fill: #FBFAF6; }
+.st-board svg .f-s { fill: #EEEDE8; } .st-board svg .f-s2 { fill: #DEDFDC; }
+.st-board svg .f-l { fill: #D6CBAA; } .st-board svg .f-ww { fill: #C2B793; }
+.st-board svg .f-wa { fill: #C3CED6; } .st-board svg .f-sa { fill: #BF5446; }
+.st-board svg .f-b { fill: #7C8970; } .st-board svg .f-c { fill: #D8CBB0; }
+.st-board svg .f-ch, .st-board svg .f-i { fill: #2C2F33; } .st-board svg .f-gr { fill: #6B7178; }
+.st-board svg .f-o { fill: #DCD5AE; } .st-board svg .f-wd { fill: #E4DCCA; }
+.st-board svg .f-g { fill: #575C64; } .st-board svg .f-st { fill: #9B9993; } .st-board svg .f-sun { fill: #EDE2BE; }
+.st-board svg .heat { stroke: #BF5446; }
+.st-board svg.art text { font-family: 'Courier Prime', 'Courier New', monospace; font-weight: 400; letter-spacing: 0; fill: #2C2F33; }
+.st-board svg .t-lbl { font-size: 26px; font-weight: 700; } .st-board svg .t-body { font-size: 27px; } .st-board svg .t-sm { font-size: 21px; }
+.st-board svg .t-mono { font-size: 30px; font-weight: 700; } .st-board svg .t-m24 { font-size: 24px; }
+.st-board svg.art text.t-disp, .st-board svg.art text.t-disp2 { font-weight: 700; letter-spacing: .04em; }
+.st-board svg .t-disp { font-size: 70px; } .st-board svg .t-disp2 { font-size: 50px; }
+.st-board svg .chip rect { fill: #FBFAF6; stroke: #2C2F33; stroke-width: 2; }
+.st-board svg .chip text { fill: #2C2F33; font-family: 'Courier Prime', monospace; font-size: 22px; font-weight: 700; }
+.st-board svg.art text.note { font-size: 22px; font-style: italic; fill: #7B8188; text-transform: uppercase; }
+.st-board .cap p { font-family: 'Courier Prime', 'Courier New', monospace; font-weight: 400; font-size: 1.95cqw; color: #2C2F33; }
+
+@media (max-width: 640px) {
+  .stage.st-board .cap p { font-size: 15px; }
+}

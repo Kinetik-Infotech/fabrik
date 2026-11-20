@@ -54,30 +54,33 @@ export function uploadProblems(folder, lines = LOG_LINES) {
     .filter(line => { const at = Date.parse(line.split(" ")[0]); return !Number.isFinite(at) || at > since; }).slice(-lines);
 }
 
+/** The one plugin whose agents work in fabrik. The marketplace's other plugins, such as animator and trip-agent, keep
+ * their work outside fabrik, so a folder setup makes can't name their agents. */
+export const FABRIK_PLUGIN = "fabrik";
 /** fabrik's one agent, which every folder setup makes names. */
-export const ASSISTANT = "fabrik:assistant";
+export const ASSISTANT = `${FABRIK_PLUGIN}:assistant`;
 // The agents a folder can name, when installed_plugins.json cannot be read.
 const KNOWN_AGENTS = [ASSISTANT];
 
-/** The agents installed on this computer from the fabrik marketplace, as `<plugin>:<agent>`, from each plugin's
- * agents folder. A transcript's agentSetting can name a skill, which setup refuses as an agent. */
+/** The fabrik plugin's agents in the plugin folder `folder`, as `fabrik:<agent>`, by each agents/*.md file's name
+ * line, or its file name where it has none. Empty when the folder has no agents. */
+export function fabrikAgents(folder) {
+  let files = [];
+  try { files = readdirSync(join(folder, "agents")).filter(f => f.endsWith(".md")).sort(); } catch { return []; }
+  return files.map(file => {
+    let name = file.slice(0, -3);
+    try { name = /^---\r?\n[\s\S]*?^name:\s*(\S+)\s*$/m.exec(readFileSync(join(folder, "agents", file), "utf-8"))?.[1] ?? name; } catch { /* the file name */ }
+    return `${FABRIK_PLUGIN}:${name}`;
+  });
+}
+
+/** The fabrik plugin's agents installed on this computer, from installed_plugins.json. A transcript's agentSetting
+ * can name a skill, or another plugin's agent, which setup refuses as an agent. */
 export function installedAgents(configDir = configFolder()) {
   let plugins;
   try { plugins = JSON.parse(readFileSync(join(configDir, "plugins", "installed_plugins.json"), "utf-8"))?.plugins ?? {}; } catch { return KNOWN_AGENTS; }
-  const agents = new Set();
-  for (const [id, entries] of Object.entries(plugins)) {
-    const [plugin, marketplace] = id.split("@");
-    if (marketplace !== MARKETPLACE || !Array.isArray(entries)) continue;
-    for (const entry of entries) {
-      let files = [];
-      try { files = readdirSync(join(entry?.installPath ?? "", "agents")).filter(f => f.endsWith(".md")); } catch { continue; }
-      for (const file of files) {
-        let name = file.slice(0, -3);
-        try { name = /^---\r?\n[\s\S]*?^name:\s*(\S+)\s*$/m.exec(readFileSync(join(entry.installPath, "agents", file), "utf-8"))?.[1] ?? name; } catch { /* the file name */ }
-        agents.add(`${plugin}:${name}`);
-      }
-    }
-  }
+  const entries = plugins[`${FABRIK_PLUGIN}@${MARKETPLACE}`];
+  const agents = new Set(Array.isArray(entries) ? entries.flatMap(entry => fabrikAgents(entry?.installPath ?? "")) : []);
   return agents.size ? [...agents] : KNOWN_AGENTS;
 }
 
@@ -166,7 +169,7 @@ export function reconnectCommand(folder, { setting = null, earlier, configDir, p
   const own = ownEmail(configDir);
   const email = accountEmail(earlier?.email) ?? own;
   const emailFrom = !email ? null : email === earlier?.email ? "the folder's earlier sessions" : "the fabrik plugin's settings";
-  // Only an agent of the fabrik marketplace counts: setup refuses any other, such as Kinetik's.
+  // Only the fabrik plugin's own agents count: setup refuses any other, such as trip-agent's or Kinetik's.
   const fabriks = new Set(installedAgents(configDir));
   const named = [setting, earlier?.agent].find(a => typeof a === "string" && AGENT_NAME.test(a) && fabriks.has(a));
   const agent = named ?? agentByName(folder);
