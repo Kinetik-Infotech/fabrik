@@ -62,7 +62,7 @@ fabrik's connector makes your records available to everything else Claude does. 
 
 ## Setting fabrik up
 
-Follow [Set up fabrik](https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR). You need a Claude plan, the Claude desktop app on a Mac, Windows or Linux computer, and free Supabase and Cloudflare accounts. Setup takes about fifteen minutes. The page also explains the three sign-ins setup uses.
+Follow [Set up fabrik](https://claude.ai/artifact/FYM5oNpqMeacSiUpA2JjNR). You need a Claude plan, the Claude desktop app on a Mac, Windows or Linux computer, and free Supabase and Cloudflare accounts. Setup runs on macOS 15 or later, and on Windows 10 version 1809 or later. Setup takes about fifteen minutes. The page also explains the three sign-ins setup uses.
 
 ## Updating fabrik
 
