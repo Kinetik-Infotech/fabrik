@@ -54,10 +54,18 @@ Then try two questions on each agent: one its KNOWLEDGE.md answers, and one it d
 
 Each answer uses some of your Anthropic API credits. Each agent has a daily limit, so no agent can run up a bill. Once a day's answers reach it, that agent tells visitors it's resting until tomorrow. Every agent uses the same key, so the limits add up. Every question sends the agent's files to Claude, so shorter files let it answer more questions a day. Ask Claude to raise or lower a limit.
 
-fabrik keeps no question or answer, only how much each agent used each day.
+## What visitors asked
+
+Every question an agent answers is kept in your own Supabase project, with the answer the visitor got. fabrik's makers never see them. A conversation is known only by a random number the chat page makes when it opens, and a reload starts a new one. Nothing that identifies a visitor is kept: no IP address, no cookie and no browser details. Under the chat box, the page says your business keeps the conversation.
+
+Ask Claude what visitors asked this week, or about one agent, and it lists the conversations with each one's first question. Ask to see a conversation and Claude shows it whole. When visitors keep asking something an agent can't answer, Claude offers to add the answer to its KNOWLEDGE.md.
+
+Conversations are kept until you delete them. Ask Claude to delete one conversation, or every conversation of an agent before a date. Claude shows you what goes and deletes it once you approve.
+
+Visitors may type a name or an email address into a question, and that is kept too. So say in your website's privacy notice that you keep the chat's questions and answers. Claude offers you a line to adapt the first time your chat goes up.
 
 ## Removing an agent, or turning them all off
 
-Ask Claude to remove an agent. Its files go, and Claude takes its page down. Take its line off your website too.
+Ask Claude to remove an agent. Its files and its conversations go, and Claude takes its page down. Take its line off your website too.
 
 Ask Claude to turn the chat off. It removes the Anthropic API key, and every agent then tells visitors it can't answer. To remove a button, take its line off your website.

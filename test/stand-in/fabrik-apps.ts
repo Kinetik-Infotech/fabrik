@@ -371,7 +371,7 @@ try {
   check("every tool's input in tools/list refuses an argument it does not name",
     listed.length > 0 && listed.every((t) => t.inputSchema?.additionalProperties === false), listed.filter((t) => t.inputSchema?.additionalProperties !== false).map((t) => t.name));
   const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save", "connections_setup_save", "connections_off",
-    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_instructions_save", "public_agent_change", "public_agent_remove", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
+    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_instructions_save", "public_agent_change", "public_agent_remove", "public_conversations_delete", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
   const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call", "show_connections_setup", "connections_setup_save",
     "show_public_agent_setup", "public_agent_setup_save", "public_agent_settings_change", "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
   check("tools/list gives every tool a title and a hint: read-only tools, the show cards among them, readOnlyHint true; deleting, removing, replacing and sending tools destructiveHint true",
@@ -1644,10 +1644,22 @@ try {
   const paList = await tool(ownerToken, "public_agents_list", {});
   const paAgentsMd = agentFiles.get("agents.md");
   const paRemove = await tool(ownerToken, "public_agent_remove", { agent: "orders" });
+  // Two conversations a visitor had with Chat, as public-agent keeps them.
+  const [paOne, paTwo] = [crypto.randomUUID(), crypto.randomUUID()];
+  await sql`insert into fabrik_private.public_exchange(conversation, slug, at, question, answer) values
+    (${paOne}::uuid, 'chat', now() - interval '2 minutes', 'When are you open?', '9am to 5pm, Monday to Friday.'),
+    (${paOne}::uuid, 'chat', now() - interval '1 minute', 'And Saturdays?', 'I don''t know.'),
+    (${paTwo}::uuid, 'chat', now(), 'Do you fit kitchens?', 'I don''t know.')`;
+  const paConversations = await tool(ownerToken, "public_conversations_list", { agent: "chat", since: "2026-01-01" });
+  const paConversation = await tool(ownerToken, "public_conversation_get", { id: paOne });
+  const paDeleted = await tool(ownerToken, "public_conversations_delete", { id: paTwo });
+  const paConversationsLeft = await tool(ownerToken, "public_conversations_list", {});
   const paReader = [await tool(readerToken, "show_public_agent_setup", {}), await tool(readerToken, "public_knowledge_save", { agent: "chat", text: "Hijacked" }),
     await tool(readerToken, "public_knowledge_get", { agent: "chat" }), await tool(readerToken, "public_agent_settings", { agent: "chat" }),
     await tool(readerToken, "public_instructions_save", { agent: "chat", text: "Hijacked" }), await tool(readerToken, "public_agent_create", { agent: "evil", name: "Evil" }),
-    await tool(readerToken, "public_agent_remove", { agent: "chat" }), await tool(readerToken, "public_agents_list", {})];
+    await tool(readerToken, "public_agent_remove", { agent: "chat" }), await tool(readerToken, "public_agents_list", {}),
+    await tool(readerToken, "public_conversations_list", {}), await tool(readerToken, "public_conversation_get", { id: paOne }),
+    await tool(readerToken, "public_conversations_delete", { id: paOne })];
   paCard.press(paCard.doc.getElementById("pa-off"));
   await until(() => paCard.doc.getElementById("pa-state")?.textContent === "The public agent has no Anthropic API key.", "the public agent turned off", paCard);
   const paOff = { said: paCard.doc.getElementById("pa-said")?.textContent, key: await secretOf("public_agent_anthropic_key"), secret: await secretOf("turnstile_secret") };
@@ -1686,8 +1698,14 @@ try {
       && paAgentsMd === "- Chat, https://fabrik-chat-standin.pages.dev/chat/: Answers questions about the joinery.\n- Orders, https://fabrik-chat-standin.pages.dev/orders/: Takes orders for fitted kitchens and wardrobes.\n"
       && v(paRemove)?.removed === true && !agentFiles.has("agents/orders/instructions.md") && agentFiles.get("agents.md") === "",
     { paSecond, paChange, paPage, paList, paAgentsMd, paRemove, agentsMd: agentFiles.get("agents.md") });
-  check("a person who isn't an administrator is refused the card, the agents, their files and the settings, and the files stay",
+  check("public_conversations_list gives Chat's conversations newest first, public_conversation_get reads one whole in order, and public_conversations_delete deletes one and leaves the other",
+    JSON.stringify(v(paConversations)?.conversations?.map((c: any) => [c.id, c.questions, c.first_question])) === JSON.stringify([[paTwo, 1, "Do you fit kitchens?"], [paOne, 2, "When are you open?"]])
+      && JSON.stringify(v(paConversation)?.exchanges?.map((e: any) => e.question)) === '["When are you open?","And Saturdays?"]'
+      && v(paDeleted)?.conversations === 1 && JSON.stringify(v(paConversationsLeft)?.conversations?.map((c: any) => c.id)) === JSON.stringify([paOne]),
+    { paConversations, paConversation, paDeleted, paConversationsLeft });
+  check("a person who isn't an administrator is refused the card, the agents, their files, the settings and the conversations, and the files and conversations stay",
     paReader.every((r) => said(r) === "Only an administrator sets up the public agent.") && agentFiles.get("agents/chat/knowledge.md")?.startsWith("# Opening hours") === true
+      && (await sql`select count(*)::int as n from fabrik_private.public_exchange where conversation = ${paOne}::uuid`)[0].n === 2
       && agentFiles.get("agents/chat/instructions.md") === paVoice, paReader);
   check("the card's Turn off removes the Anthropic key, and the Turnstile secret key stays",
     paOff.said === "The agents are off. Their files and the Turnstile keys stay." && paOff.key === null && paOff.secret === TURNSTILE, paOff);
