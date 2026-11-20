@@ -1,12 +1,15 @@
 // fabrik's chat box. Each agent's chat page, which fabrik chat-page builds, adds it with one script tag, which names the
 // public-agent function's address and the agent's slug:
 //
-//   <script src="../chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-agent="chat"></script>
+//   <script src="../chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-agent="chat" data-business="Northfield Bakery"></script>
 //
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
 // turns that fit the function's limits: at most 10 turns and 8,000 characters. The page keeps those turns in memory
-// alone, so a reload starts afresh. Three bouncing dots stand in the answer's place while the assistant thinks. Each
+// alone, so a reload starts afresh. When the box is drawn it makes the conversation's id, a random UUID, and sends it
+// with each question as conversation, so the business can read the conversation whole. The id too is kept in memory
+// alone, and the page stores nothing in the browser. A line under the box says the business keeps the conversation,
+// naming the business data-business gives. Three bouncing dots stand in the answer's place while the assistant thinks. Each
 // answer is shown as plain text, with each web address and email address as a link, and each message with the time it
 // was sent.
 (function () {
@@ -15,9 +18,23 @@
   var address = script && script.getAttribute("data-address");
   var sitekey = script && script.getAttribute("data-sitekey");
   var agent = script && script.getAttribute("data-agent");
+  var business = script && (script.getAttribute("data-business") || "").trim();
   var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
+  var conversation = newId();
   var widget = null;
+
+  // A random UUID. randomUUID exists only on https and in newer browsers, so getRandomValues makes one elsewhere. With
+  // neither, the post has no conversation and the function makes an id for each question.
+  function newId() {
+    var c = window.crypto;
+    if (c && c.randomUUID) return c.randomUUID();
+    if (!c || !c.getRandomValues) return null;
+    var b = c.getRandomValues(new Uint8Array(16)), h = "";
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    for (var i = 0; i < 16; i++) h += (i === 4 || i === 6 || i === 8 || i === 10 ? "-" : "") + (b[i] + 256).toString(16).slice(1);
+    return h;
+  }
 
   var box = document.getElementById("fabrik-chat");
   if (!box) { box = document.createElement("div"); box.id = "fabrik-chat"; script.parentNode.insertBefore(box, script.nextSibling); }
@@ -45,7 +62,8 @@
     "@keyframes fabrik-chat-fade { 0%, 60%, 100% { opacity: 0.35; } 30% { opacity: 1; } }" +
     ".fabrik-chat form { display: flex; gap: 6px; flex-wrap: wrap; }" +
     ".fabrik-chat input[type=text] { flex: 1 1 12em; min-width: 0; padding: 6px 8px; font: inherit; }" +
-    ".fabrik-chat button { padding: 6px 12px; font: inherit; }";
+    ".fabrik-chat button { padding: 6px 12px; font: inherit; }" +
+    ".fabrik-chat p.kept { margin: 0; font-size: 0.85em; opacity: 0.75; }";
   document.head.appendChild(style);
 
   var list = document.createElement("ol");
@@ -58,8 +76,11 @@
   var send = document.createElement("button");
   send.type = "submit"; send.textContent = "Send";
   var check = document.createElement("div");
+  var kept = document.createElement("p");
+  kept.className = "kept";
+  kept.textContent = business ? business + " keeps this conversation to improve its answers." : "This conversation is kept to improve its answers.";
   form.appendChild(input); form.appendChild(send);
-  box.appendChild(list); box.appendChild(form); box.appendChild(check);
+  box.appendChild(list); box.appendChild(form); box.appendChild(kept); box.appendChild(check);
 
   // A web address or an email address in a message. Punctuation that ends a sentence stays outside the link.
   var LINK = /(https?:\/\/[^\s<>"']+|[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/g;
@@ -147,6 +168,13 @@
     return kept;
   }
 
+  function posted(question, history, token) {
+    var body = { question: question, history: history, turnstile_token: token };
+    if (agent) body.agent = agent;
+    if (conversation) body.conversation = conversation;
+    return body;
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var question = input.value.trim();
@@ -161,8 +189,7 @@
     fetch(address, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(agent ? { agent: agent, question: question, history: history, turnstile_token: token }
-        : { question: question, history: history, turnstile_token: token }),
+      body: JSON.stringify(posted(question, history, token)),
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (body) { return { ok: res.ok, body: body }; });
     }).then(function (r) {

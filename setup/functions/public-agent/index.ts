@@ -6,7 +6,9 @@
 // Deploy the function with verify_jwt off, since a visitor has no sign-in. Cloudflare Turnstile checks a visitor, and
 // an administrator's own sign-in is the check for the settings actions.
 //
-// The chat box posts { agent, question, history, turnstile_token }, where agent is a slug, chat when it is left out. A
+// The chat box posts { agent, conversation, question, history, turnstile_token }, where agent is a slug, chat when it
+// is left out, and conversation is the UUID the page made when it opened. A post with no conversation, from a page built
+// before there was one, gets a new one for each question. A
 // post with no token, or one too long, is refused before the function opens a database connection. The function
 // checks the token with Cloudflare's siteverify, using the Vault's turnstile_secret, and answers 403 when it fails. An
 // unknown agent gets 404.
@@ -28,9 +30,15 @@
 // After each answer it puts the answer's own tokens in place of what it held. They go in the agent's row for today, in
 // UTC days, in fabrik_private.public_agent_usage. A cache read counts a tenth, as Anthropic charges it.
 //
-// It stores and
-// logs no question, history or answer. The Anthropic API key is the Vault's public_agent_anthropic_key. It is kept
-// apart from the connections key, so turning one on never turns on the other. Every agent uses the same key.
+// Once the tokens are settled, a statement of its own keeps the exchange in fabrik_private.public_exchange. It keeps
+// the conversation, the agent, the question, the answer shown and the answer's input and output tokens. A failure to keep
+// it is logged, and the visitor still gets the answer. The resting answer is kept too, with no tokens, and so is the
+// answer a visitor reads when Claude fails, with the tokens Claude charged. A conversation id another agent already
+// holds is kept under a new id, so each conversation is one agent's. A question refused before Claude is called, by
+// Turnstile, as a bad request or for an unknown agent, is not kept. It
+// keeps no IP address, Turnstile token or browser detail, and logs no question, history or answer. The Anthropic API
+// key is the Vault's public_agent_anthropic_key. It is kept apart from the connections key, so turning one on never
+// turns on the other. Every agent uses the same key.
 //
 // The chat page asks with a GET for the Turnstile site key, which it draws its check with. The answer is { sitekey },
 // or 503 when none is saved. The site key is public, so the page holds no key, and a new key needs no new page.
@@ -49,6 +57,11 @@
 // gives the site key and the page's address, after setting page when given. With agent, it also gives that agent's
 // model, cap and today's tokens, after setting model or daily_cap_tokens when given. No reply holds the key or the
 // secret. A failed read of the Vault answers 503.
+//
+// conversations_list gives the conversations newest first, each with its agent, its first question, its number of
+// questions and its first and last times, for agent and since when given, at most limit. conversation_get gives one
+// conversation's exchanges in order, its first 500, with more true when there are others. conversations_delete deletes the conversation given as id, or every conversation of
+// agent whose last question was before before.
 import { AsyncLocalStorage } from "node:async_hooks";
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
@@ -76,6 +89,12 @@ const MAX_ANSWER = 4000;
 const utf8 = new TextEncoder();
 const MAX_KNOWLEDGE = 100_000;
 const MAX_INSTRUCTIONS = 20_000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The most conversations conversations_list gives, and how many when limit isn't given. */
+const MAX_LIST = 500;
+const LIST = 50;
+/** The most exchanges conversation_get gives, the earliest first. */
+const MAX_EXCHANGES = 500;
 
 /** A new agent's INSTRUCTIONS.md, until the owner changes it. */
 export const STARTING = "You answer visitors' questions on the owner's website.\n" +
@@ -258,7 +277,8 @@ export function historyOf(given: unknown): Turn[] | null {
 
 /** A visitor's post, checked before the function opens a database connection: the question, the history and a token. */
 function visitor(args: Record<string, unknown>) {
-  const question = typeof args.question === "string" ? args.question.trim() : "";
+  // PostgreSQL's text holds no NUL character, so one would stop the exchange being kept.
+  const question = typeof args.question === "string" ? args.question.replaceAll("\u0000", "").trim() : "";
   if (!question || question.length > MAX_QUESTION) throw refuse(400, `Ask a question of at most ${MAX_QUESTION} characters.`);
   const history = historyOf(args.history);
   if (!history) throw refuse(400, "history is a list of turns, a question then its answer, each { role, content }.");
@@ -266,11 +286,14 @@ function visitor(args: Record<string, unknown>) {
   if (!token || token.length > 2048) throw refuse(403, NOT_CHECKED);
   const agent = args.agent === undefined ? FIRST : args.agent;
   if (typeof agent !== "string" || !SLUG.test(agent)) throw refuse(404, UNAVAILABLE);
-  return { agent, question, history, token };
+  if (args.conversation !== undefined && (typeof args.conversation !== "string" || !UUID.test(args.conversation)))
+    throw refuse(400, "conversation is the UUID the chat page made when it opened.");
+  const conversation = typeof args.conversation === "string" ? args.conversation.toLowerCase() : crypto.randomUUID();
+  return { agent, conversation, question, history, token };
 }
 
 /** A visitor's question, answered as the agent's INSTRUCTIONS.md says, from its KNOWLEDGE.md. */
-async function ask({ agent, question, history, token }: ReturnType<typeof visitor>, ip: string | null) {
+async function ask({ agent, conversation, question, history, token }: ReturnType<typeof visitor>, ip: string | null) {
   let secret: string, key: string;
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
@@ -291,9 +314,14 @@ async function ask({ agent, question, history, token }: ReturnType<typeof visito
     on conflict (slug, day) do nothing`;
   const [reserved] = await sql`update fabrik_private.public_agent_usage set tokens = tokens + ${held}
     where slug = ${agent} and day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
-  if (!reserved) return { answer: RESTING };
-  // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers.
+  if (!reserved) {
+    await keep(conversation, agent, question, RESTING, 0, 0);
+    return { answer: RESTING };
+  }
+  // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers. The
+  // exchange is kept after that, the answer a visitor reads when Claude fails included.
   let spent = 0;
+  const kept = { answer: UNAVAILABLE, input: 0, output: 0 };
   try {
     let reply;
     try {
@@ -314,11 +342,22 @@ async function ask({ agent, question, history, token }: ReturnType<typeof visito
     const u = reply.usage;
     // Anthropic charges a cache read at a tenth of the input rate, so the cap counts it at a tenth of a token.
     spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + Math.ceil((u?.cache_read_input_tokens ?? 0) / 10);
-    const answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim();
-    return { answer: answer || UNAVAILABLE };
+    kept.input = (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
+    kept.output = u?.output_tokens ?? 0;
+    kept.answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim() || UNAVAILABLE;
+    return { answer: kept.answer };
   } finally {
     await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
+    await keep(conversation, agent, question, kept.answer, kept.input, kept.output);
   }
+}
+
+/** Keeps one exchange, under a new conversation id when another agent already holds this one. A failure is logged. */
+async function keep(conversation: string, agent: string, question: string, answer: string, input: number, output: number) {
+  await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer, input_tokens, output_tokens)
+    select case when exists (select 1 from fabrik_private.public_exchange where conversation = ${conversation}::uuid and slug <> ${agent})
+      then gen_random_uuid() else ${conversation}::uuid end, ${agent}, ${question}, ${answer}, ${input}, ${output}`
+    .catch((err) => console.error("public-agent could not keep the exchange:", message(err)));
 }
 
 /** Every model an agent answers with, or the default model while there is no agent. */
@@ -491,6 +530,67 @@ async function removeAgent(args: Record<string, unknown>) {
   return { ok: true, agent: agent.slug, removed: true };
 }
 
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/;
+/** A time given as text, such as 2026-11-20 or 2026-11-20T09:00:00Z, or a 400 refusal naming the argument. */
+function timeOf(given: unknown, name: string): string {
+  const at = typeof given === "string" && ISO_TIME.test(given) ? new Date(given) : null;
+  // Date reads 2026-02-30 as 2 March, so the day given must be a day of its month.
+  const [y, m, d] = typeof given === "string" ? given.slice(0, 10).split("-").map(Number) : [];
+  if (!at || Number.isNaN(at.getTime()) || new Date(Date.UTC(y, m - 1, d)).getUTCDate() !== d) throw refuse(400, `${name} is a date or a time, such as 2026-11-20 or 2026-11-20T09:00:00Z.`);
+  return at.toISOString();
+}
+
+/** The conversations, newest first: each one's id, agent, first question, number of questions and first and last times. */
+async function listConversations(args: Record<string, unknown>) {
+  const slug = args.agent === undefined ? null : (await agentOf(args.agent)).slug;
+  const since = args.since === undefined ? null : timeOf(args.since, "since");
+  const limit = args.limit === undefined ? LIST : args.limit;
+  if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > MAX_LIST) throw refuse(400, `limit is a whole number from 1 to ${MAX_LIST}.`);
+  // Only the conversations with a question since then are grouped, not every exchange kept.
+  const rows = await sql`select conversation, slug as agent, count(*)::int as questions, min(at) as first_at, max(at) as last_at,
+      (array_agg(question order by at, id))[1] as first_question
+    from fabrik_private.public_exchange
+    where conversation in (select conversation from fabrik_private.public_exchange
+      where (${slug}::text is null or slug = ${slug}) and (${since}::timestamptz is null or at >= ${since}::timestamptz))
+    group by conversation, slug
+    order by max(at) desc, conversation limit ${limit as number}`;
+  return { ok: true, conversations: rows.map((r) => ({ id: r.conversation, agent: r.agent, first_question: r.first_question, questions: r.questions,
+    first_at: new Date(r.first_at).toISOString(), last_at: new Date(r.last_at).toISOString() })) };
+}
+
+/** One conversation's exchanges, in the order they were asked. */
+async function getConversation(given: unknown) {
+  const id = typeof given === "string" && UUID.test(given) ? given.toLowerCase() : null;
+  if (!id) throw refuse(400, "id is a conversation's id, which conversations_list gives.");
+  const rows = await sql`select slug, at, question, answer, input_tokens, output_tokens from fabrik_private.public_exchange
+    where conversation = ${id}::uuid order by at, id limit ${MAX_EXCHANGES + 1}`;
+  if (!rows.length) throw refuse(404, `fabrik keeps no conversation ${id}.`);
+  const more = rows.length > MAX_EXCHANGES;
+  return { ok: true, id, agent: rows[0].slug, ...(more ? { more: true } : {}), exchanges: rows.slice(0, MAX_EXCHANGES).map((r) => ({ at: new Date(r.at).toISOString(), question: r.question, answer: r.answer,
+    input_tokens: r.input_tokens, output_tokens: r.output_tokens })) };
+}
+
+/** Deletes the conversation id, or every conversation of agent whose last question was before before. */
+async function deleteConversations(args: Record<string, unknown>) {
+  const byId = args.id !== undefined && args.agent === undefined && args.before === undefined;
+  const byAgent = args.id === undefined && args.agent !== undefined && args.before !== undefined;
+  if (!byId && !byAgent)
+    throw refuse(400, "Give id for one conversation, or agent and before for every conversation of an agent whose last question was before that date. Nothing was deleted.");
+  if (byId) {
+    const id = typeof args.id === "string" && UUID.test(args.id) ? args.id.toLowerCase() : null;
+    if (!id) throw refuse(400, "id is a conversation's id, which conversations_list gives. Nothing was deleted.");
+    const gone = await sql`delete from fabrik_private.public_exchange where conversation = ${id}::uuid returning id`;
+    if (!gone.length) throw refuse(404, `fabrik keeps no conversation ${id}. Nothing was deleted.`);
+    return { ok: true, conversations: 1, exchanges: gone.length };
+  }
+  const slug = (await agentOf(args.agent)).slug;
+  const before = timeOf(args.before, "before");
+  const gone = await sql`delete from fabrik_private.public_exchange where slug = ${slug} and conversation in (
+      select conversation from fabrik_private.public_exchange where slug = ${slug} group by conversation having max(at) < ${before}::timestamptz)
+    returning conversation`;
+  return { ok: true, conversations: new Set(gone.map((r) => r.conversation)).size, exchanges: gone.length };
+}
+
 /** The site key and the page's address, after setting page when given, and the agent's settings when agent is given.
  * Everything given is checked before anything is saved. */
 async function changeSettings(args: Record<string, unknown>) {
@@ -577,13 +677,16 @@ async function serve(req: Request, args: Record<string, unknown>, asked: ReturnT
       if (args.action === "instructions_get") { const a = await agentOf(args.agent); return json(200, { ok: true, agent: a.slug, text: await instructions(a.slug) }); }
       if (args.action === "instructions_save") return json(200, await saveInstructions(await agentOf(args.agent), args.text));
       if (args.action === "settings") return json(200, await changeSettings(args));
+      if (args.action === "conversations_list") return json(200, await listConversations(args));
+      if (args.action === "conversation_get") return json(200, await getConversation(args.id));
+      if (args.action === "conversations_delete") return json(200, await deleteConversations(args));
     } catch (err) {
       if (err instanceof Refusal) throw err;
       console.error("public-agent's action failed:", message(err));
       throw refuse(503, "fabrik is busy. Try again in a minute.", { busy: true });
     }
     throw refuse(400, "action is check, set_key, set_turnstile, remove_key, agents_list, agent_create, agent_change, agent_remove, " +
-      "knowledge_get, knowledge_save, instructions_get, instructions_save or settings.");
+      "knowledge_get, knowledge_save, instructions_get, instructions_save, settings, conversations_list, conversation_get or conversations_delete.");
   } catch (err) {
     if (err instanceof Refusal) return json(err.status, err.body);
     console.error("public-agent failed:", message(err));

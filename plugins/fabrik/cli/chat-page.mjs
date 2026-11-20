@@ -101,7 +101,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
       TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo, ICON: icon,
-      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"></script>`,
+      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}></script>`,
     }));
   }
   writeFileSync(join(folder, "chat.js"), readFileSync(join(SOURCE, "chat.js")));
