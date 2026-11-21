@@ -137,6 +137,10 @@ fabrik stores your routines, records and files in a Supabase project you own. Cl
 
 Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Nothing in fabrik runs unattended: Claude acts only while you are in a session, on what you asked for in it.
 
+## Your agent's name
+
+You can give your fabrik agent a name of your own, such as Ada. Say "call yourself Ada" in any Claude app, or give a name when you get started. Claude keeps the name in your profile in fabrik, and uses it whenever it speaks of itself, in every Claude app. A name is 1 to 40 characters on one line. Say "go back to no name" to clear it. Each person names their own agent, and the name changes how it speaks, not what it can do.
+
 ## What it is made of
 
 Supabase hosts your database, your files and the functions that run fabrik, including the connector. Cloudflare hosts the page where you sign in. Claude is how you use it, through the connector in every app, and through the fabrik plugin in a Code session in the desktop app.
