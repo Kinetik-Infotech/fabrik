@@ -858,10 +858,11 @@ try {
   (chat as any).fabrikChatTurnstile();
   (cdoc.querySelector("#fabrik-chat input") as any).value = "How do I book tables?";
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
-  const thought = Boolean(cdoc.querySelector("#fabrik-chat li.thinking"));
+  const thinking = cdoc.querySelector("#fabrik-chat li.thinking") as any;
+  const thought = Boolean(thinking) && thinking.className === "thinking";
   while (!cdoc.querySelector("#fabrik-chat li.a:not(.thinking)")) await new Promise((r) => setTimeout(r, 5));
   const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: [...(cdoc.querySelector("#fabrik-chat li.a")?.childNodes ?? [])].filter((n: any) => n.nodeName !== "TIME").map((n: any) => n.textContent).join(""), time: cdoc.querySelector("#fabrik-chat li.a time")?.getAttribute("datetime") ?? "", kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
-  check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots while it waits, and a question gets that agent's answer with its time",
+  check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots with no bubble while it waits, and a question gets that agent's answer with its time",
     answered.kept === "Smith Joinery keeps this conversation to improve its answers." && answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
       && answered.answer === "Tables: book by phone on 01234 567890." && !Number.isNaN(Date.parse(answered.time)) && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
   await chat.happyDOM.close();
