@@ -189,8 +189,8 @@ const profileGet = tool({
   name: "profile_get",
   description: "Read the signed-in person's profile in fabrik: who they are and how they like to work, kept in their own UserProfile record in General. " +
     "Answers profile, null when none is saved yet, else record_id, title, saved_at and properties: givenName, familyName, role, expertise, timezone, " +
-    "locale, email and telephone where known, and preferences, each under category.key with its category, key, value, source (explicit or behavioural) " +
-    "and observedAt. profile_update sets them. A profile someone else changed last is not used: profile is null and note says so.",
+    "locale, email, telephone and agentName where known, and preferences, each under category.key with its category, key, value, source (explicit or behavioural) " +
+    "and observedAt. agentName is the name the person gave their fabrik agent. profile_update sets them. A profile someone else changed last is not used: profile is null and note says so.",
   input: z.object({}),
   run: async (ctx) => {
     const found = await ownRecord(ctx, PROFILE);
@@ -202,6 +202,9 @@ const profileGet = tool({
 });
 
 const text = z.string().nullable().optional();
+/** The name a person gives their own fabrik agent: one line, 1 to 40 characters. */
+const agentName = z.string().trim().min(1).max(40).regex(/^[^\r\n]*$/, "agentName is one line, with no line break.").nullable().optional()
+  .describe("The name the person gives their fabrik agent, such as Ada, 1 to 40 characters on one line, or null to go back to no name. Set it when the person asks, such as call yourself Ada.");
 const profileUpdate = tool({
   name: "profile_update",
   description: "Set the signed-in person's profile in fabrik: fields about them, and preferences about how they like to work. It is their own UserProfile record " +
@@ -213,7 +216,8 @@ const profileUpdate = tool({
     fields: z.object({
       givenName: text, familyName: text, role: text, expertise: text, timezone: text, locale: text, email: text,
       telephone: text.describe("The person's phone number. telephone, not phone."),
-    }).optional().describe("Fields about the person: givenName, familyName, role, expertise, timezone (such as Europe/London), locale (such as en-GB), email and telephone."),
+      agentName,
+    }).optional().describe("Fields about the person: givenName, familyName, role, expertise, timezone (such as Europe/London), locale (such as en-GB), email, telephone, and agentName, the name they give their fabrik agent."),
     preferences: z.array(z.object({
       category: z.enum(PREFERENCE_CATEGORIES).describe("communication, scheduling, decision, workflow, content or interaction."),
       key: z.string().min(1).max(100).describe("What the preference is about, such as response_length or meeting_time."),
