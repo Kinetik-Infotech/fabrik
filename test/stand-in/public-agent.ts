@@ -799,13 +799,31 @@ try {
   const launcher = odoc.querySelector(".fabrik-chat-button") as any;
   const closedFirst = { button: !!launcher, frame: odoc.querySelector("iframe"), colour: launcher?.style.background };
   launcher.click();
-  const frame = odoc.querySelector("iframe.fabrik-chat-panel") as any;
-  const panelOpened = { src: frame?.getAttribute("src"), hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), title: frame?.title };
+  const frame = odoc.querySelector(".fabrik-chat-box iframe.fabrik-chat-panel") as any;
+  const box = odoc.querySelector(".fabrik-chat-box") as any;
+  const panelOpened = { src: frame?.getAttribute("src"), hidden: box?.hidden, expanded: launcher.getAttribute("aria-expanded"), title: frame?.title };
   launcher.click();
-  const closed = { hidden: frame?.hidden, expanded: launcher.getAttribute("aria-expanded"), frames: odoc.querySelectorAll("iframe").length };
+  const closed = { hidden: box?.hidden, expanded: launcher.getAttribute("aria-expanded"), frames: odoc.querySelectorAll("iframe").length };
   check("on another website the button, in the brand's accent, opens the page of the agent data-agent names in an iframe panel, and closes it again",
     closedFirst.button && closedFirst.frame === null && /63, 166, 107|#3fa66b/i.test(String(closedFirst.colour)) && panelOpened.src === `${site}/bookings/` && panelOpened.hidden === false
       && panelOpened.expanded === "true" && closed.hidden === true && closed.expanded === "false" && closed.frames === 1, { closedFirst, panelOpened, closed });
+
+  // The bar along the panel's top edge: its first button fills the window and puts the panel back, Escape puts a full
+  // panel back before it closes anything, and its second button closes the panel and brings the launcher back. A dragged
+  // size needs layout, which happy-dom has none of, so the drag was run in a browser instead.
+  launcher.click();
+  const expandButton = odoc.querySelector(".fabrik-chat-expand") as any;
+  const isFull = () => box.classList.contains("fabrik-full");
+  expandButton.click();
+  const filled = { full: isFull(), launcherHidden: launcher.classList.contains("fabrik-hidden"), label: expandButton.getAttribute("aria-label") };
+  other.document.dispatchEvent(new other.KeyboardEvent("keydown", { key: "Escape" }));
+  const escaped = { full: isFull(), open: box.hidden === false, launcherHidden: launcher.classList.contains("fabrik-hidden") };
+  expandButton.click();
+  (odoc.querySelector(".fabrik-chat-close") as any).click();
+  const barClosed = { hidden: box.hidden, launcherHidden: launcher.classList.contains("fabrik-hidden"), expanded: launcher.getAttribute("aria-expanded") };
+  check("the panel's bar makes it fill the window and puts it back, Escape puts a full panel back before it closes, and the bar's close button closes it and shows the launcher",
+    filled.full && filled.launcherHidden && filled.label === "Make the chat smaller" && !escaped.full && escaped.open && !escaped.launcherHidden
+      && barClosed.hidden === true && !barClosed.launcherHidden && barClosed.expanded === "false", { filled, escaped, barClosed });
   await other.happyDOM.close();
 
   // A website's own data-accent: the icon takes the colour that reads on it.
@@ -820,7 +838,7 @@ try {
   const iconColour = String(lightButton?.style.color);
   check("with a pale data-accent, the button's icon is near black", /#111111|17, 17, 17/.test(iconColour), iconColour);
   lightButton.click();
-  const oldLine = light.document.querySelector("iframe.fabrik-chat-panel")?.getAttribute("src");
+  const oldLine = light.document.querySelector(".fabrik-chat-box iframe.fabrik-chat-panel")?.getAttribute("src");
   check("a widget line with no data-agent, as one from before there were many agents, opens the agent chat", oldLine === `${site}/chat/`, oldLine);
   await light.happyDOM.close();
 
