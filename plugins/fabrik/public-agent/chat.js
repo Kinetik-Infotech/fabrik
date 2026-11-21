@@ -53,7 +53,7 @@
     ".fabrik-chat li a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }" +
     ".fabrik-chat li time { display: block; margin-top: 2px; font-size: 0.75em; opacity: 0.65; }" +
     ".fabrik-chat li.q time { text-align: right; }" +
-    ".fabrik-chat li.thinking { display: flex; align-items: center; gap: 5px; min-height: 1.4em; }" +
+    ".fabrik-chat li.thinking { display: flex; align-items: center; gap: 5px; min-height: 1.4em; padding: 8px 4px; background: none; border: 0; }" +
     ".fabrik-chat li.thinking span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.6; animation: fabrik-chat-bounce 1.2s ease-in-out infinite; }" +
     ".fabrik-chat li.thinking span:nth-child(2) { animation-delay: 0.15s; }" +
     ".fabrik-chat li.thinking span:nth-child(3) { animation-delay: 0.3s; }" +
@@ -113,10 +113,11 @@
     li.scrollIntoView({ block: "nearest" });
   }
 
-  // The answer's place while the assistant thinks: three dots, read out once as "Thinking".
+  // The answer's place while the assistant thinks: three dots on their own, with no bubble and no mark, read out once as
+  // "Thinking". The answer's bubble appears when its text does.
   function thinking() {
     var li = document.createElement("li");
-    li.className = "a thinking";
+    li.className = "thinking";
     li.setAttribute("role", "status");
     li.setAttribute("aria-label", "Thinking");
     for (var i = 0; i < 3; i++) li.appendChild(document.createElement("span"));
