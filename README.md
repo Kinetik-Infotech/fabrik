@@ -43,6 +43,10 @@ fabrik ships three plugins for Claude, on top of Claude's own connectors and plu
 | cloudflare | Deploys a folder from your computer as a website on Cloudflare Pages, with its form handlers. It adds your own domain and manages its DNS records. |
 | humanizer | Writing rules and checks, so what Claude writes for you reads as a person wrote it. |
 
+## More plugins
+
+fabrik's marketplace also has two other plugins. TripAgent plans trips with Claude's Kiwi.com, Tripadvisor, Brek, Civitatis and AccuWeather connectors. The animator makes the videos for animated.recipes. The guide [More plugins](docs/guides/18-more-plugins.md) says how to install each and what each needs.
+
 ## With Claude's own features
 
 fabrik's connector makes your records available to everything else Claude does. Which of these you have depends on your Claude plan and what you turn on.
@@ -98,6 +102,7 @@ Each guide covers one thing fabrik does. In any Claude app, ask Claude how to do
 - [Costs and limits](docs/guides/15-costs-and-limits.md)
 - [Getting help](docs/guides/16-getting-help.md)
 - [Chat on your website](docs/guides/17-website-chat.md)
+- [More plugins](docs/guides/18-more-plugins.md)
 
 ## Forgotten your fabrik password
 

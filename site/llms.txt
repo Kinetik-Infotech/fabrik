@@ -37,6 +37,7 @@ Key facts:
 - [Costs and limits](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/15-costs-and-limits.md): fabrik itself is free and open source.
 - [Getting help](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/16-getting-help.md): Ask Claude, such as "How do I add my calendar?".
 - [Chat on your website](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/17-website-chat.md): fabrik can give your website chat agents that answer visitors' questions.
+- [More plugins](https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/18-more-plugins.md): fabrik's marketplace has two more plugins, TripAgent and the animator.
 
 ## Website
 
