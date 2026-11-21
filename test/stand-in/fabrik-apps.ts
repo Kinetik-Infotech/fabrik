@@ -340,6 +340,8 @@ try {
   check("initialize carries fabrik's instructions, under 1,500 characters, saying its tools act as the person, nothing runs unattended, and to call guide",
     typeof instructions === "string" && instructions === connector.INSTRUCTIONS && instructions.length < 1500
       && /act as the signed-in person/.test(instructions) && /runs unattended/.test(instructions) && /call guide/.test(instructions), instructions);
+  check("initialize's instructions say to call profile_get before the first reply, and to use agentName as the agent's own name",
+    /call profile_get before the first reply/.test(instructions ?? "") && /agentName, that is your name/.test(instructions ?? ""), instructions);
   check("initialize's instructions say to do work a routine covers by its version in force, with the connector or plugin each step names",
     /version in force/.test(instructions ?? "") && /connector or plugin it names/.test(instructions ?? ""), instructions);
   const guides = new Map((await import("../../setup/functions/fabrik-apps/guides.ts")).GUIDES.map((g: { topic: string; text: string }) => [g.topic, g.text]));
@@ -806,6 +808,14 @@ try {
   m.planted = await tool(secondToken, "remember", { title: "Profile", kind: "model", type: "UserProfile", text: "Planted.", properties: { actor_id: actor, givenName: "Mallory" } });
   m.ownerAfterPlant = await tool(ownerToken, "profile_get", {});
   m.ownerUpdate = await tool(ownerToken, "profile_update", { fields: { locale: "en-GB" } });
+  // The owner names their agent Ada; a name too long or over two lines is refused; the second person never sees it; null clears it.
+  m.named = await tool(ownerToken, "profile_update", { fields: { agentName: "Ada" }, reason: "The person asked to call the agent Ada" });
+  m.namedGet = await tool(ownerToken, "profile_get", {});
+  m.nameTooLong = await tool(ownerToken, "profile_update", { fields: { agentName: "A".repeat(41) } });
+  m.nameTwoLines = await tool(ownerToken, "profile_update", { fields: { agentName: "Ada\nLovelace" } });
+  m.secondAfterName = await tool(secondToken, "profile_get", {});
+  m.unnamed = await tool(ownerToken, "profile_update", { fields: { agentName: null } });
+  m.unnamedGet = await tool(ownerToken, "profile_get", {});
   const [{ n: plantedVersions }] = await sql`select count(*)::int as n from fabrik.record_version where record_id = ${v(m.planted)?.record_id ?? null}::uuid`;
   m.outsiderByName = await tool(outsiderToken, "lookup_by_name", { name: "Ann Lee" });
   m.outsiderRemember = await tool(outsiderToken, "remember", { title: "Outsider note", text: "Should not save." });
@@ -881,6 +891,16 @@ try {
     ok(m.planted) && JSON.stringify(v(m.ownerAfterPlant)) === JSON.stringify(v(m.profile)) && ok(m.ownerUpdate)
       && v(m.ownerUpdate)?.record_id === v(m.profileMade)?.record_id && v(m.ownerUpdate)?.payload?.properties?.givenName === "Ann" && plantedVersions === 1,
     { planted: v(m.planted)?.record_id, ownerAfterPlant: m.ownerAfterPlant, ownerUpdate: v(m.ownerUpdate)?.record_id, plantedVersions });
+  const nameOf = (r: Answer) => v(r)?.profile?.properties?.agentName;
+  check("profile_update saves agentName on the person's own profile and profile_get gives it back; a 41-character name and one with a line break are refused",
+    ok(m.named) && v(m.named)?.record_id === v(m.profileMade)?.record_id && nameOf(m.namedGet) === "Ada"
+      && said(m.nameTooLong) === "Input validation error: Invalid arguments for tool profile_update: fields.agentName: Too big: expected string to have <=40 characters"
+      && said(m.nameTwoLines) === "Input validation error: Invalid arguments for tool profile_update: fields.agentName: agentName is one line, with no line break.",
+    { named: m.named, namedGet: m.namedGet, nameTooLong: m.nameTooLong, nameTwoLines: m.nameTwoLines });
+  check("one person's agentName doesn't reach another person's profile_get, and agentName given null clears it",
+    ok(m.secondAfterName) && v(m.secondAfterName)?.profile?.record_id !== v(m.profileMade)?.record_id && !JSON.stringify(v(m.secondAfterName)).includes("Ada")
+      && ok(m.unnamed) && v(m.unnamedGet)?.profile?.record_id === v(m.profileMade)?.record_id && nameOf(m.unnamedGet) === undefined,
+    { secondAfterName: m.secondAfterName, unnamedGet: m.unnamedGet });
   check("a person with no grant finds nothing with lookup_by_name, and remember is refused, saving nothing",
     JSON.stringify(v(m.outsiderByName)?.items) === "[]" && said(m.outsiderRemember) === 'Scope unavailable: no scope has the id, code or name "general"' && outsiderNotes === 0,
     { outsiderByName: m.outsiderByName, outsiderRemember: m.outsiderRemember });
