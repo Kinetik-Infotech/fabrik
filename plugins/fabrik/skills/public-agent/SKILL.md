@@ -114,7 +114,7 @@ Change either with `public_agent_settings_change`, once the owner approves the n
 Give the owner what `chat-page` printed for each agent:
 
 - The agent's page, such as `https://chat.example.com/bookings/`. They can link to it from their website, an email or a social profile. The root address lists every agent.
-- The line for the website, `<script src="https://chat.example.com/widget.js" data-agent="bookings" async></script>`. Pasted into a page, it draws a round button in the brand's colour in the bottom right corner, which opens that agent in a panel.
+- The line for the website, `<script src="https://chat.example.com/widget.js" data-agent="bookings" async></script>`. Pasted into a page, it draws a round button in the brand's colour in the bottom right corner, which opens that agent in a panel. A bar along the panel's top edge resizes it when dragged, and the bar's first button makes the panel fill the window.
 
 Some website builders, such as Wix and Squarespace on lower plans, refuse a pasted script. The page's address then works as a link instead.
 

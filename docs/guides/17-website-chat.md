@@ -46,7 +46,11 @@ The card checks each key before fabrik keeps it. It also lists your agents, and 
 
 ## 6. The chat on your website
 
-Claude gives you one line of code for each agent. Paste it into your website's pages, and a round chat button in your brand's colour appears in the bottom right corner. It opens that agent in a panel. You can also link to an agent's page from your website, an email or a social profile. Some website builders, such as Wix and Squarespace on lower plans, refuse pasted code, and the link works there instead.
+Claude gives you one line of code for each agent. Paste it into your website's pages, and a round chat button in your brand's colour appears in the bottom right corner. It opens that agent in a panel.
+
+A visitor can drag the bar along the panel's top edge to resize it. The bar's first button makes the panel fill the window.
+
+You can also link to an agent's page from your website, an email or a social profile. Some website builders, such as Wix and Squarespace on lower plans, refuse pasted code, and the link works there instead.
 
 Then try two questions on each agent: one its KNOWLEDGE.md answers, and one it doesn't.
 
