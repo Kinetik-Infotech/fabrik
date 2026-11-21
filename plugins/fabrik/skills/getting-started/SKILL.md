@@ -56,12 +56,14 @@ With the agent, the person's own instruction replaces a rule of this skill, such
 
 ## 2. Who fabrik is for
 
-- **Person:** says whether fabrik is for a business, their own life, or both.
+- **Person:** says whether fabrik is for a business, their own life, or both. Then gives their agent a name, or leaves it blank.
 - **Agent:**
   1. Asks whether fabrik is for a business, for their own life, or both. The question has three answers, so the person types theirs.
   2. Saves the answer as an `evidence` record in General titled `Getting started: who fabrik is for`. Its `summary` is the answer, `standing` is `stated`, `source_reference` is the person's name and `getting started`, `source_date` is today, and `limitations` is `none`. It shows the record first, and saves it once the person approves.
-  3. When the answer is the person's own life alone, it skips section 3 and goes to section 4. Otherwise it goes to section 3.
-- **Evidence:** the record's `record_id` and `version_number`.
+  3. Calls `profile_get`. When the profile has no `agentName`, it asks whether the person would like to give their agent a name, such as Ada. They can leave it blank. The person types the name, so the question has no buttons.
+  4. When the person gives a name of 1 to 40 characters, it saves it with `profile_update` as `fields.agentName`, once they approve. It uses the name from its next reply on. A blank answer saves nothing, and the agent stays unnamed.
+  5. When the answer to who fabrik is for is the person's own life alone, it skips section 3 and goes to section 4. Otherwise it goes to section 3.
+- **Evidence:** the record's `record_id` and `version_number`, and the profile's `version_number` when the person gave a name.
 
 A changed answer, such as a person who later starts a business, is a new version of the same record.
 
