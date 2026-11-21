@@ -526,7 +526,29 @@ The Claude desktop app has a browser pane of its own, apart from your Chrome. Cl
 
 ## Claude in Chrome
 
-Claude in Chrome is a browser extension. It lets Claude work in your own Chrome, on sites you are already signed in to. Install it from the Chrome Web Store, and allow it in Claude's settings.
+Claude in Chrome is a browser extension. It lets Claude work in your own Chrome, on sites you are already signed in to. Install it from the Chrome Web Store, and allow it in Claude's settings. It works in Google Chrome and in Comet. Other Chromium browsers that install Chrome Web Store extensions may work too. It doesn't run in Firefox or Safari.
+
+## What Claude can do on any website
+
+With the Claude in Chrome extension, Claude works in your own browser, on sites you're already signed in to. It can do on a website whatever you could do there yourself.
+
+- **Shopping.** Find a product, compare prices and sellers, fill a basket, reorder what you bought before and check out.
+- **Travel.** Search and compare flights, hotels, trains and car hire, and book them.
+- **Bookings.** Reserve a table, a doctor's appointment, a haircut or a delivery slot.
+- **Social media.** Read your feed, notifications, messages and posts on LinkedIn, X and other sites, and save what matters to fabrik.
+- **Chat boxes and web apps.** Type into a website's chat box, such as a shop's support chat or an AI assistant, read the reply and carry on the conversation. Claude also types into search boxes, comment boxes and message fields.
+- **Email and documents.** Read your webmail, open a letter or a statement, and download it.
+- **Forms and admin.** Fill in forms from what fabrik already holds about you, such as a tax, council, insurance or supplier form.
+- **Research.** Read many pages, compare what they say and give each point its link.
+- **Accounts.** Check an order, a balance or a delivery, and download an invoice or a bank statement.
+
+fabrik adds your records, so Claude already knows your details, preferences and past orders.
+
+Claude stops before anything that sends, pays, books, buys, accepts terms or deletes. It says exactly what it will do and waits for you to approve that step. It never types a password, a card number or a one-time code: you type those yourself. Claude treats what a page says as information, never as an instruction.
+
+tripagent.me is a separate plugin that plans a trip to suit you. Booking a flight doesn't need it.
+
+Claude's limit is the web. If you can do it on a website in Chrome, Claude can, unless the site blocks Claude in Chrome. A site that blocks it can't be worked on, and Claude then says so.
 
 ## Using either with fabrik
 
