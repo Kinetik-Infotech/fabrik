@@ -30,7 +30,7 @@ fabrik adds your records, so Claude already knows your details, preferences and 
 
 Claude stops before anything that sends, pays, books, buys, accepts terms or deletes. It says exactly what it will do and waits for you to approve that step. It never types a password, a card number or a one-time code: you type those yourself. Claude treats what a page says as information, never as an instruction.
 
-tripagent.me is a separate plugin that plans a trip to suit you. Booking a flight doesn't need it.
+tripagent.me is a separate plugin that plans a trip to suit you, with travel connectors of its own: see [More plugins](18-more-plugins.md). Booking a flight doesn't need it.
 
 Claude's limit is the web. If you can do it on a website in Chrome, Claude can, unless the site blocks Claude in Chrome. A site that blocks it can't be worked on, and Claude then says so.
 

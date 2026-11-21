@@ -45,6 +45,10 @@ fabrik ships three plugins for Claude, on top of Claude's own connectors and plu
 | cloudflare | Deploys a folder from your computer as a website on Cloudflare Pages, with its form handlers. It adds your own domain and manages its DNS records. |
 | humanizer | Writing rules and checks, so what Claude writes for you reads as a person wrote it. |
 
+## More plugins
+
+fabrik's marketplace also has two other plugins. TripAgent plans trips with Claude's Kiwi.com, Tripadvisor, Brek, Civitatis and AccuWeather connectors. The animator makes the videos for animated.recipes. The guide [More plugins](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/18-more-plugins.md) says how to install each and what each needs.
+
 ## With Claude's own features
 
 fabrik's connector makes your records available to everything else Claude does. Which of these you have depends on your Claude plan and what you turn on.
@@ -100,6 +104,7 @@ Each guide covers one thing fabrik does. In any Claude app, ask Claude how to do
 - [Costs and limits](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/15-costs-and-limits.md)
 - [Getting help](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/16-getting-help.md)
 - [Chat on your website](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/17-website-chat.md)
+- [More plugins](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/18-more-plugins.md)
 
 ## Forgotten your fabrik password
 
@@ -550,7 +555,7 @@ fabrik adds your records, so Claude already knows your details, preferences and 
 
 Claude stops before anything that sends, pays, books, buys, accepts terms or deletes. It says exactly what it will do and waits for you to approve that step. It never types a password, a card number or a one-time code: you type those yourself. Claude treats what a page says as information, never as an instruction.
 
-tripagent.me is a separate plugin that plans a trip to suit you. Booking a flight doesn't need it.
+tripagent.me is a separate plugin that plans a trip to suit you, with travel connectors of its own: see [More plugins](https://github.com/Kinetik-Infotech/fabrik/blob/main/docs/guides/18-more-plugins.md). Booking a flight doesn't need it.
 
 Claude's limit is the web. If you can do it on a website in Chrome, Claude can, unless the site blocks Claude in Chrome. A site that blocks it can't be worked on, and Claude then says so.
 
@@ -762,3 +767,38 @@ Visitors may type a name or an email address into a question, and that is kept t
 Ask Claude to remove an agent. Its files and its conversations go, and Claude takes its page down. Take its line off your website too.
 
 Ask Claude to turn the chat off. It removes the Anthropic API key, and every agent then tells visitors it can't answer. To remove a button, take its line off your website.
+
+---
+
+Source: https://raw.githubusercontent.com/Kinetik-Infotech/fabrik/main/docs/guides/18-more-plugins.md
+
+# More plugins
+
+fabrik's marketplace has two more plugins, TripAgent and the animator. Neither uses your Supabase project or a fabrik sign-in.
+
+## TripAgent
+
+TripAgent plans a trip like a travel agent across the desk. It learns your taste from pairs of hotel photos, then suggests countries, hotels and flights one at a time. It never books or pays: each result links to the provider.
+
+In a Terminal tab, install it with `claude plugin install trip-agent@fabrik`, then open a new session.
+
+It needs these connectors in your Claude account, which you add from Claude's connector directory:
+
+| Connector | What TripAgent uses it for |
+|---|---|
+| Kiwi.com | Flights, with their stops and layovers |
+| Tripadvisor | Reviews, rankings and photos |
+| Brek | Hotel prices for your dates |
+| Civitatis | Excursions and tours |
+| AccuWeather | The weather |
+| Veltra | More tours, if you want them |
+
+When one is missing, TripAgent says which one, and carries on with the others.
+
+Start it with its travel-agent agent, or its `plan-trip` command, in a folder of your own. It keeps your profile and each trip in a `Trip Agent` folder there.
+
+## The animator
+
+The animator makes the videos for animated.recipes. It writes an original recipe, draws it as scenes, narrates it and renders it to MP4.
+
+Install it with `claude plugin install animator@fabrik`. It needs no connector. It needs Google Chrome, ffmpeg and an AssemblyAI API key on your computer.
