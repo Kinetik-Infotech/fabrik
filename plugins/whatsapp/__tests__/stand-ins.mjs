@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export function fakeBaileys({ messages = () => [], linkAs = "447700900123", calls = [], groups = {}, accept = true, lateMs = 0 } = {}) {
+export function fakeBaileys({ messages = () => [], history = () => [], linkAs = "447700900123", calls = [], groups = {}, accept = true, lateMs = 0 } = {}) {
   return {
     calls,
     async useMultiFileAuthState(dir) {
@@ -64,6 +64,15 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
         setTimeout(() => {
           for (const m of list) { ws.emit("CB:message", {}); ev.emit("messages.upsert", { type: "append", messages: [m] }); }
         }, lateMs);
+        // The recent history the phone sends a new device, in chunks, each `afterMs` after the queue is delivered. A
+        // chunk with `status` is followed by Baileys' word that its sync type is complete.
+        for (const chunk of history()) {
+          setTimeout(() => {
+            const { afterMs: _a, status, ...set } = chunk;
+            ev.emit("messaging-history.set", { chats: [...new Set(set.messages.map(m => m.key.remoteJid))].map(id => ({ id })), ...set });
+            if (status) ev.emit("messaging-history.status", { syncType: set.syncType, status, explicit: true });
+          }, chunk.afterMs ?? 0);
+        }
       });
       return sock;
     },

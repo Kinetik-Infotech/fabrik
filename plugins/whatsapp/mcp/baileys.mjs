@@ -10,6 +10,11 @@
 // type it on their phone. The QR image is never drawn. Once the phone accepts the code, WhatsApp closes the connection
 // and asks for a new one. That ends the link here, and the next check connects with the new keys.
 //
+// Recent history is folded in too. When the person chose it at linking, the connection also listens to
+// messaging-history.set, the batch of recent chats the phone sends a new device, and hands each message of the two
+// recent sync types to onMessage, as it does a new one. With `waitHistory` set, the connection stays open after the
+// queue is drained, until Baileys says the recent sync is complete or no chunk has come for `historyQuietMs`.
+//
 // It only reads. It connects with markOnlineOnConnect false, so it never shows the person online or sends read
 // receipts. It calls nothing that sends a message, a receipt or a presence. Media is noted, never downloaded.
 
@@ -56,6 +61,11 @@ export async function loadBaileys({ root = ROOT, entry = ENTRY, install = instal
   return loaded;
 }
 
+/** The history sync types kept: INITIAL_BOOTSTRAP (0) and RECENT (3), as Baileys' proto.HistorySync.HistorySyncType
+ * numbers them. FULL (2) and ON_DEMAND (6) are left alone. */
+export const HISTORY_TYPES = new Map([[0, "initial"], [3, "recent"]]);
+const RECENT = 3;
+
 /** Whether the keys belong to a linked device, and its number: { linked, number }. Only a finished pairing writes
  * `account`. Asking for a code writes `me` alone, so keys with `me` and no `account` are a link that never finished. */
 export function linkedState(creds) {
@@ -70,15 +80,18 @@ export const halfLinked = creds => !!creds && !linkedState(creds).linked && !!(c
 /**
  * One connection that drains WhatsApp's offline queue and disconnects.
  *
- * Hands each `notify` and `append` upsert entry to onMessage(waMessage). After the drain, and before the socket is torn
+ * Hands each `notify` and `append` upsert entry to onMessage(waMessage). With `history`, it also hands each message of a
+ * kept history sync type to onMessage(waMessage, { history: syncType }). After the drain, and before the socket is torn
  * down, awaits afterDrain(sock), which can read group names or remove the link. Always tears the socket down.
  *
- * Resolves { count, received, msToOpen, reason, linked }: `count` is the queue WhatsApp announced, `received` the
- * entries handed on, and `reason` null on a clean drain, else "connect-timeout", "drain-timeout", "not-linked",
+ * Resolves { count, received, history, msToOpen, reason, linked }: `count` is the queue WhatsApp announced, `received`
+ * the entries handed on, `history` the chats and messages history brought per sync type, and `reason` null on a clean
+ * drain, else "connect-timeout", "drain-timeout", "not-linked",
  * "logged-out", "closed" or, for a pairing the phone accepted, "linked".
  */
 export async function pullWhatsApp({
   authDir, log = () => {}, selfNumber = "", pair = false, onMessage = () => {}, onPairingCode = () => {}, afterDrain = null,
+  history = false, waitHistory = false, historyQuietMs = 180000,
   baileys = null, connectTimeoutMs = 20000, linkTimeoutMs = 180000, drainTimeoutMs = 30000, quietMs = 3000, now = () => Date.now(),
 }) {
   const b = baileys ?? await loadBaileys();
@@ -96,6 +109,11 @@ export async function pullWhatsApp({
   let saving = Promise.resolve();
   // When WhatsApp last sent a message frame, or Baileys last handed one over.
   let lastActivity = now();
+  // The history taken, per sync type: { initial: { chats, messages }, recent: { chats, messages } }.
+  const tally = {};
+  // When the last kept history chunk came, and whether Baileys said the recent sync is over.
+  let lastChunk = null;
+  let historyDone = false;
 
   return await new Promise(resolve => {
     let settled = false;
@@ -112,7 +130,7 @@ export async function pullWhatsApp({
         sock?.ws?.removeAllListeners?.();
         sock?.end?.(new Error("pull-done"));
       } catch { /* already gone */ }
-      saving.finally(() => resolve({ count, received, msToOpen, reason: reason ?? null, linked: linkedState(state.creds).linked }));
+      saving.finally(() => resolve({ count, received, history: tally, msToOpen, reason: reason ?? null, linked: linkedState(state.creds).linked }));
     };
     const arm = (ms, reason) => {
       if (deadline) clearTimeout(deadline);
@@ -166,13 +184,16 @@ export async function pullWhatsApp({
         }
         if (receivedPendingNotifications && !draining) {
           draining = true;
-          arm(drainTimeoutMs, "drain-timeout");
+          const drainAt = now();
+          arm(waitHistory ? historyQuietMs + drainTimeoutMs : drainTimeoutMs, "drain-timeout");
           lastActivity = now();
           quiet = setInterval(() => {
             if (now() - lastActivity < quietMs) return;
+            // Linking with history waits for the phone's last chunk: Baileys' word, or no chunk for historyQuietMs.
+            if (waitHistory && !historyDone && now() - (lastChunk ?? drainAt) < historyQuietMs) return;
             clearInterval(quiet);
             quiet = null;
-            log("pull-quiet", { quietMs });
+            log("pull-quiet", { quietMs, ...(waitHistory ? { historyDone } : {}) });
             Promise.resolve()
               .then(() => (afterDrain ? afterDrain(sock) : undefined))
               .catch(err => log("after-drain-error", { err: oneToken(err) }))
@@ -180,6 +201,29 @@ export async function pullWhatsApp({
           }, Math.max(10, Math.min(250, quietMs / 4)));
         }
       });
+
+      if (history) {
+        sock.ev.on("messaging-history.set", ({ messages = [], chats = [], syncType, progress, chunkOrder }) => {
+          lastActivity = now();
+          const kind = HISTORY_TYPES.get(syncType);
+          if (!kind) { log("history-skipped", { syncType: syncType ?? "none", messages: messages.length }); return; }
+          lastChunk = now();
+          if (waitHistory && draining) arm(historyQuietMs + drainTimeoutMs, "drain-timeout");
+          const t = (tally[kind] ??= { chats: 0, messages: 0 });
+          t.chats += chats.length;
+          t.messages += messages.length;
+          log("history-chunk", { syncType: kind, chunkOrder: chunkOrder ?? "none", progress: progress ?? "none", chats: chats.length, messages: messages.length });
+          for (const m of messages) {
+            received += 1;
+            try { onMessage(m, { history: syncType }); } catch (err) { log("message-error", { err: oneToken(err) }); }
+          }
+          if (syncType === RECENT && progress === 100) historyDone = true;
+        });
+        sock.ev.on("messaging-history.status", ({ syncType, status }) => {
+          log("history-status", { syncType: HISTORY_TYPES.get(syncType) ?? syncType, status });
+          if (syncType === RECENT) historyDone = true;
+        });
+      }
 
       sock.ev.on("messages.upsert", ({ messages, type }) => {
         if (type !== "notify" && type !== "append") return;
