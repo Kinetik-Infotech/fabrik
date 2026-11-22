@@ -38,7 +38,8 @@ import { AGAIN, makeSettings, SITE, TOKEN_PAGE } from "./connector-settings.mjs"
 import { ownerSignIn } from "./lib/sign-in-flow.mjs";
 import { pageFolder, putUpSignInPage, WRANGLER } from "./sign-in-page.mjs";
 import { createTools } from "./lib/tools.mjs";
-import { readActor } from "./lib/actor-file.mjs";
+import { LOCAL, readActor, writeActorFile } from "./lib/actor-file.mjs";
+import { addLocalFolder, isLocalFolder } from "./lib/local-folders.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** fabrik's setup files, at the top of the fabrik marketplace. */
@@ -414,8 +415,24 @@ export async function ownerSetup(argv, {
     say(`fabrik is set up in ${project.name}, and you are its administrator.`);
     if (plan === "free") say("Your Supabase plan is Free, which pauses a project nobody uses for a week. A paid plan keeps it running.");
     // A run after setup finished cannot see Claude's connectors, so it names the step only for one not yet added.
-    if (wasSetUp) say(`If fabrik's connector is already in Claude, nothing more is needed. If not, in Claude, open Settings, Connectors, and add a custom connector named fabrik at this address:\n${url}/functions/v1/fabrik-apps\nSign in there with the fabrik email and password you chose when you set fabrik up.`);
-    else say(`One step is left. In Claude, open Settings, Connectors, and add a custom connector named fabrik at this address:\n${url}/functions/v1/fabrik-apps\nSign in there with the fabrik email and password you chose in this setup, not your Claude or Supabase login.`);
+    const signedIn = readActor(folder);
+    const local = signedIn?.ok && signedIn.value.connector === LOCAL && isLocalFolder(signedIn.folder, home);
+    const localOn = `fabrik's local connector is on in ${folder}. Open a Code session in the Claude desktop app in that folder, and fabrik's tools are there, with no connector in Claude's Settings.`;
+    if (wasSetUp) {
+      if (local) say(localOn);
+      else say(`If fabrik's connector is already in Claude, nothing more is needed. If not, in Claude, open Settings, Connectors, and add a custom connector named fabrik at this address:\n${url}/functions/v1/fabrik-apps\nSign in there with the fabrik email and password you chose when you set fabrik up.\nIf your Claude team doesn't let you add a custom connector, run node fabrik.mjs sign-in --folder "${folder}" --local instead.`);
+    } else {
+      // Some Claude teams allow no custom connectors. Their members reach fabrik through the plugin's local connector.
+      let answer = "";
+      try { answer = (await ask("Can you add a custom connector in Claude's Settings? Some Claude teams don't allow it. Type 'no' if you can't, or press Enter if you can: ")).trim().toLowerCase(); }
+      catch { answer = ""; }
+      if (answer === "no" && signedIn?.ok) {
+        writeActorFile(signedIn.folder, { projectRef: signedIn.value.project_ref, email: signedIn.value.auth_email, local: true });
+        addLocalFolder(signedIn.folder, home);
+        say(localOn);
+        say("fabrik reaches only that folder's Code sessions this way, not claude.ai, the phone app or Cowork.");
+      } else say(`One step is left. In Claude, open Settings, Connectors, and add a custom connector named fabrik at this address:\n${url}/functions/v1/fabrik-apps\nSign in there with the fabrik email and password you chose in this setup, not your Claude or Supabase login.`);
+    }
     say(`Delete the access token at ${TOKEN_PAGE}.`);
     return 0;
   } catch (err) {
