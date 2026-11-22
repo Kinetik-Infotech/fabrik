@@ -3,7 +3,8 @@
 // project, through the same code a real check uses.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,7 +44,7 @@ test("link by code, check, check again and unlink, as the person does them", asy
   try {
     const { request, tool } = t.server;
     const tools = (await request("tools/list", {})).result.tools.map(x => x.name);
-    assert.deepEqual(tools, ["whatsapp_status", "whatsapp_link", "whatsapp_link_wait", "whatsapp_check", "whatsapp_unlink"]);
+    assert.deepEqual(tools, ["whatsapp_status", "whatsapp_link", "whatsapp_link_wait", "whatsapp_check", "whatsapp_timer", "whatsapp_unlink"]);
 
     assert.match((await tool("whatsapp_status")).text, /^WhatsApp isn't linked on this computer\.$/m);
     const early = await tool("whatsapp_check");
@@ -172,5 +173,54 @@ test("a relink keeps the messages waiting to be saved, says so, and the next che
     writeFileSync(session, JSON.stringify(saved), { mode: 0o600 });
     t.queue([]);
     assert.equal((await tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 1 new");
+  } finally { await t.end(); }
+});
+
+test("the timer: on, a run as launchd starts it, status, off, and unlink turning it off", async () => {
+  const t = await setUp();
+  try {
+    const { tool } = t.server;
+    const early = await tool("whatsapp_timer", { action: "on", hours: 1 });
+    assert.equal(early.isError, true);
+    assert.match(early.text, /^WhatsApp isn't linked on this computer, so a timed check would have nothing to read\./);
+    await tool("whatsapp_link", { phone: "+447700900123", history: false });
+    await tool("whatsapp_link_wait");
+    assert.equal((await tool("whatsapp_timer", { action: "on", hours: 25 })).isError, true);
+
+    const on = await tool("whatsapp_timer", { action: "on", hours: 1 });
+    assert.equal(on.isError, false);
+    assert.match(on.text, /^The timer is on\. launchd checks WhatsApp every hour, with no Claude session and no Claude usage\. Next run: about \w{3} \d+ \w{3}, \d\d:\d\d\.$/m);
+    assert.match(on.text, /^The Mac has to be awake\./m);
+    const plist = join(t.home, "Library", "LaunchAgents", "tech.fabrik.whatsapp-check.plist");
+    const log = join(t.home, "Library", "Logs", "fabrik", "whatsapp-check.log");
+
+    // A run as launchd starts it: the plist's program and launcher, with no Claude session, and the plugin found
+    // through installed_plugins.json.
+    mkdirSync(join(t.home, ".claude", "plugins"), { recursive: true });
+    writeFileSync(join(t.home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "whatsapp@fabrik": [{ scope: "user", installPath: join(HERE, ".."), version: "test" }] } }));
+    t.queue([dm("A1", "timed hello")]);
+    const [node, launcher] = [...readFileSync(plist, "utf8").matchAll(/<string>(.*?)<\/string>/g)].map(m => m[1]).slice(1, 3);
+    const env = { ...process.env, HOME: t.home, TZ: "Europe/London", WHATSAPP_TEST_HOOKS: join(HERE, "hooks.mjs"), WHATSAPP_TEST_MESSAGES: join(t.home, "messages.json"), WHATSAPP_TEST_CALLS: join(t.home, "calls.jsonl") };
+    delete env.FABRIK_SESSION_FOLDER;
+    const code = await new Promise(res => spawn(node, [launcher], { env }).on("exit", res));
+    assert.equal(code, 0);
+    assert.match(readFileSync(log, "utf8"), /^\S+Z saved 1 message from 1 chat in me_private\n$/);
+    assert.match(t.fabrik.files.get("me_private/whatsapp/Kate.md"), /\*\*Kate:\*\* timed hello <!-- wa:A1 -->/);
+
+    const status = (await tool("whatsapp_status")).text;
+    assert.match(status, /^The timer checks WhatsApp every hour, with no Claude session\. Next run: about .+\.$/m);
+    assert.match(status, /^Last timed check: \S+Z saved 1 message from 1 chat in me_private$/m);
+
+    const off = await tool("whatsapp_timer", { action: "off" });
+    assert.match(off.text, /^The timer is off\./);
+    assert.equal(existsSync(plist), false);
+    assert.match((await tool("whatsapp_status")).text, /^The timer is off\.$/m);
+
+    await tool("whatsapp_timer", { action: "on", hours: 3 });
+    assert.ok(existsSync(plist));
+    assert.match((await tool("whatsapp_unlink")).text, /^The timer is off too\.$/m);
+    assert.equal(existsSync(plist), false);
+    const launchd = t.calls().filter(c => c.op === "launchctl").map(c => c.args[0]);
+    assert.deepEqual(launchd.filter(op => op !== "print"), ["bootout", "bootstrap", "bootout", "bootout", "bootstrap", "bootout"]);
   } finally { await t.end(); }
 });

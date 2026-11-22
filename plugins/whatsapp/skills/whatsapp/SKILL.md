@@ -1,6 +1,6 @@
 ---
 name: whatsapp
-description: Use when a person asks to link their WhatsApp, check it for new messages, read what someone said on WhatsApp, or unlink it. The whatsapp plugin reads WhatsApp as a linked device and saves each chat as a file in the person's private fabrik scope. It never sends, replies, reacts or marks a message read.
+description: Use when a person asks to link their WhatsApp, check it for new messages, read what someone said on WhatsApp, or unlink it. Also use when they ask for checks on a timer with no session open. The whatsapp plugin reads WhatsApp as a linked device and saves each chat as a file in the person's private fabrik scope. It never sends, replies, reacts or marks a message read.
 ---
 
 # WhatsApp
@@ -36,6 +36,7 @@ saved sign-in, the one `fabrik sign-in` saved for their folder. Open the session
 | `whatsapp_link` | Gives the code to type on the phone |
 | `whatsapp_link_wait` | Waits for the phone to accept it |
 | `whatsapp_check` | Saves the new messages in fabrik |
+| `whatsapp_timer` | Turns the timer on or off |
 | `whatsapp_unlink` | Removes the link and its keys |
 
 ## Link WhatsApp
@@ -83,6 +84,28 @@ lately. It answers each chat file that changed and how many messages it gained.
 Tell the person to check at least once a week. WhatsApp drops a linked device that hasn't connected for about 14
 days, and the messages it held for it are lost.
 
+## Check on a timer
+
+Offer the timer only when the person asks for WhatsApp to be checked without them, such as "check my WhatsApp every
+hour without me". Call `whatsapp_timer` with `action` on, and `hours`, a whole number from 1 to 24. Leave `hours` out
+for every 6 hours.
+
+The timer works on macOS only. The tool hands the check to launchd, the Mac's own scheduler. launchd then runs the
+same check as `whatsapp_check` every few hours, with no Claude session open. No Claude model takes part, so a timed
+check uses no Claude usage. It only reads, as every check does. Tell the person these things when it is on:
+
+- The computer has to be awake. A run missed while it sleeps happens once when it wakes.
+- Each run connects to WhatsApp briefly, so more runs a day add a little to the risk below.
+- macOS may say that node added a background item. That is the timer.
+
+A timed check signs in to fabrik as the folder the session was opened in. It never links. When WhatsApp isn't linked,
+or fabrik refuses the sign-in, it writes the reason in the log, `~/Library/Logs/fabrik/whatsapp-check.log`, and
+stops. `whatsapp_status` shows whether the timer is on, its next run and the log's last line. When that line says a
+check stopped, tell the person why and what to do.
+
+To change the hours, call `whatsapp_timer` on again with the new `hours`. To stop it, call it with `action` off.
+Unlinking WhatsApp turns the timer off too.
+
 ## Read what was saved
 
 Each chat file starts with the chat's full name, and the other person's number when WhatsApp gives it. Each day has
@@ -109,7 +132,7 @@ the answer includes the newest messages.
 ## Unlink WhatsApp
 
 Ask the person before unlinking. Then call `whatsapp_unlink`. It saves what WhatsApp still holds for this device,
-asks WhatsApp to drop the device, and deletes the folder of keys on this computer. The chat files stay in fabrik. If
+asks WhatsApp to drop the device, and deletes the folder of keys on this computer. It turns the timer off too. The chat files stay in fabrik. If
 WhatsApp couldn't be reached, tell the person to remove the device on their phone, under Settings → Linked devices.
 
 ## The link's keys

@@ -8,14 +8,18 @@
 //
 // The protocol on stdio is newline-delimited JSON-RPC, written directly as fabrik's relay does, so the server needs
 // Node and Baileys alone. Baileys loads on the first call that connects.
-import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+//
+// whatsapp_timer hands the check to launchd on a Mac (timer.mjs), which runs timed-check.mjs every few hours with no
+// Claude session.
+import { readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { halfLinked, linkedState, pullWhatsApp } from "./baileys.mjs";
+import { halfLinked, pullWhatsApp } from "./baileys.mjs";
 import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, LIDS, NAMES, PENDING, readPending } from "./pull.mjs";
-import { MONTHS, saveChats, TITLED } from "./archive.mjs";
+import { MONTHS, TITLED } from "./archive.mjs";
 import { normalizeE164 } from "./normalize.mjs";
-import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
+import { whichSignIn } from "./fabrik.mjs";
+import { archiveFor, countHistory, credsOf, keysPath, lockDown, makeKeysFolder, saveSettings, settingsOf, stateOf } from "./keys.mjs";
+import { DEFAULT_HOURS, timerPaths, timerStatus, turnOff, turnOn } from "./timer.mjs";
 
 const SERVER = { name: "whatsapp", version: "1" };
 const DEFAULT_PROTOCOL = "2025-06-18";
@@ -30,25 +34,6 @@ const send = msg => process.stdout.write(JSON.stringify(msg) + "\n");
 const log = (op, fields = {}) => process.stderr.write(`[whatsapp] op=${op} ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(" ")}\n`);
 const text = value => ({ content: [{ type: "text", text: value }] });
 const refused = value => ({ content: [{ type: "text", text: value }], isError: true });
-
-/** The keys folder for the person fabrik signs in as. */
-const keysPath = (email, home = homedir()) => join(home, ".config", "fabrik", "whatsapp", email);
-
-/** Makes the keys folder, readable by the person alone. */
-function makeKeysFolder(dir) {
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  chmodSync(dir, 0o700);
-}
-
-function lockDown(dir) {
-  try { for (const f of readdirSync(dir)) chmodSync(join(dir, f), 0o600); } catch { /* gone */ }
-}
-
-const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return fallback; } };
-const settingsOf = dir => readJson(join(dir, "settings.json"), {});
-const saveSettings = (dir, value) => writeFileSync(join(dir, "settings.json"), JSON.stringify(value, null, 1), { mode: 0o600 });
-const credsOf = dir => readJson(join(dir, "creds.json"), null);
-const stateOf = dir => linkedState(credsOf(dir));
 
 /** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files and group
  * names, the LID and phone pairs, people's names, the scope. */
@@ -78,12 +63,20 @@ function historyLine(settings) {
   return n ? `Recent history was chosen at linking, and brought ${plural(n, "message")}.` : "Recent history was chosen at linking, and none has come.";
 }
 
-/** Adds the history messages a connection took to the count kept with the link. */
-function countHistory(dir, r) {
-  const n = r?.history?.messages ?? 0;
-  if (n) { const settings = settingsOf(dir); saveSettings(dir, { ...settings, historyMessages: (settings.historyMessages ?? 0) + n }); }
-}
 const historyCount = h => `${plural(h.messages, "message")} from ${plural(h.chats, "chat")}`;
+
+/** The timer's launchctl, the tests' stand-in when they give one. */
+const timerOptions = () => ({ ...(hooks.launchctl ? { run: hooks.launchctl } : {}) });
+/** A time as the person reads it, such as "Sun 22 Nov, 19:54". */
+const when = iso => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+/** How the timer stands, in a line or two. */
+function timerLines(t = timerStatus(timerOptions())) {
+  const lines = [t.on
+    ? `The timer checks WhatsApp every ${t.hours === 1 ? "hour" : `${t.hours} hours`}, with no Claude session. Next run: about ${when(t.next)}.`
+    : "The timer is off."];
+  if (t.last) lines.push(`Last timed check: ${t.last}`);
+  return lines;
+}
 
 /** The person fabrik signs in as, and their keys folder: { ok, ref, email, dir } or { ok: false, problem }. */
 function who() {
@@ -96,15 +89,7 @@ const pulls = new Map();
 /** The one check per keys folder, so two connections never share its keys. */
 function pullFor(person) {
   if (!pulls.has(person.dir)) {
-    const archive = async (records, groupNames) => {
-      const opened = await (hooks.openFabrik ?? openFabrik)(person);
-      if (!opened.ok) throw new Error(opened.problem);
-      const settings = settingsOf(person.dir);
-      const scope = await (hooks.privateScope ?? privateScope)(opened.access, settings.scope);
-      if (!scope.ok) throw new Error(scope.problem);
-      const files = (hooks.scopeFiles ?? scopeFiles)(opened.access, scope.code);
-      return { scope, ...(await saveChats(records, groupNames, { dir: person.dir, files })) };
-    };
+    const archive = archiveFor(person, hooks);
     const pullImpl = hooks.pullWhatsApp ?? pullWhatsApp;
     pulls.set(person.dir, createWhatsAppPull({ authDir: person.dir, archive, log, pullImpl }));
   }
@@ -114,7 +99,7 @@ function pullFor(person) {
 /** What a check did, in a few lines for the person. */
 function summary(r) {
   const lines = [];
-  if (r.reason === "busy") lines.push("Another Claude session is connected to WhatsApp with this link. Try again in a minute.");
+  if (r.reason === "busy") lines.push("Another check is connected to WhatsApp with this link, from another Claude session or the timer. Try again in a minute.");
   else if (r.reason === "not-linked" || r.reason === "logged-out") lines.push("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
   else if (r.reason === "connect-timeout") lines.push("WhatsApp didn't answer within 20 seconds. Check the computer is online, then check again.");
   else if (r.reason === "drain-timeout") lines.push("WhatsApp kept sending for longer than 30 seconds, so the check stopped. Check again for the rest.");
@@ -142,7 +127,7 @@ const linkEnded = new Map();
 const TOOLS = [
   {
     name: "whatsapp_status",
-    description: "Says whether WhatsApp is linked on this computer, and the linked number. Also names the private fabrik scope the chats go in, and how many messages wait to be saved. Reads only this computer.",
+    description: "Says whether WhatsApp is linked on this computer, and the linked number. Also names the private fabrik scope the chats go in, how many messages wait to be saved, whether the timer is on, and what the last timed check did. Reads only this computer.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(person) {
@@ -160,6 +145,7 @@ const TOOLS = [
         ...(waiting ? [waitingLine(waiting, chatsIn(pending), "to be saved.")] : []),
         ...(link && !linked ? ["A link is waiting for the code to be typed on the phone."] : []),
         ...(link && linked ? [`The phone is sending recent history: ${historyCount(link.history)} so far.`] : []),
+        ...timerLines(),
       ].join("\n"));
     },
   },
@@ -261,13 +247,45 @@ const TOOLS = [
     },
   },
   {
+    name: "whatsapp_timer",
+    description: "Turns on or off the timer that checks WhatsApp with no Claude session open. On a Mac, launchd runs the same check as whatsapp_check every few hours, with no Claude model, so a timed check uses no Claude usage. It only reads, as every check does. Use it only when the person asks for checks without a session. Answers what it did, the next run's time and the last timed check.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["on", "off"], description: "on to turn the timer on, or change its hours; off to turn it off." },
+        hours: { type: "integer", minimum: 1, maximum: 24, description: `With on: the hours between checks, a whole number from 1 to 24. ${DEFAULT_HOURS} if left out.` },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+    async run(person, { action, hours = DEFAULT_HOURS }) {
+      if (action === "off") {
+        const { wasOn } = turnOff(timerOptions());
+        return text([wasOn ? "The timer is off. WhatsApp is checked only in a Claude session now." : "The timer was already off.", ...timerLines().slice(1)].join("\n"));
+      }
+      if (action !== "on") return refused("action is on or off.");
+      if (!stateOf(person.dir).linked) return refused("WhatsApp isn't linked on this computer, so a timed check would have nothing to read. Link it with whatsapp_link first.");
+      const on = turnOn({ hours, folder, ...timerOptions() });
+      if (!on.ok) return refused(on.problem);
+      return text([
+        `The timer is on. launchd checks WhatsApp every ${on.hours === 1 ? "hour" : `${on.hours} hours`}, with no Claude session and no Claude usage. Next run: about ${when(on.next)}.`,
+        "The Mac has to be awake. A run missed while it sleeps happens once when it wakes.",
+        "Each run connects to WhatsApp for a few seconds, as a check in a session does, so more runs a day add a little to the risk of Meta flagging the number.",
+        "macOS may say that node added a background item. That's this timer.",
+        `Each run adds a line to ${timerPaths().log}.`,
+        ...timerLines().slice(1),
+      ].join("\n"));
+    },
+  },
+  {
     name: "whatsapp_unlink",
-    description: "Removes this computer's WhatsApp link: saves what WhatsApp holds for it first, asks WhatsApp to drop the device, and deletes the keys folder. Ask the person before calling it.",
+    description: "Removes this computer's WhatsApp link: saves what WhatsApp holds for it first, asks WhatsApp to drop the device, deletes the keys folder and turns the timer off. Ask the person before calling it.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { destructiveHint: true },
     async run(person) {
       if (links.has(person.dir)) return refused("A link is waiting for its code. Let it end first, about three minutes.");
       if (pulls.get(person.dir)?.running()) return refused(BUSY);
+      const timer = turnOff(timerOptions());
       let dropped = false;
       let r = null;
       if (stateOf(person.dir).linked) {
@@ -281,6 +299,7 @@ const TOOLS = [
         dropped ? "WhatsApp dropped this device, and the keys folder is deleted." : "The keys folder is deleted. WhatsApp couldn't be reached to drop the device, so remove it on the phone under Settings → Linked devices.",
         ...(r ? [summary(r)] : []),
         ...(lost ? [`${plural(lost, "message")} couldn't be saved in fabrik and went with the folder.`] : []),
+        ...(timer.wasOn ? ["The timer is off too."] : []),
       ].filter(Boolean).join("\n"));
     },
   },
