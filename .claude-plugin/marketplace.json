@@ -24,6 +24,11 @@
       "source": "./plugins/humanizer"
     },
     {
+      "name": "whatsapp",
+      "description": "Reads your WhatsApp messages and saves each chat in your private fabrik scope, so Claude finds them in every app. It links as a device by a code you type on your phone, and never sends, replies or marks a message read.",
+      "source": "./plugins/whatsapp"
+    },
+    {
       "name": "animator",
       "description": "Turns a recipe request into an animated, narrated recipe video you can cook along to, with a printable recipe card. It's the plugin behind animated.recipes.",
       "source": "./plugins/animator"
