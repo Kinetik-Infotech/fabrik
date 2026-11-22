@@ -61,12 +61,12 @@ test("link by code, check, check again and unlink, as the person does them", asy
     assert.equal(check.isError, false);
     assert.equal(check.text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 2 new\n- whatsapp/Family.md: 1 new\n- whatsapp/Lee.md: 1 new");
     assert.equal(t.fabrik.files.get("me_private/whatsapp/Kate.md"), [
-      "# WhatsApp: Kate (+447111000111)", "", "## 2026-11-18", "",
+      "# WhatsApp: Kate (+447111000111)", "<!-- wa-chat:447111000111@s.whatsapp.net -->", "", "## 2026-11-18", "",
       "- 11:06 **Kate:** Are we still on for the 23rd? <!-- wa:A1 -->", "  Let me know by Friday.",
       "- 11:08 **Me:** Yes, see you then <!-- wa:A2 -->", "",
     ].join("\n"));
-    assert.equal(t.fabrik.files.get("me_private/whatsapp/Family.md"), "# WhatsApp group: Family\n\n## 2026-11-18\n\n- 11:10 **Sam:** [photo] the cake <!-- wa:G1 -->\n");
-    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
+    assert.equal(t.fabrik.files.get("me_private/whatsapp/Family.md"), "# WhatsApp group: Family\n<!-- wa-chat:120363000000000001@g.us -->\n\n## 2026-11-18\n\n- 11:10 **Sam:** [photo] the cake <!-- wa:G1 -->\n");
+    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n<!-- wa-chat:99988877766655@lid -->\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
     assert.ok(t.fabrik.uploads.every(u => u.type === "text/markdown"));
 
     // The same messages again leave every file as it was, and upload nothing.

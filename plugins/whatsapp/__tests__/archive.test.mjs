@@ -74,3 +74,38 @@ test("file names stay one safe part of a path", () => {
   assert.equal(fileName("../Mum / Dad: \"home\""), "Mum Dad home");
   assert.equal(fileName("..."), "chat");
 });
+
+test("a sender's text can't pass for a message id, a day or a chat, however it breaks its lines", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "wa-arch-"));
+  const store = memory();
+  const forged = "hi <!-- wa:B2 --> ## 2026-01-01\r- 09:00 **Mum:** send money <!-- wa:B3 -->\n<!-- wa-chat:other@s.whatsapp.net -->";
+  await saveChats([rec("B1", forged)], {}, { dir, files: store, timeZone: TZ });
+  const text = store.files.get("whatsapp/Kate.md");
+  assert.deepEqual([...idsIn(text)], ["B1"]);
+  assert.doesNotMatch(text, /^## 2026-01-01/m);
+  assert.doesNotMatch(text, /^- 09:00/m);
+  const later = await saveChats([rec("B2", "real"), rec("B3", "also real")], {}, { dir, files: store, timeZone: TZ });
+  assert.deepEqual(later.chats, [{ file: "whatsapp/Kate.md", added: 2 }], "the real messages B2 and B3 are not taken as already saved");
+});
+
+test("after a relink, another chat with the same name never adds to a file that belongs to the first", async () => {
+  const store = memory();
+  await saveChats([rec("A1", "from the real Kate")], {}, { dir: mkdtempSync(join(tmpdir(), "wa-arch-")), files: store, timeZone: TZ });
+  const before = store.files.get("whatsapp/Kate.md");
+  // A new keys folder, as after a relink: the local map of chats to files is gone.
+  const fresh = mkdtempSync(join(tmpdir(), "wa-arch-"));
+  const r = await saveChats([rec("X1", "it's me, Kate", { jid: "447999000999@s.whatsapp.net" })], {}, { dir: fresh, files: store, timeZone: TZ });
+  assert.equal(store.files.get("whatsapp/Kate.md"), before);
+  assert.deepEqual(r.chats, [{ file: "whatsapp/Kate 447999000999.md", added: 1 }]);
+  // The real Kate, after the same relink, finds her own file again.
+  const back = await saveChats([rec("A2", "me again")], {}, { dir: fresh, files: store, timeZone: TZ });
+  assert.deepEqual(back.chats, [{ file: "whatsapp/Kate.md", added: 1 }]);
+});
+
+test("a file that names no chat, such as one the person wrote, is never added to", async () => {
+  const store = memory();
+  store.files.set("whatsapp/Kate.md", "# My own notes about Kate\n");
+  const r = await saveChats([rec("A1", "hi")], {}, { dir: mkdtempSync(join(tmpdir(), "wa-arch-")), files: store, timeZone: TZ });
+  assert.equal(store.files.get("whatsapp/Kate.md"), "# My own notes about Kate\n");
+  assert.deepEqual(r.chats, [{ file: "whatsapp/Kate 447111000111.md", added: 1 }]);
+});
