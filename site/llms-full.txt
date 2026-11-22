@@ -4,7 +4,7 @@
 
 # fabrik
 
-**Everything an AI assistant promises. Nothing it shouldn't keep.**
+**We mean business.**
 
 fabrik helps you run your life or business just like Grok Bot, Muse, Dots, Instinct or Duet. But all your valuable data remains under your sole control. It's free and open source.
 
