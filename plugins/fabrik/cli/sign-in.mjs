@@ -2,7 +2,7 @@
 // Signs a Supabase Auth user in, at a terminal, and keeps only the session's refresh token.
 //
 //   node sign-in.mjs [--project <ref> --email <email>] [--url <project URL> --key <publishable key>] [--new-password]
-//                    [--second-factor] [--folder <session folder>]
+//                    [--second-factor] [--folder <session folder> [--local]]
 //   node sign-in.mjs --owner --url <project URL> --key <publishable key> --folder <setup folder>
 //
 // --project reuses a saved project's URL, key and email. --url and --key answer those two questions,
@@ -11,7 +11,9 @@
 // --second-factor adds an authenticator app to the account: it prints the secret and the otpauth:// address, and asks
 // for a code from the app.
 // --folder also writes the folder's actor file, .fabrik-actor.json, naming the project and the email, so a
-// session opened on that folder works as this user, with the folder as its agent folder.
+// session opened on that folder works as this user, with the folder as its agent folder. --local also writes
+// "connector": "local" there, so the fabrik plugin's local connector, mcp/relay.mjs, serves fabrik's tools in a session
+// opened on the folder, for a person who can't add the connector in Claude's Settings.
 // --owner is the business's owner's first sign-in, at the end of setup: it asks their name, email and chosen password,
 // and the project's fabrik-setup hosted function makes their Auth user, with the sign-in code setup left in the folder.
 import process, { stdin, stdout, stderr, argv } from "node:process";

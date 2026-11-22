@@ -3,7 +3,8 @@
 // puts files in and the agent uploads from. An actor file written before the agent folder was the only
 // folder also names an upload folder, which is ignored. One folder works in one project, as one person.
 // It holds no password or token. The sign-in's --folder writes it; the hooks and the fabrik
-// command read it.
+// command read it. `"connector": "local"`, which the sign-in's --local writes, has the plugin's own relay,
+// mcp/relay.mjs, serve fabrik's tools in a session opened on the folder, for a person who can't add the connector.
 import { closeSync, fsyncSync, lstatSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -12,6 +13,9 @@ import { accountEmail, PROJECT_REF } from "./session.mjs";
 export const ACTOR_FILE = ".fabrik-actor.json";
 const FIELDS = ["auth_email", "project_ref"];
 const OLD_FIELDS = ["auth_email", "project_ref", "upload_folder"];
+const LOCAL_FIELDS = ["auth_email", "connector", "project_ref"];
+/** The one value `connector` takes. */
+export const LOCAL = "local";
 
 /**
  * The actor file in `folder`: `null` when there is none, `{ ok: true, value }` for a valid one, and
@@ -29,9 +33,10 @@ export function readActorFile(folder) {
   catch { return { ok: false, problem: `${path} is not JSON. Delete it and sign in again with --folder.` }; }
   const bad = `${path} is not a valid actor file. Delete it and sign in again with --folder.`;
   const fields = value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value).sort().join(",") : null;
-  if (fields !== FIELDS.join(",") && fields !== OLD_FIELDS.join(",")) return { ok: false, problem: bad };
+  if (![FIELDS, OLD_FIELDS, LOCAL_FIELDS].some(one => fields === one.join(","))) return { ok: false, problem: bad };
   if (!PROJECT_REF.test(String(value.project_ref)) || accountEmail(value.auth_email) !== value.auth_email) return { ok: false, problem: bad };
-  return { ok: true, value: { project_ref: value.project_ref, auth_email: value.auth_email } };
+  if (fields === LOCAL_FIELDS.join(",") && value.connector !== LOCAL) return { ok: false, problem: bad };
+  return { ok: true, value: { project_ref: value.project_ref, auth_email: value.auth_email, ...(value.connector === LOCAL ? { connector: LOCAL } : {}) } };
 }
 
 /**
@@ -52,16 +57,19 @@ export function actorFolder(session) {
   return actor?.ok ? actor.folder : null;
 }
 
-/** Writes the actor file into `folder`, replacing one there, through a temporary file renamed into place. */
-export function writeActorFile(folder, { projectRef, email }) {
+/** Writes the actor file into `folder`, replacing one there, through a temporary file renamed into place. With local,
+ * it says `"connector": "local"`. Without it, a setting the file there already holds is kept, so signing in again
+ * never turns the relay off. */
+export function writeActorFile(folder, { projectRef, email, local = false }) {
   const root = realpathSync.native(folder);
   const target = join(root, ACTOR_FILE);
   try { if (lstatSync(target).isSymbolicLink()) throw new Error(`${target} is a link. Delete it and sign in again.`); }
   catch (err) { if (err?.code !== "ENOENT") throw err; }
+  const kept = local || readActorFile(root)?.value?.connector === LOCAL;
   const temporary = join(root, `.${process.pid}.${randomUUID()}.tmp`);
   const fd = openSync(temporary, "wx", 0o644);
   try {
-    writeFileSync(fd, JSON.stringify({ project_ref: projectRef, auth_email: email }, null, 2) + "\n");
+    writeFileSync(fd, JSON.stringify({ project_ref: projectRef, auth_email: email, ...(kept ? { connector: LOCAL } : {}) }, null, 2) + "\n");
     fsyncSync(fd);
   } finally {
     closeSync(fd);

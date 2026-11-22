@@ -4,7 +4,7 @@
 // plugin's MCP server runs, as the person signed in with sign-in.
 //
 //   node fabrik.mjs setup --folder <folder> --email <email> [--url <project URL> --key <publishable key>] [--agent <plugin>:<agent>] [--new-password]
-//   node fabrik.mjs sign-in [--new-password] [--url <project URL> --key <publishable key>] [--folder <folder> --email <email>]
+//   node fabrik.mjs sign-in [--new-password] [--url <project URL> --key <publishable key>] [--folder <folder> --email <email>] [--local]
 //   node fabrik.mjs setup --owner [--folder <folder>]
 //   node fabrik.mjs sign-in --owner --url <project URL> --key <publishable key> --folder <setup folder>
 //   node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
@@ -48,7 +48,7 @@ import { askLine } from "./management.mjs";
 
 export const USAGE = `Usage: node fabrik.mjs setup [--folder <folder>] --email <email> [--url <project URL> --key <publishable key>] [--agent <plugin>:<agent>] [--new-password]
        node fabrik.mjs setup --owner [--folder <folder>]
-       node fabrik.mjs sign-in [--new-password] [--second-factor] [--url <project URL> --key <publishable key>] [--folder <folder> --email <email>]
+       node fabrik.mjs sign-in [--new-password] [--second-factor] [--url <project URL> --key <publishable key>] [--folder <folder> --email <email>] [--local]
        node fabrik.mjs sign-in --owner --url <project URL> --key <publishable key> --folder <setup folder>
        node fabrik.mjs connector-settings --url <project URL> --site <sign-in page address>
        node fabrik.mjs upgrade <signed upgrade file> [--project <ref> --email <email>]
@@ -69,6 +69,9 @@ and --key give them. --owner is the business's owner's first sign-in, at the end
 email and the password you choose, and makes your sign-in with the code setup left in the folder. With an
 authenticator app on your account, sign-in asks for its six-digit code after your password. --second-factor adds an
 authenticator app: it prints the secret and the otpauth:// address to add to the app, and asks for a code from it.
+--local is for a person who can't add fabrik's connector in Claude's Settings: the folder's actor file then says
+"connector": "local", and the fabrik plugin's own local connector serves fabrik's tools in a Code session opened on it.
+--folder with no --email signs in again as the person that folder was signed in as.
 
 import maxy loads a maxy-code account, as scripts/maxy-export.mjs wrote it to a folder, into your fabrik, signed in as
 its owner: each node a record in General, each relationship a link, each file into General's bucket, and a draft of the
@@ -117,13 +120,17 @@ export function settingsEmail(home = homedir(), configDir = process.env.CLAUDE_C
  * the email given, or the settings' email, with the person's own options.
  */
 export function signInArgs(argv, email, cwd = process.cwd()) {
-  const named = argv.includes("--email") || argv.includes("--project") || argv.includes("--folder");
-  if (!named) {
-    const actor = readActor(cwd);
+  const person = argv.includes("--email") || argv.includes("--project");
+  const named = person || argv.includes("--folder");
+  // --folder alone names a folder signed in before, whose actor file names its person.
+  const given = argv.includes("--folder") ? argv[argv.indexOf("--folder") + 1] : undefined;
+  if (!person) {
+    const actor = readActor(given ?? cwd);
     if (actor && !actor.ok) throw new Error(actor.problem);
     if (actor) {
       // --url and --key are only for a first sign-in, which this is not.
-      const rest = argv.filter((word, i) => !["--url", "--key"].includes(word) && !["--url", "--key"].includes(argv[i - 1]));
+      const dropped = ["--url", "--key", "--folder"];
+      const rest = argv.filter((word, i) => !dropped.includes(word) && !dropped.includes(argv[i - 1]));
       return [SIGN_IN, "--project", actor.value.project_ref, "--email", actor.value.auth_email, "--folder", actor.folder, ...rest];
     }
   }

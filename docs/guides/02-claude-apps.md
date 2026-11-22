@@ -26,6 +26,18 @@ The desktop app has the same chats. Its **Code** tab also runs Claude Code in a 
 - imports from LinkedIn, Notion, Obsidian, Substack and X
 - the routine skills, getting started and support
 
+## fabrik without the connector
+
+Some Claude teams don't let their members add a custom connector. You can still use fabrik in a Code session in the desktop app. The fabrik plugin runs a local connector on your computer. It signs in to your fabrik with the sign-in saved in your folder, and passes each of Claude's calls on to your fabrik. Claude gets the same tools and cards as through the connector.
+
+To turn it on, say no when setup asks whether you can add a custom connector. To turn it on later, run this in a Terminal tab, with your own folder:
+
+```sh
+node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs sign-in --folder ~/fabrik --local
+```
+
+Then open a Code session in that folder. The local connector works only in a folder signed in with `--local`, so a folder that has the connector doesn't show each tool twice. claude.ai, the phone app and Cowork can't reach fabrik this way. Mail checks and the rest of fabrik's work in Supabase carry on as before. A change to fabrik's tools reaches you with the next plugin update, with nothing to reconnect.
+
 ## A change to the connector
 
 When fabrik's tools change, Claude keeps the tool list it read when you connected. In **Settings**, then **Connectors**, disconnect fabrik and connect it again to read the new list.
