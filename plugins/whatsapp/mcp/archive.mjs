@@ -27,6 +27,9 @@ export function plain(text) {
   return String(text).replace(/\r\n|[\r\n\v\f\u0085\u2028\u2029]/g, "\n").replace(/<!--/g, "<!- -").replace(/-->/g, "- ->");
 }
 
+/** A name or title made safe on one line: every kind of line break becomes a space. */
+export const oneLine = text => plain(text).replace(/\n+/g, " ");
+
 /** A message id as the file holds it: letters, digits and _ . - only. */
 export const safeId = id => String(id).replace(/[^A-Za-z0-9_.-]/g, "_");
 
@@ -34,7 +37,7 @@ export const safeId = id => String(id).replace(/[^A-Za-z0-9_.-]/g, "_");
 export function entry(m, timeZone) {
   const body = plain([m.text && !m.media ? m.text : "", m.media ? mediaNote(m.media) : ""].filter(Boolean).join(" ").trim()) || "(no text)";
   const [first, ...rest] = body.split("\n");
-  return [`- ${when(m.at, timeZone).time} **${plain(m.from)}:** ${first} <!-- wa:${safeId(m.id)} -->`, ...rest.map(line => `  ${line}`)].join("\n");
+  return [`- ${when(m.at, timeZone).time} **${oneLine(m.from)}:** ${first} <!-- wa:${safeId(m.id)} -->`, ...rest.map(line => `  ${line}`)].join("\n");
 }
 
 /** The chat a file says it belongs to, or null for a file with no such line. */
@@ -82,7 +85,7 @@ export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
   const head = [];
   const days = new Map();
   let current = null;
-  for (const line of (existing ?? `# ${plain(title)}\n${chat ? `<!-- wa-chat:${chat} -->\n` : ""}`).split("\n")) {
+  for (const line of (existing ?? `# ${oneLine(title)}\n${chat ? `<!-- wa-chat:${chat} -->\n` : ""}`).split("\n")) {
     const day = DAY.exec(line);
     if (day) { current = day[1]; if (!days.has(current)) days.set(current, []); continue; }
     if (current) days.get(current).push(line);

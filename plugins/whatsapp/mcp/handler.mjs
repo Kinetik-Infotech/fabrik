@@ -41,7 +41,7 @@ export function extractContent(message) {
 
 /** A name safe on one line of Markdown: no newlines, no brackets or asterisks, at most 64 characters. */
 export function cleanName(name) {
-  return String(name ?? "").replace(/[\r\n]+/g, " ").replace(/[[\]*_`<>]/g, "").trim().slice(0, 64);
+  return String(name ?? "").replace(/[\r\n\v\f\u0085\u2028\u2029]+/g, " ").replace(/[[\]*_`<>]/g, "").trim().slice(0, 64);
 }
 
 /** "keep" for a message the chat file holds, else "ignore". */
