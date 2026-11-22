@@ -57,3 +57,37 @@ test("a check saves a chat file whose Unknown lines it named, though it added no
   await saveChats([named], { [GROUP]: "Rubysoft Crew" }, { dir, files: store, timeZone: TZ });
   assert.match(files.get(path), /\*\*Sam:\*\* from history/);
 });
+
+test("a named copy of a waiting message replaces an Unknown copy waiting before it", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { addPending, readPending } = await import("../mcp/pull.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "wa-queue-"));
+  addPending(dir, { ...formatInbound(fromHistory("Q1")), from: "", sender: "" });
+  addPending(dir, formatInbound(fromHistory("Q1", { participant: "447222000222@s.whatsapp.net", pushName: "Sam" })));
+  const list = readPending(dir);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].from, "Sam");
+});
+
+test("a history sender loses its device suffix, and a hosted number reads as a phone number", () => {
+  assert.equal(formatInbound(fromHistory("D1", { participant: "7303000:5@lid" })).sender, "7303000@lid");
+  const hosted = formatInbound(fromHistory("D2", { participant: "447222000222@hosted" }));
+  assert.equal(hosted.sender, "447222000222@s.whatsapp.net");
+  assert.equal(hosted.from, "+447222000222");
+});
+
+test("a bare Unknown line takes the WhatsApp id of a sender known only by a LID", () => {
+  const unknown = { ...formatInbound(fromHistory("L1")), from: "", sender: "" };
+  const { text } = mergeChat(null, "Rubysoft Crew", [unknown], { timeZone: TZ, chat: GROUP });
+  const lid = formatInbound(fromHistory("L1", { participant: "7303000@lid" }));
+  assert.match(mergeChat(text, "Rubysoft Crew", [lid], { timeZone: TZ, chat: GROUP }).text, /\*\*Unknown \(WhatsApp id 7303000\):\*\*/);
+});
+
+test("a real name that starts with Unknown names an Unknown line", () => {
+  const unknown = { ...formatInbound(fromHistory("U1")), from: "", sender: "" };
+  const { text } = mergeChat(null, "Rubysoft Crew", [unknown], { timeZone: TZ, chat: GROUP });
+  const fox = formatInbound(fromHistory("U1", { participant: "447222000222@s.whatsapp.net", pushName: "Unknownfox" }));
+  assert.match(mergeChat(text, "Rubysoft Crew", [fox], { timeZone: TZ, chat: GROUP }).text, /\*\*Unknownfox:\*\* from history/);
+});
