@@ -122,3 +122,11 @@ test("a sender's name or a group's name can't break onto a line of its own", asy
     assert.doesNotMatch(text, /[\u0085\u2028\u2029]/);
   }
 });
+
+test("a blank line inside a message stays, through a later check too", async () => {
+  const store = memory();
+  const dir = mkdtempSync(join(tmpdir(), "wa-arch-"));
+  await saveChats([rec("P1", "first paragraph\n\nsecond paragraph")], {}, { dir, files: store, timeZone: TZ });
+  await saveChats([rec("P2", "later", { at: 1795000100 })], {}, { dir, files: store, timeZone: TZ });
+  assert.match(store.files.get("whatsapp/Kate.md"), /\*\*Kate:\*\* first paragraph <!-- wa:P1 -->\n  \n  second paragraph\n- 11:08/);
+});

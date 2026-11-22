@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export function fakeBaileys({ messages = () => [], linkAs = "447700900123", calls = [], groups = {} } = {}) {
+export function fakeBaileys({ messages = () => [], linkAs = "447700900123", calls = [], groups = {}, accept = true, lateMs = 0 } = {}) {
   return {
     calls,
     async useMultiFileAuthState(dir) {
@@ -33,9 +33,15 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
         ev, ws,
         async requestPairingCode(digits) {
           calls.push({ op: "pairing-code", digits });
+          // As Baileys does: asking for a code writes `me`, and only a finished pairing writes `account`.
+          creds.me = { id: `${digits}@s.whatsapp.net`, name: "~" };
+          creds.pairingCode = "ABCD1234";
+          ev.emit("creds.update", creds);
+          if (!accept) return "ABCD1234";
           setTimeout(() => {
             creds.me = { id: `${linkAs}:7@s.whatsapp.net` };
             creds.registered = true;
+            creds.account = { details: "signed" };
             ev.emit("creds.update", creds);
             ev.emit("connection.update", { isNewLogin: true });
             ev.emit("connection.update", { connection: "close", lastDisconnect: { error: { output: { statusCode: 515 } } } });
@@ -48,11 +54,16 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
       };
       setImmediate(() => {
         if (!creds.me) return ev.emit("connection.update", { qr: "payload" });
+        // Keys from a code never typed: WhatsApp refuses the login, and sends no qr.
+        if (!creds.account) return ev.emit("connection.update", { connection: "close", lastDisconnect: { error: { output: { statusCode: 401 } } } });
         ev.emit("connection.update", { connection: "open" });
         const list = messages();
         ws.emit("CB:ib,,offline", { tag: "ib", content: [{ tag: "offline", attrs: { count: String(list.length) } }] });
-        ev.emit("messages.upsert", { type: "append", messages: list });
+        // As Baileys does, the queue is said to be delivered before its messages are decrypted and handed over.
         ev.emit("connection.update", { receivedPendingNotifications: true });
+        setTimeout(() => {
+          for (const m of list) { ws.emit("CB:message", {}); ev.emit("messages.upsert", { type: "append", messages: [m] }); }
+        }, lateMs);
       });
       return sock;
     },

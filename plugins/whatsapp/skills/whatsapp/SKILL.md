@@ -8,9 +8,13 @@ description: Use when a person asks to link their WhatsApp, check it for new mes
 The whatsapp plugin reads the person's WhatsApp and saves each chat in fabrik. It joins their WhatsApp as a linked
 device, the way WhatsApp on a computer does. The person links it once, by typing a code on their phone.
 
-It only reads. It has no tool that sends a message, a reply or a reaction, and it never marks a message read. The
-sender sees two grey ticks once a check has taken their message, and never blue ones. When the person asks Claude to
-send or answer a WhatsApp message, say that this plugin can't, and that they send it from their phone.
+It only reads. It has no tool that sends a message, a reply or a reaction, and it never marks a message read. Baileys,
+the library it connects with, still sends two things of its own on each check. It tells WhatsApp each message arrived,
+so the sender sees two grey ticks. It also shows the person as unavailable, never online. The plugin never sends blue
+ticks.
+
+When the person asks Claude to send or answer a WhatsApp message, say that this plugin can't, and that they
+send it from their phone.
 
 WhatsApp keeps no history that a linked device can ask for later, the way a mailbox does. So the plugin collects.
 Each check connects, takes what WhatsApp holds for this device since the last check, and

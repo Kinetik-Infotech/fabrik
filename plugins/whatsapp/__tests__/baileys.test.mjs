@@ -4,9 +4,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { pullWhatsApp, linkedState } from "../mcp/baileys.mjs";
+import { pullWhatsApp, linkedState, halfLinked, loadBaileys } from "../mcp/baileys.mjs";
 
-function fake({ creds = { me: { id: "447700900123:5@s.whatsapp.net" } } } = {}) {
+function fake({ creds = { me: { id: "447700900123:5@s.whatsapp.net" }, account: {} } } = {}) {
   const ev = new EventEmitter();
   const ws = new EventEmitter();
   const seen = { requested: [], ended: false, config: null, saved: 0 };
@@ -29,7 +29,7 @@ const lines = () => { const all = []; return { all, log: (op, f = {}) => all.pus
 
 test("connects without going online or asking for full history", async () => {
   const f = fake();
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20 });
   await flush();
   f.ev.emit("connection.update", { connection: "open" });
   f.ev.emit("connection.update", { receivedPendingNotifications: true });
@@ -42,7 +42,7 @@ test("connects without going online or asking for full history", async () => {
 test("drains notify and append, counts the announced queue, and ends the socket", async () => {
   const f = fake();
   const got = [];
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, onMessage: m => got.push(m.key.id) });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, onMessage: m => got.push(m.key.id) });
   await flush();
   f.ev.emit("connection.update", { connection: "open" });
   f.ws.emit("CB:ib,,offline", { tag: "ib", content: [{ tag: "offline", attrs: { count: "19" } }] });
@@ -61,7 +61,7 @@ test("drains notify and append, counts the announced queue, and ends the socket"
 test("afterDrain runs with the socket still open, before it ends", async () => {
   const f = fake();
   let endedDuring = null;
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, afterDrain: async () => { await flush(); endedDuring = f.seen.ended; } });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, afterDrain: async () => { await flush(); endedDuring = f.seen.ended; } });
   await flush();
   f.ev.emit("connection.update", { connection: "open" });
   f.ev.emit("connection.update", { receivedPendingNotifications: true });
@@ -74,11 +74,12 @@ test("pairing: the qr signal asks for a code, the link window outlives the conne
   const f = fake({ creds: {} });
   const { all, log } = lines();
   const codes = [];
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, log, pair: true, selfNumber: "447700900123", onPairingCode: c => codes.push(c), connectTimeoutMs: 20, linkTimeoutMs: 1000 });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, log, pair: true, selfNumber: "447700900123", onPairingCode: c => codes.push(c), connectTimeoutMs: 20, linkTimeoutMs: 1000 });
   await flush();
   f.ev.emit("connection.update", { qr: "payload" });
   await new Promise(r => setTimeout(r, 45));
   f.creds.me = { id: "447700900123:9@s.whatsapp.net" };
+  f.creds.account = { details: "signed" };
   f.ev.emit("creds.update", f.creds);
   f.ev.emit("connection.update", { isNewLogin: true });
   f.ev.emit("connection.update", { connection: "close", lastDisconnect: { error: { output: { statusCode: 515 } } } });
@@ -93,7 +94,7 @@ test("pairing: the qr signal asks for a code, the link window outlives the conne
 
 test("a check on an account that isn't linked stops at once and asks for no code", async () => {
   const f = fake({ creds: {} });
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, connectTimeoutMs: 60000 });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, connectTimeoutMs: 60000 });
   await flush();
   f.ev.emit("connection.update", { qr: "payload" });
   const r = await p;
@@ -103,7 +104,7 @@ test("a check on an account that isn't linked stops at once and asks for no code
 
 test("pairing with no number asks for no code", async () => {
   const f = fake({ creds: {} });
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, pair: true, selfNumber: "" });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, pair: true, selfNumber: "" });
   await flush();
   f.ev.emit("connection.update", { qr: "payload" });
   assert.equal((await p).reason, "not-linked");
@@ -112,7 +113,7 @@ test("pairing with no number asks for no code", async () => {
 
 test("WhatsApp logging the device out ends the run as logged-out", async () => {
   const f = fake();
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20 });
   await flush();
   f.ev.emit("connection.update", { connection: "close", lastDisconnect: { error: { output: { statusCode: 401 } } } });
   assert.equal((await p).reason, "logged-out");
@@ -120,14 +121,14 @@ test("WhatsApp logging the device out ends the run as logged-out", async () => {
 
 test("connect-timeout when neither open nor qr comes", async () => {
   const f = fake();
-  const r = await pullWhatsApp({ authDir: "/unused", baileys: f.baileys, connectTimeoutMs: 20 });
+  const r = await pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, connectTimeoutMs: 20 });
   assert.equal(r.reason, "connect-timeout");
   assert.ok(f.seen.ended);
 });
 
 test("drain-timeout when the queue is never said to be delivered", async () => {
   const f = fake();
-  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, drainTimeoutMs: 20 });
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, drainTimeoutMs: 20 });
   await flush();
   f.ev.emit("connection.update", { connection: "open" });
   assert.equal((await p).reason, "drain-timeout");
@@ -137,13 +138,43 @@ test("a socket that fails to start ends the run at once", async () => {
   const f = fake();
   const { all, log } = lines();
   f.baileys.makeWASocket = () => { throw new Error("spawn failed"); };
-  const r = await pullWhatsApp({ authDir: "/unused", baileys: f.baileys, log, connectTimeoutMs: 60000 });
+  const r = await pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 20, log, connectTimeoutMs: 60000 });
   assert.equal(r.reason, "connect-timeout");
   assert.ok(all.find(l => l.op === "wa-connect-error"));
 });
 
-test("linkedState reads the number from the keys", () => {
-  assert.deepEqual(linkedState({ me: { id: "447700900123:5@s.whatsapp.net" }, registered: true }), { linked: true, number: "447700900123" });
-  assert.deepEqual(linkedState({ registered: false, me: { id: "4477@s.whatsapp.net" } }), { linked: false, number: "" });
+test("linkedState: only a finished pairing, which writes account, is a link", () => {
+  // Baileys leaves registered false on a finished link, so it can't decide.
+  assert.deepEqual(linkedState({ me: { id: "447700900123:5@s.whatsapp.net" }, account: {}, registered: false }), { linked: true, number: "447700900123" });
+  assert.deepEqual(linkedState({ me: { id: "447700900123@s.whatsapp.net", name: "~" }, pairingCode: "ABCD1234" }), { linked: false, number: "" });
   assert.deepEqual(linkedState(null), { linked: false, number: "" });
+  assert.equal(halfLinked({ me: { id: "447700900123@s.whatsapp.net", name: "~" }, pairingCode: "ABCD1234" }), true);
+  assert.equal(halfLinked({ me: { id: "447700900123:5@s.whatsapp.net" }, account: {} }), false);
+  assert.equal(halfLinked({}), false);
+});
+
+test("the run waits for messages Baileys hands over after it says the queue is delivered", async () => {
+  const f = fake();
+  const got = [];
+  const p = pullWhatsApp({ authDir: "/unused", baileys: f.baileys, quietMs: 60, onMessage: m => got.push(m.key.id) });
+  await flush();
+  f.ev.emit("connection.update", { connection: "open" });
+  f.ev.emit("connection.update", { receivedPendingNotifications: true });
+  // Baileys is still decrypting: a frame comes, and its message is handed over a little later.
+  await new Promise(r => setTimeout(r, 30));
+  f.ws.emit("CB:message", {});
+  await new Promise(r => setTimeout(r, 40));
+  f.ev.emit("messages.upsert", { type: "append", messages: [{ key: { id: "LATE" } }] });
+  const r = await p;
+  assert.deepEqual(got, ["LATE"]);
+  assert.equal(r.reason, null);
+});
+
+test("loadBaileys installs the packages once when they are missing, and names the command when that fails", async () => {
+  const installs = [];
+  await assert.rejects(
+    loadBaileys({ root: "/plugin root", entry: "/no/such/baileys.js", install: async root => { installs.push(root); throw new Error("npm ERR! network"); } }),
+    /installing it failed: npm_ERR!_network\. In a Terminal, run: cd '\/plugin root' && npm ci --omit=dev --ignore-scripts/,
+  );
+  assert.deepEqual(installs, ["/plugin root"]);
 });

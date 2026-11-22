@@ -11,8 +11,8 @@
 import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { linkedState, pullWhatsApp } from "./baileys.mjs";
-import { createWhatsAppPull, readPending } from "./pull.mjs";
+import { halfLinked, linkedState, pullWhatsApp } from "./baileys.mjs";
+import { createWhatsAppPull, PENDING, readPending } from "./pull.mjs";
 import { saveChats } from "./archive.mjs";
 import { normalizeE164 } from "./normalize.mjs";
 import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
@@ -47,7 +47,21 @@ function lockDown(dir) {
 const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return fallback; } };
 const settingsOf = dir => readJson(join(dir, "settings.json"), {});
 const saveSettings = (dir, value) => writeFileSync(join(dir, "settings.json"), JSON.stringify(value, null, 1), { mode: 0o600 });
-const stateOf = dir => linkedState(readJson(join(dir, "creds.json"), null));
+const credsOf = dir => readJson(join(dir, "creds.json"), null);
+const stateOf = dir => linkedState(credsOf(dir));
+
+/** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files, the scope. */
+const KEPT = new Set([PENDING, "chats.json", "settings.json"]);
+
+/** Deletes the link's keys and keeps the rest of the folder. */
+function clearKeys(dir) {
+  let names = [];
+  try { names = readdirSync(dir); } catch { return; }
+  for (const name of names) if (!KEPT.has(name)) rmSync(join(dir, name), { recursive: true, force: true });
+}
+
+const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
+const BUSY = "A check is under way. Try again once it ends, in under a minute.";
 
 /** The person fabrik signs in as, and their keys folder: { ok, ref, email, dir } or { ok: false, problem }. */
 function who() {
@@ -78,7 +92,8 @@ function pullFor(person) {
 /** What a check did, in a few lines for the person. */
 function summary(r) {
   const lines = [];
-  if (r.reason === "not-linked" || r.reason === "logged-out") lines.push("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
+  if (r.reason === "busy") lines.push("Another Claude session is connected to WhatsApp with this link. Try again in a minute.");
+  else if (r.reason === "not-linked" || r.reason === "logged-out") lines.push("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
   else if (r.reason === "connect-timeout") lines.push("WhatsApp didn't answer within 20 seconds. Check the computer is online, then check again.");
   else if (r.reason === "drain-timeout") lines.push("WhatsApp kept sending for longer than 30 seconds, so the check stopped. Check again for the rest.");
   else if (r.reason === "closed") lines.push("WhatsApp closed the connection. Check again in a minute.");
@@ -91,7 +106,7 @@ function summary(r) {
   }
   const added = (report?.chats ?? []).reduce((n, c) => n + c.added, 0);
   if (!r.reason && !added && !report?.problem && !report?.failed?.length) lines.push("No new messages.");
-  if (r.waiting) lines.push(`${r.waiting} message${r.waiting === 1 ? "" : "s"} wait on this computer to be saved at the next check.`);
+  if (r.waiting) lines.push(`${plural(r.waiting, "message")} ${r.waiting === 1 ? "waits" : "wait"} on this computer to be saved at the next check.`);
   return lines.join("\n");
 }
 
@@ -113,7 +128,7 @@ const TOOLS = [
         `fabrik sign-in: ${person.email}.`,
         settings.scope ? `Chats go in the private scope ${settings.scope}.` : "Chats go in your private fabrik scope.",
         ...(settings.lastCheck ? [`Last check: ${settings.lastCheck}.`] : []),
-        ...(waiting ? [`${waiting} message${waiting === 1 ? "" : "s"} wait to be saved.`] : []),
+        ...(waiting ? [`${plural(waiting, "message")} ${waiting === 1 ? "waits" : "wait"} to be saved.`] : []),
         ...(links.has(person.dir) ? ["A link is waiting for the code to be typed on the phone."] : []),
       ].join("\n"));
     },
@@ -134,9 +149,14 @@ const TOOLS = [
       const digits = normalizeE164(phone);
       if (!digits || digits.length < 8) return refused(`${phone} isn't a phone number. Give it in international format, such as +44 7700 900123.`);
       if (links.has(person.dir)) return refused("A link is already waiting for its code. Call whatsapp_link_wait, or wait three minutes for it to end.");
+      if (pulls.get(person.dir)?.running()) return refused(BUSY);
       const state = stateOf(person.dir);
       if (state.linked && !relink) return text(`WhatsApp is already linked as +${state.number}. To link again, call whatsapp_link with relink true.`);
-      if (state.linked && relink) rmSync(person.dir, { recursive: true, force: true });
+      const notes = [];
+      if (halfLinked(credsOf(person.dir))) notes.push("The last code was never typed, so this is a fresh link with a new code.");
+      if (state.linked || halfLinked(credsOf(person.dir))) clearKeys(person.dir);
+      const waiting = readPending(person.dir).length;
+      if (waiting) notes.push(`${plural(waiting, "message")} from the old link ${waiting === 1 ? "waits" : "wait"} to be saved. The first check after the link saves them.`);
       makeKeysFolder(person.dir);
       let gotCode;
       const code = new Promise(resolve => { gotCode = resolve; });
@@ -149,7 +169,7 @@ const TOOLS = [
         return refused(r ? `WhatsApp gave no code. ${summary(r) || r.reason || ""}`.trim() : "WhatsApp gave no code within 30 seconds. Check the computer is online, then try again.");
       }
       const shown = first.length === 8 ? `${first.slice(0, 4)}-${first.slice(4)}` : first;
-      return text(`Code: ${shown}\n\nOn the phone with +${digits}, open WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead, and type the code. `
+      return text(`${notes.length ? notes.join(" ") + "\n\n" : ""}Code: ${shown}\n\nOn the phone with +${digits}, open WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead, and type the code. `
         + "If the phone asks whether someone else asked you for this code, it was you: carry on and approve the link. The code works for about three minutes. Then call whatsapp_link_wait.");
     },
   },
@@ -197,10 +217,12 @@ const TOOLS = [
     annotations: { destructiveHint: true },
     async run(person) {
       if (links.has(person.dir)) return refused("A link is waiting for its code. Let it end first, about three minutes.");
+      if (pulls.get(person.dir)?.running()) return refused(BUSY);
       let dropped = false;
       let r = null;
       if (stateOf(person.dir).linked) {
         r = await pullFor(person).run({ trigger: "unlink", afterDrain: async sock => { await sock.logout(); dropped = true; } });
+        if (r.reason === "busy") return refused(summary(r));
       }
       const lost = readPending(person.dir).length;
       rmSync(person.dir, { recursive: true, force: true });
@@ -208,7 +230,7 @@ const TOOLS = [
       return text([
         dropped ? "WhatsApp dropped this device, and the keys folder is deleted." : "The keys folder is deleted. WhatsApp couldn't be reached to drop the device, so remove it on the phone under Settings → Linked devices.",
         ...(r ? [summary(r)] : []),
-        ...(lost ? [`${lost} message${lost === 1 ? "" : "s"} couldn't be saved in fabrik and went with the folder.`] : []),
+        ...(lost ? [`${plural(lost, "message")} couldn't be saved in fabrik and went with the folder.`] : []),
       ].filter(Boolean).join("\n"));
     },
   },

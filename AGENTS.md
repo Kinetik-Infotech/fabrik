@@ -20,7 +20,7 @@ One run of a test proves it. Never repeat a full run to show a fix holds: write 
 
 `sh test/stand-in/run.sh` builds a throwaway project, then runs every step side by side, each on its own copy of the build. `sh test/stand-in/run.sh <step> ...` builds and runs only the steps named, and `sh test/stand-in/run.sh --list` names the steps. To check a change, run the step that covers it.
 
-`node scripts/test.mjs plugins/fabrik/__tests__/ plugins/cloudflare/ plugins/humanizer/ scripts/__tests__/` runs the plugin tests. It gives the run a temporary folder of its own, and removes it when the run ends, even after Ctrl+C. Run one file the same way, with its path.
+`node scripts/test.mjs plugins/fabrik/__tests__/ plugins/cloudflare/ plugins/humanizer/ plugins/whatsapp/__tests__/ scripts/__tests__/` runs the plugin tests. It gives the run a temporary folder of its own, and removes it when the run ends, even after Ctrl+C. Run one file the same way, with its path.
 
 The stand-in's clusters write their messages in English whatever the computer's language, since each check reads PostgreSQL's `ERROR:` and `NOTICE:` lines.
 
