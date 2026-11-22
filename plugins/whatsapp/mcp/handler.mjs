@@ -8,6 +8,11 @@ export function jidUser(jid) {
   return typeof jid === "string" ? jid.split("@")[0].split(":")[0] : "";
 }
 
+/** Whether a JID is a phone number's, as opposed to a LID, WhatsApp's internal id for a person. */
+export const isPhone = jid => typeof jid === "string" && jid.endsWith("@s.whatsapp.net");
+/** Whether a JID is a LID. */
+export const isLid = jid => typeof jid === "string" && jid.endsWith("@lid");
+
 /** Which kind of chat a JID is: "direct", "group", or null for anything else. */
 export function chatKind(jid) {
   if (typeof jid !== "string") return null;
@@ -56,9 +61,14 @@ export function classifyInbound(waMessage) {
 
 /**
  * The record kept for one message, or null for one that isn't kept:
- * { id, chat, alt, kind, number, from, fromMe, at, text, media }. `chat` is the chat's JID, `alt` its other JID in a
- * direct chat (its LID or its phone number) when WhatsApp gives it, `number` the other person's phone number in a direct
- * chat when WhatsApp gives it, `from` the sender's name, and `at` the time in milliseconds.
+ * { id, chat, alt, kind, number, from, sender, senderAlt, fromMe, at, text, media }. `chat` is the chat's JID, `alt` its
+ * other JID in a direct chat (its LID or its phone number) when WhatsApp gives it, `number` the other person's phone
+ * number in a direct chat when WhatsApp gives it, and `at` the time in milliseconds.
+ *
+ * `sender` is the sender's JID and `senderAlt` their other one, both empty for the person's own messages. `from` is the
+ * name the sender gave WhatsApp, else their phone number, else empty: a sender WhatsApp names only by a LID has no
+ * number here, since a LID is an internal id and not a phone number. The check fills it in from the names and numbers
+ * it has learnt.
  */
 export function formatInbound(waMessage) {
   if (classifyInbound(waMessage) === "ignore") return null;
@@ -67,12 +77,15 @@ export function formatInbound(waMessage) {
   const kind = chatKind(chat);
   const { text, media } = extractContent(waMessage.message);
   const phoneJid = [chat, key.remoteJidAlt].find(j => typeof j === "string" && j.endsWith("@s.whatsapp.net"));
-  const sender = kind === "group" ? (key.participantAlt ?? key.participant) : chat;
-  const from = key.fromMe ? "Me" : cleanName(waMessage.pushName) || (jidUser(sender) ? `+${jidUser(sender)}` : "Unknown");
+  const sender = key.fromMe ? "" : (kind === "group" ? key.participant : chat) ?? "";
+  const senderAlt = key.fromMe ? "" : (kind === "group" ? key.participantAlt : key.remoteJidAlt) ?? "";
+  const senderPhone = [sender, senderAlt].find(isPhone);
+  const from = key.fromMe ? "Me" : cleanName(waMessage.pushName) || (senderPhone ? `+${jidUser(senderPhone)}` : "");
   const seconds = Number(waMessage.messageTimestamp?.toString?.() ?? waMessage.messageTimestamp ?? 0);
   const alt = kind === "direct" && chatKind(key.remoteJidAlt) === "direct" && key.remoteJidAlt !== chat ? key.remoteJidAlt : "";
   return {
-    id: key.id, chat, alt, kind, number: kind === "direct" && phoneJid ? jidUser(phoneJid) : "", from, fromMe: !!key.fromMe,
+    id: key.id, chat, alt, kind, number: kind === "direct" && phoneJid ? jidUser(phoneJid) : "", from,
+    sender: typeof sender === "string" ? sender : "", senderAlt: typeof senderAlt === "string" ? senderAlt : "", fromMe: !!key.fromMe,
     at: seconds > 0 ? seconds * 1000 : Date.now(), text: text ?? "", media,
   };
 }
