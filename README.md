@@ -45,7 +45,7 @@ fabrik ships three plugins for Claude, on top of Claude's own connectors and plu
 
 ## More plugins
 
-fabrik's marketplace also has two other plugins. TripAgent plans trips with Claude's Kiwi.com, Tripadvisor, Brek, Civitatis and AccuWeather connectors. The animator makes the videos for animated.recipes. The guide [More plugins](docs/guides/18-more-plugins.md) says how to install each and what each needs.
+fabrik's marketplace also has three other plugins. WhatsApp reads your WhatsApp messages and saves each chat in your private fabrik scope, so Claude finds them in every app. It never sends. TripAgent plans trips with Claude's Kiwi.com, Tripadvisor, Brek, Civitatis and AccuWeather connectors. The animator makes the videos for animated.recipes. The guide [More plugins](docs/guides/18-more-plugins.md) says how to install each and what each needs.
 
 ## With Claude's own features
 
