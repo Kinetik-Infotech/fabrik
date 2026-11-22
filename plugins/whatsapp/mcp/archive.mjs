@@ -5,7 +5,8 @@
 // A chat file stays under FILE_LIMIT. When a chat's messages would take its file past that, its older months move to
 // `whatsapp/<chat name> <year>-<month>.md`, one file a month, and the newest month stays in `whatsapp/<chat name>.md`.
 // months.json in the keys folder names each chat's month files, so a later message of a month that moved goes to its
-// month's file.
+// month's file. A month file is held to the same rule as a chat file: one that names another chat, or that this
+// computer didn't write, is never added to, and the month takes the next name free.
 import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -161,8 +162,6 @@ export function mergeDays(existing, title, more, { chat } = {}) {
   return { text: added || existing === null ? renderChat(head, days) : existing, added };
 }
 
-/** A month file's path: the chat file's name with the month after it. */
-export const monthPath = (path, month) => path.replace(/\.md$/, ` ${month}.md`);
 
 function readJson(file) {
   try { const map = JSON.parse(readFileSync(file, "utf8")); return map && typeof map === "object" ? map : {}; }
@@ -188,6 +187,30 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
   const map = readChats(dir);
   const months = readJson(join(dir, MONTHS));
   const monthOf = m => when(m.at, timeZone).day.slice(0, 7);
+  // The chat files and month files other chats hold.
+  const takenBy = chat => new Set([
+    ...Object.entries(map).filter(([other]) => other !== chat).map(([, file]) => file),
+    ...Object.entries(months).filter(([other]) => other !== chat).flatMap(([, files]) => Object.values(files ?? {})),
+  ]);
+  // A month's file for the chat, and what it holds: the one months.json names, else the first free name whose file is
+  // missing or names this chat. Throws when none is free.
+  const monthFile = async (chat, path, month) => {
+    const known = months[chat]?.[month];
+    if (known) return { file: known, existing: await files.read(known) };
+    const taken = takenBy(chat);
+    const base = path.replace(/\.md$/, "");
+    const names = [base, `${base} ${jidUser(chat)}`, ...Array.from({ length: 20 }, (_, i) => `${base} ${jidUser(chat)} ${i + 2}`)];
+    for (const file of names.map(n => `${n} ${month}.md`)) {
+      if (taken.has(file) || file === path) continue;
+      const there = await files.read(file);
+      if (there === null || chatIn(there) === chat) {
+        months[chat] = { ...(months[chat] ?? {}), [month]: file };
+        writeJson(join(dir, MONTHS), months);
+        return { file, existing: there };
+      }
+    }
+    throw new Error(`no free file name for ${month} of the chat ${chat}`);
+  };
   const byChat = new Map();
   for (const m of records) { if (!byChat.has(m.chat)) byChat.set(m.chat, []); byChat.get(m.chat).push(m); }
   const saved = [];
@@ -201,7 +224,7 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
       // A file holds one chat, named on its own line. A file another chat holds, or one this computer didn't write, is
       // never added to: the chat takes the next name free, its own id added to it.
       if (!path || (existing !== null && chatIn(existing) !== chat)) {
-        const taken = new Set(Object.entries(map).filter(([other]) => other !== chat).map(([, file]) => file));
+        const taken = takenBy(chat);
         const names = [name, `${name} ${jidUser(chat)}`, ...Array.from({ length: 20 }, (_, i) => `${name} ${jidUser(chat)} ${i + 2}`)];
         path = null;
         for (const candidate of names.map(n => `${FOLDER}/${fileName(n)}.md`)) {
@@ -214,13 +237,13 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
         writeChats(dir, map);
       }
       // A message of a month that has its own file goes there.
-      const split = new Set(months[chat] ?? []);
+      const split = new Set(Object.keys(months[chat] ?? {}));
       let added = 0;
       const byMonth = new Map();
       for (const m of list.filter(m => split.has(monthOf(m)))) { const k = monthOf(m); if (!byMonth.has(k)) byMonth.set(k, []); byMonth.get(k).push(m); }
       for (const [month, recs] of byMonth) {
-        const file = monthPath(path, month);
-        const merged = mergeChat(await files.read(file), `${title}, ${month}`, recs, { timeZone, chat });
+        const { file, existing: there } = await monthFile(chat, path, month);
+        const merged = mergeChat(there, `${title}, ${month}`, recs, { timeZone, chat });
         if (merged.added) await files.write(file, merged.text);
         added += merged.added;
       }
@@ -228,11 +251,9 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
       if (fresh && Buffer.byteLength(text, "utf8") > limit) {
         const parts = splitByMonth(text);
         if (parts.months.size) {
-          months[chat] = [...new Set([...split, ...parts.months.keys()])].sort();
-          writeJson(join(dir, MONTHS), months);
           for (const [month, days] of parts.months) {
-            const file = monthPath(path, month);
-            const merged = mergeDays(await files.read(file), `${title}, ${month}`, days, { chat });
+            const { file, existing: there } = await monthFile(chat, path, month);
+            const merged = mergeDays(there, `${title}, ${month}`, days, { chat });
             if (merged.added) await files.write(file, merged.text);
           }
           text = parts.text;
