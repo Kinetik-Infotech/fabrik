@@ -1,20 +1,21 @@
 // The sign-in's steps, apart from the terminal, so a test can answer its questions.
 import { readFileSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { writeActorFile } from "./actor-file.mjs";
+import { LOCAL, readActorFile, writeActorFile } from "./actor-file.mjs";
 import { accountEmail, currentUser, enrolFactor, passwordSignIn, projectUrl, readSession, refFromUrl, removeFactor, setPassword, signInLevel, verifiedFactors, verifyFactor, writeSession, PROJECT_REF } from "./session.mjs";
 
-export const USAGE = "Usage: node sign-in.mjs [--project <ref> --email <email>] [--url <project URL> --key <publishable key>] [--new-password] [--second-factor] [--folder <session folder>]";
+export const USAGE = "Usage: node sign-in.mjs [--project <ref> --email <email>] [--url <project URL> --key <publishable key>] [--new-password] [--second-factor] [--folder <session folder> [--local]]";
 export const OWNER_USAGE = "Usage: node sign-in.mjs --owner --url <project URL> --key <publishable key> --folder <setup folder>";
 /** The file in the owner's setup folder that holds the sign-in code setup's build.mjs wrote. */
 export const OWNER_CODE_FILE = ".fabrik-owner-code";
 
 export function options(args) {
-  const out = { project: undefined, email: undefined, url: undefined, key: undefined, newPassword: false, secondFactor: false, folder: undefined, owner: false };
+  const out = { project: undefined, email: undefined, url: undefined, key: undefined, newPassword: false, secondFactor: false, folder: undefined, owner: false, local: false };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--new-password") out.newPassword = true;
     else if (args[i] === "--second-factor") out.secondFactor = true;
     else if (args[i] === "--owner") out.owner = true;
+    else if (args[i] === "--local") out.local = true;
     else if (args[i] === "--project" && args[i + 1]) out.project = args[++i];
     else if (args[i] === "--email" && args[i + 1]) out.email = args[++i];
     else if (args[i] === "--url" && args[i + 1]) out.url = args[++i];
@@ -28,7 +29,8 @@ export function options(args) {
   if (out.email !== undefined && !accountEmail(out.email)) throw new Error(`${out.email} is not an email address.`);
   if ((out.url === undefined) !== (out.key === undefined)) throw new Error(`--url and --key go together. ${USAGE}`);
   if (out.url !== undefined && !projectUrl(out.url)) throw new Error(`${out.url} is not a project URL.`);
-  if (out.owner && (out.url === undefined || out.folder === undefined || out.project !== undefined || out.email !== undefined || out.newPassword || out.secondFactor))
+  if (out.local && out.folder === undefined) throw new Error(`--local goes with --folder. ${USAGE}`);
+  if (out.owner && (out.url === undefined || out.folder === undefined || out.project !== undefined || out.email !== undefined || out.newPassword || out.secondFactor || out.local))
     throw new Error(`--owner takes --url, --key and --folder, and no other option. ${OWNER_USAGE}`);
   // Checked before the password is asked for, so a mistyped folder costs nothing.
   if (out.folder !== undefined) {
@@ -105,7 +107,7 @@ async function choosePassword(ask, say, [prompt, again], take = async () => null
  * With `folder`, it also writes that folder's actor file, so a session opened on the folder works as
  * this user, with the folder as its agent folder.
  */
-export async function signIn({ project, email: given, url: knownUrl, key: knownKey, newPassword, secondFactor: enrol = false, folder }, ask, say) {
+export async function signIn({ project, email: given, url: knownUrl, key: knownKey, newPassword, secondFactor: enrol = false, folder, local = false }, ask, say) {
   const saved = project ? readSession(project, accountEmail(given)) : null;
   if (project && !saved) throw new Error(`nothing is saved for ${given} on ${project}. Run without --project to enter the details.`);
 
@@ -153,8 +155,10 @@ export async function signIn({ project, email: given, url: knownUrl, key: knownK
   const path = writeSession(ref, email, { projectRef: ref, url, publishableKey: key, email, refreshToken: session.body.refresh_token });
   say(`Signed in as ${email}. Session saved to ${path}.`);
   if (folder !== undefined) {
-    const actor = writeActorFile(folder, { projectRef: ref, email });
+    const actor = writeActorFile(folder, { projectRef: ref, email, local });
     say(`Actor file saved to ${actor}. A session opened on ${folder} works as ${email}.`);
+    if (readActorFile(folder)?.value?.connector === LOCAL)
+      say(`fabrik's local connector is on in ${folder}: a Code session opened there reaches fabrik through the fabrik plugin, with no connector in Claude's Settings.`);
   } else {
     say(`Set auth_email to ${email} in the fabrik plugin's settings, or sign in again with --folder to work as ${email} in one folder.`);
   }

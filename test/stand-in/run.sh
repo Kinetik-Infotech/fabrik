@@ -23,7 +23,7 @@ SEARCH=$SETUP
 # The fabrik plugin's skills, whose graph and board scripts draw what the database returns.
 DRAWING=${DRAWING:-$HERE/../../plugins/fabrik/skills}
 
-STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times drawings file-search upgrades setup-flow maxy-import fabrik-apps routines mail public-agent"
+STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times drawings file-search upgrades setup-flow maxy-import fabrik-apps relay routines mail public-agent"
 if [ "${1:-}" = --list ]; then printf '%s\n' $STEPS; exit 0; fi
 for name in "$@"; do
   case " $STEPS " in *" $name "*) ;; *) echo "FAIL $name is not a step. sh run.sh --list names them."; exit 2 ;; esac
@@ -493,6 +493,14 @@ step_fabrik_apps() {
   echo "== fabrik-apps"
   STAND_IN_DB="postgres://postgres@127.0.0.1:$PORT/$DB" STAND_IN_TMP="$WORK" "$DENO" run --quiet --no-lock \
     --allow-net --allow-env --allow-read --allow-sys --allow-import --allow-write="$WORK" --allow-run=node "$HERE/fabrik-apps.ts" || exit 1
+}
+
+# fabrik's local connector passes Claude's calls to the real connector as the folder's signed-in person, and lists no
+# tools in a folder signed in without --local.
+step_relay() {
+  echo "== relay"
+  STAND_IN_DB="postgres://postgres@127.0.0.1:$PORT/$DB" STAND_IN_TMP="$WORK" "$DENO" run --quiet --no-lock \
+    --allow-net --allow-env --allow-read --allow-sys --allow-import --allow-write="$WORK" --allow-run=node "$HERE/relay.ts" || exit 1
 }
 
 # A routine is written down and designed through the connector as the routine skills save it, and the records skill's
