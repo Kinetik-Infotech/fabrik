@@ -89,6 +89,9 @@ Each chat file starts with the chat's full name, and the other person's number w
 its own heading, and each message is a line with its time, the sender and the text. The person's own messages show as
 Me. A group's file is named after the group.
 
+History saved before version 0.2.3 shows every group sender as Unknown. When the person wants those names, they link
+again with history. A check then gives each Unknown line its sender's name, and adds no message twice.
+
 fabrik's storage takes only plain letters, digits, spaces and a few marks in a file name. So a file name drops accents,
 emoji and curly quotes, and the first line keeps the name as WhatsApp has it. A group whose name WhatsApp hadn't given
 yet is saved as `whatsapp/group <id>.md`. It keeps that file once the name comes, and the name goes in its first line.

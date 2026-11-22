@@ -77,7 +77,8 @@ export function formatInbound(waMessage) {
   const kind = chatKind(chat);
   const { text, media } = extractContent(waMessage.message);
   const phoneJid = [chat, key.remoteJidAlt].find(j => typeof j === "string" && j.endsWith("@s.whatsapp.net"));
-  const sender = key.fromMe ? "" : (kind === "group" ? key.participant : chat) ?? "";
+  // A message from the phone's history names its group sender in its own `participant`, and leaves the key's empty.
+  const sender = key.fromMe ? "" : (kind === "group" ? key.participant || waMessage.participant : chat) ?? "";
   const senderAlt = key.fromMe ? "" : (kind === "group" ? key.participantAlt : key.remoteJidAlt) ?? "";
   const senderPhone = [sender, senderAlt].find(isPhone);
   const from = key.fromMe ? "Me" : cleanName(waMessage.pushName) || (senderPhone ? `+${jidUser(senderPhone)}` : "");
