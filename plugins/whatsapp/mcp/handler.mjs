@@ -8,6 +8,15 @@ export function jidUser(jid) {
   return typeof jid === "string" ? jid.split("@")[0].split(":")[0] : "";
 }
 
+/** A person's JID as WhatsApp's own lookups key it: no device suffix, and a hosted number or LID as a plain one. Live
+ * messages arrive this way; messages from the phone's history don't. */
+export function bareJid(jid) {
+  if (typeof jid !== "string" || !jid.includes("@")) return "";
+  const [user, server] = jid.split("@");
+  const plainServer = { "c.us": "s.whatsapp.net", hosted: "s.whatsapp.net", "hosted.lid": "lid" }[server] ?? server;
+  return `${user.split(":")[0]}@${plainServer}`;
+}
+
 /** Whether a JID is a phone number's, as opposed to a LID, WhatsApp's internal id for a person. */
 export const isPhone = jid => typeof jid === "string" && jid.endsWith("@s.whatsapp.net");
 /** Whether a JID is a LID. */
@@ -77,8 +86,9 @@ export function formatInbound(waMessage) {
   const kind = chatKind(chat);
   const { text, media } = extractContent(waMessage.message);
   const phoneJid = [chat, key.remoteJidAlt].find(j => typeof j === "string" && j.endsWith("@s.whatsapp.net"));
-  const sender = key.fromMe ? "" : (kind === "group" ? key.participant : chat) ?? "";
-  const senderAlt = key.fromMe ? "" : (kind === "group" ? key.participantAlt : key.remoteJidAlt) ?? "";
+  // A message from the phone's history names its group sender in its own `participant`, and leaves the key's empty.
+  const sender = key.fromMe ? "" : kind === "group" ? bareJid(key.participant || waMessage.participant) : chat ?? "";
+  const senderAlt = key.fromMe ? "" : kind === "group" ? bareJid(key.participantAlt) : key.remoteJidAlt ?? "";
   const senderPhone = [sender, senderAlt].find(isPhone);
   const from = key.fromMe ? "Me" : cleanName(waMessage.pushName) || (senderPhone ? `+${jidUser(senderPhone)}` : "");
   const seconds = Number(waMessage.messageTimestamp?.toString?.() ?? waMessage.messageTimestamp ?? 0);

@@ -110,13 +110,25 @@ const saveGroups = (dir, names) => addToMap(dir, GROUPS, names);
 export function readPending(authDir) {
   let text = "";
   try { text = readFileSync(join(authDir, PENDING), "utf8"); } catch { return []; }
-  const seen = new Set();
+  const seen = new Map();
   const list = [];
   for (const line of text.split("\n")) {
     let m;
     try { m = JSON.parse(line); } catch { continue; }
-    if (!m?.chat || !m?.id || seen.has(`${m.chat} ${m.id}`)) continue;
-    seen.add(`${m.chat} ${m.id}`);
+    if (!m?.chat || !m?.id) continue;
+    const key = `${m.chat} ${m.id}`;
+    // A copy that names its sender gives its sender to one waiting before it that doesn't, when the two are the same
+    // message: same time and same text. The text and media kept are always the first copy's.
+    if (seen.has(key)) {
+      const i = seen.get(key);
+      const w = list[i];
+      const same = w.at === m.at && w.text === m.text && JSON.stringify(w.media ?? null) === JSON.stringify(m.media ?? null);
+      if (same && !w.fromMe && !m.fromMe && !w.from && !w.sender && (m.from || m.sender)) {
+        list[i] = { ...w, from: m.from ?? "", sender: m.sender ?? "", senderAlt: m.senderAlt ?? "" };
+      }
+      continue;
+    }
+    seen.set(key, list.length);
     list.push(m);
   }
   return list;
