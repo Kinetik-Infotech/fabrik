@@ -20,6 +20,10 @@ If you linked without them and want them now, say "link my WhatsApp again". What
 
 WhatsApp keeps no other history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
 
+On a Mac, Claude can check for you with no session open. Say "check my WhatsApp every hour without me", or every few hours, up to once a day. Claude hands the check to launchd, the Mac's own scheduler. Each timed check runs the same code as a check in a session, with no Claude model, so it uses no Claude usage. It only reads.
+
+The Mac has to be awake: a check missed while it sleeps runs once when it wakes. Ask for WhatsApp's status to see the next check and what the last one did. Say "stop checking WhatsApp on a timer" to turn it off.
+
 Check at least once a week. WhatsApp drops a linked device that hasn't connected for about 14 days, and the messages it held for it are lost.
 
 The link's keys stay on your computer, in `~/.config/fabrik/whatsapp/`, readable by you alone. Say "unlink WhatsApp" to remove the link and delete them. The chat files stay in fabrik.
