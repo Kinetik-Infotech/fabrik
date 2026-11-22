@@ -2,7 +2,23 @@
 
 # More plugins
 
-fabrik's marketplace has two more plugins, TripAgent and the animator. Neither uses your Supabase project or a fabrik sign-in.
+fabrik's marketplace has three more plugins: WhatsApp, TripAgent and the animator. WhatsApp saves into your fabrik with your own sign-in. TripAgent and the animator don't use your Supabase project or a fabrik sign-in.
+
+## WhatsApp
+
+The WhatsApp plugin reads your WhatsApp messages and saves each chat in your private fabrik scope, as `whatsapp/<chat name>.md`. Claude then finds them through fabrik's search, at claude.ai and on your phone too. It only reads. It never sends, replies or reacts, and it never marks a message read, so the sender sees grey ticks and never blue ones.
+
+It joins your WhatsApp as a linked device, the way WhatsApp on a computer does. In a Terminal tab, install it with `claude plugin install whatsapp@fabrik`. Then open a new Code session in your fabrik folder, the one you signed in with `fabrik sign-in --folder`, and say "link my WhatsApp". Claude asks for your number and shows an 8-character code. On your phone, open WhatsApp → Settings → Linked devices → Link a device, tap Link with phone number instead, and type the code. If the phone asks whether someone else asked for the code, it was you, so approve the link.
+
+WhatsApp keeps no history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
+
+Check at least once a week. WhatsApp drops a linked device that hasn't connected for about 14 days, and the messages it held for it are lost.
+
+The link's keys stay on your computer, in `~/.config/fabrik/whatsapp/`, readable by you alone. Say "unlink WhatsApp" to remove the link and delete them. The chat files stay in fabrik.
+
+The plugin uses Baileys, a library WhatsApp doesn't make or support, and WhatsApp can ban a number it flags. A short check that only reads is the lowest-risk way to use it, but the risk stays.
+
+You need a private scope in fabrik for the chats. If you don't have one, an administrator adds it for you.
 
 ## TripAgent
 
