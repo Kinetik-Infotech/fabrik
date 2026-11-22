@@ -33,5 +33,5 @@ test("every connection is made with markOnlineOnConnect false", () => {
 test("no tool's name or description offers to send", async () => {
   const source = readFileSync(join(ROOT, "mcp", "server.mjs"), "utf8");
   const names = [...source.matchAll(/name: "(whatsapp_[a-z_]+)"/g)].map(m => m[1]);
-  assert.deepEqual(names, ["whatsapp_status", "whatsapp_link", "whatsapp_link_wait", "whatsapp_check", "whatsapp_unlink"]);
+  assert.deepEqual(names, ["whatsapp_status", "whatsapp_link", "whatsapp_link_wait", "whatsapp_check", "whatsapp_timer", "whatsapp_unlink"]);
 });

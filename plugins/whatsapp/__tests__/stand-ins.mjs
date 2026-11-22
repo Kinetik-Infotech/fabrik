@@ -159,3 +159,29 @@ export function savedSignIn(home, url, { ref = "abcdefghijklmnopqrst", email = "
 // A WhatsApp message as Baileys hands it over.
 export const dm = (id, text, { from = "Kate", jid = "447111000111@s.whatsapp.net", fromMe = false, at = 1795000000 } = {}) =>
   ({ key: { id, remoteJid: jid, fromMe }, message: { conversation: text }, pushName: fromMe ? "Pat" : from, messageTimestamp: at });
+
+/**
+ * launchctl as the timer calls it, so no test loads a real job. Each call is added to `calls`. bootstrap loads the job
+ * the plist names, bootout unloads it, and print answers 0 while it is loaded and 113 once it isn't, as launchctl does.
+ * The loaded jobs are kept in `file` when one is given, so a server started again finds them.
+ */
+export function fakeLaunchctl({ calls = [], file, bootstrapStatus = 0 } = {}) {
+  let loaded = new Set();
+  const load = () => { if (file) try { loaded = new Set(JSON.parse(readFileSync(file, "utf8"))); } catch { /* none yet */ } };
+  const keep = () => { if (file) writeFileSync(file, JSON.stringify([...loaded])); };
+  const run = args => {
+    load();
+    calls.push(args);
+    const [op, target, plist] = args;
+    if (op === "bootstrap") {
+      if (bootstrapStatus !== 0) return { status: bootstrapStatus, stderr: "Bootstrap failed: 5: Input/output error", stdout: "" };
+      loaded.add(`${target}/${plist.split("/").pop().replace(/\.plist$/, "")}`);
+      keep();
+      return { status: 0, stderr: "", stdout: "" };
+    }
+    if (op === "bootout") { const had = loaded.delete(target); keep(); return { status: had ? 0 : 3, stderr: had ? "" : "Boot-out failed: 3: No such process", stdout: "" }; }
+    if (op === "print") return loaded.has(target) ? { status: 0, stderr: "", stdout: `${target} = {\n}` } : { status: 113, stderr: `Could not find service`, stdout: "" };
+    return { status: 1, stderr: `no stand-in for launchctl ${op}`, stdout: "" };
+  };
+  return { run, calls, loaded: () => { load(); return [...loaded]; } };
+}

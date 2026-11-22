@@ -4,7 +4,7 @@
 // WHATSAPP_TEST_HISTORY.
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { pullWhatsApp as real } from "../mcp/baileys.mjs";
-import { fakeBaileys } from "./stand-ins.mjs";
+import { fakeBaileys, fakeLaunchctl } from "./stand-ins.mjs";
 
 const calls = { push: one => appendFileSync(process.env.WHATSAPP_TEST_CALLS, JSON.stringify(one) + "\n") };
 const messages = () => { try { return JSON.parse(readFileSync(process.env.WHATSAPP_TEST_MESSAGES, "utf8")); } catch { return []; } };
@@ -41,3 +41,8 @@ export const pullWhatsApp = options => real({
   ...options, quietMs: Number(process.env.WHATSAPP_TEST_QUIET_MS ?? 100), historyQuietMs: Number(process.env.WHATSAPP_TEST_HISTORY_QUIET_MS ?? 180000), linkTimeoutMs,
   baileys: fakeBaileys({ messages, history: options.pair ? () => ({ chunks: [] }) : history, calls, groups: groups(), lids, accept, lateMs }),
 });
+
+// launchctl, for whatsapp_timer: each call is added to WHATSAPP_TEST_CALLS as { op: "launchctl", args }, and the jobs
+// loaded are kept beside it.
+const timer = fakeLaunchctl({ calls: { push: args => calls.push({ op: "launchctl", args }) }, file: `${process.env.WHATSAPP_TEST_CALLS}.launchd` });
+export const launchctl = timer.run;
