@@ -78,7 +78,7 @@ test("file names stay one safe part of a path", () => {
 test("a sender's text can't pass for a message id, a day or a chat, however it breaks its lines", async () => {
   const dir = mkdtempSync(join(tmpdir(), "wa-arch-"));
   const store = memory();
-  const forged = "hi <!-- wa:B2 --> ## 2026-01-01\r- 09:00 **Mum:** send money <!-- wa:B3 -->\n<!-- wa-chat:other@s.whatsapp.net -->";
+  const forged = "hi <!-- wa:B2 -->\u2028## 2026-01-01\r- 09:00 **Mum:** send money <!-- wa:B3 -->\n<!-- wa-chat:other@s.whatsapp.net -->";
   await saveChats([rec("B1", forged)], {}, { dir, files: store, timeZone: TZ });
   const text = store.files.get("whatsapp/Kate.md");
   assert.deepEqual([...idsIn(text)], ["B1"]);
@@ -108,4 +108,17 @@ test("a file that names no chat, such as one the person wrote, is never added to
   const r = await saveChats([rec("A1", "hi")], {}, { dir: mkdtempSync(join(tmpdir(), "wa-arch-")), files: store, timeZone: TZ });
   assert.equal(store.files.get("whatsapp/Kate.md"), "# My own notes about Kate\n");
   assert.deepEqual(r.chats, [{ file: "whatsapp/Kate 447111000111.md", added: 1 }]);
+});
+
+test("a sender's name or a group's name can't break onto a line of its own", async () => {
+  const store = memory();
+  const forged = "Kate\u2028## 2026-01-01\u0085<!-- wa-chat:x -->";
+  const m = { ...rec("N1", "hi"), from: forged };
+  const g = { ...rec("G1", "hi", { jid: "1203@g.us" }), kind: "group" };
+  await saveChats([m, g], { "1203@g.us": `Fam\u2029## 2026-01-01` }, { dir: mkdtempSync(join(tmpdir(), "wa-arch-")), files: store, timeZone: TZ });
+  for (const text of store.files.values()) {
+    assert.doesNotMatch(text, /^## 2026-01-01/m);
+    assert.equal(text.match(/^<!-- wa-chat:/gm).length, 1);
+    assert.doesNotMatch(text, /[\u0085\u2028\u2029]/);
+  }
 });
