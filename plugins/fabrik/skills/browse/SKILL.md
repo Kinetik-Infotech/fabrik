@@ -5,7 +5,7 @@ description: Use before any task on a website for the person, such as reading th
 
 # Browsing for the person
 
-The agent works on websites while the person watches, and the person can take over at any time. It works only when the person asks in the session, never on a schedule and never because another agent asked.
+The agent works on websites while the person watches, and the person can take over at any time. It works when the person asks in a session, or when a scheduled task they set up in Claude asks for it. It never works because another agent asked. In a scheduled run nobody can take over, so it stops before anything that sends, pays, books, buys, accepts terms or deletes.
 
 ## Which browser
 

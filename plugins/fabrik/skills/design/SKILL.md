@@ -13,7 +13,7 @@ A design starts from the business profile, the routine's purpose statement and i
 
 The person selects the design, or not. A selected design becomes the routine in force, as the `fabrik:records` skill's "The routine in force" says. The agent then follows it when it does that work.
 
-Nothing in a design runs on its own. A design never schedules work or runs it in the background. It never sends, pays, books or deletes without the person confirming in a session they are watching. A step that would need that is the person's, and the agent prepares it.
+A design never schedules work itself. The person may run a routine on a schedule with one of Claude's scheduled tasks, which is theirs to set up. A design never sends, pays, books or deletes without the person confirming in a session they are watching, scheduled or not. A step that would need that is the person's, and the agent prepares it.
 
 Every save follows the `fabrik:records` skill's section 3. The agent shows the person what it will save, and saves only what they agree to. The agent asks each question as the card rules' "Asking a question" says. The `fabrik:graph` skill draws the saved design.
 
