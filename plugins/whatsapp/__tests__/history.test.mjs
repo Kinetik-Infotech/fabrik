@@ -11,7 +11,7 @@ import { dm, savedSignIn, standInFabrik } from "./stand-ins.mjs";
 import { readPending } from "../mcp/pull.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const INITIAL = 0, FULL = 2, RECENT = 3, ON_DEMAND = 6;
+const INITIAL = 0, FULL = 2, RECENT = 3, PUSH_NAME = 4, ON_DEMAND = 6;
 const DAY = 86400;
 const jid = n => `4470000${String(n).padStart(5, "0")}@s.whatsapp.net`;
 
@@ -55,7 +55,7 @@ test("whatsapp_link without history is refused, and a link with history false sa
     assert.match(refused.text, /only at linking/);
 
     assert.equal((await t.link(false)).text, "WhatsApp is linked as +447700900123. Check for messages with whatsapp_check.");
-    assert.match((await t.server.tool("whatsapp_status")).text, /^Recent history wasn't brought in\. The phone sends it only at linking, so linking again with relink brings it\.$/m);
+    assert.match((await t.server.tool("whatsapp_status")).text, /^Recent history wasn't chosen at linking\. The phone sends it only at linking, so linking again with relink brings it\.$/m);
     t.queue([dm("N1", "new")]);
     assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 1 new");
     const kate = t.fabrik.files.get("me_private/whatsapp/Kate.md");
@@ -82,7 +82,7 @@ test("history of the two recent sync types is saved, FULL and ON_DEMAND are not,
       "Save them with whatsapp_check. Each check saves 20 chats, so check again while it says chats wait.",
     ].join("\n"));
     assert.equal(t.saved().length, 0, "the link itself saves nothing");
-    assert.match((await t.server.tool("whatsapp_status")).text, /^Recent history was brought in at linking\.$/m);
+    assert.match((await t.server.tool("whatsapp_status")).text, /^Recent history was chosen at linking, and brought 3 messages\.$/m);
 
     t.queue([dm("BOTH", "in both", { at: 1795000000 - DAY }), dm("N1", "new")]);
     assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 4 new");
@@ -90,6 +90,45 @@ test("history of the two recent sync types is saved, FULL and ON_DEMAND are not,
     for (const id of ["I1", "R1", "BOTH", "N1"]) assert.equal(kate.match(new RegExp(`wa:${id} `, "g"))?.length, 1, id);
     assert.doesNotMatch(kate, /wa:F1 |wa:O1 /);
     assert.deepEqual(kate.match(/^## .*/gm), ["## 2026-10-19", "## 2026-11-08", "## 2026-11-17", "## 2026-11-18"]);
+  } finally { await t.end(); }
+});
+
+test("history Baileys holds back and hands over as one set is saved whole, without the types left alone", async () => {
+  // Baileys merges the held chunks into one set named by the last chunk's type, here the contact names.
+  const t = await setUp({
+    history: {
+      holdMs: 300,
+      chunks: [
+        { syncType: RECENT, progress: 100, messages: [dm("H1", "one", { at: 1795000000 - 2 * DAY }), dm("H2", "two", { at: 1795000000 - DAY })] },
+        { syncType: FULL, messages: [dm("F1", "full", { at: 1795000000 - 400 * DAY })] },
+        { syncType: PUSH_NAME, messages: [] },
+      ],
+    },
+  });
+  try {
+    assert.match((await t.link(true)).text, /^Recent history brought 2 messages from 1 chat\.$/m);
+    await t.server.tool("whatsapp_check");
+    const kate = t.fabrik.files.get("me_private/whatsapp/Kate.md");
+    assert.match(kate, /wa:H1 [\s\S]*wa:H2 /);
+    assert.doesNotMatch(kate, /wa:F1 /);
+  } finally { await t.end(); }
+});
+
+test("linking waits for history Baileys still holds back after it says the sync is complete", async () => {
+  const t = await setUp({
+    history: { holdMs: 1500, chunks: [{ syncType: RECENT, progress: 100, status: "complete", messages: [dm("H1", "held", { at: 1795000000 - DAY })] }] },
+    env: { WHATSAPP_TEST_HISTORY_QUIET_MS: "5000" },
+  });
+  try {
+    assert.match((await t.link(true)).text, /^Recent history brought 1 message from 1 chat\.$/m);
+  } finally { await t.end(); }
+});
+
+test("status says history was chosen and none came, when the phone sends none", async () => {
+  const t = await setUp({ history: [] });
+  try {
+    assert.match((await t.link(true)).text, /^The phone sent no recent history\.$/m);
+    assert.match((await t.server.tool("whatsapp_status")).text, /^Recent history was chosen at linking, and none has come\.$/m);
   } finally { await t.end(); }
 });
 
@@ -166,11 +205,11 @@ test("linking waits for the phone's last chunk", async () => {
   } finally { await t.end(); }
 });
 
-test("a session closed while the history comes keeps what came, and the next check saves it", async () => {
+test("a session closed while the history comes keeps what came, and the next check saves it with the rest", async () => {
   const t = await setUp({
     history: [
       { syncType: RECENT, afterMs: 0, progress: 30, messages: [dm("C1", "one", { at: 1795000000 - 2 * DAY }), dm("C2", "two", { at: 1795000000 - DAY })] },
-      { syncType: RECENT, afterMs: 60_000, progress: 100, messages: [dm("C3", "never comes")] },
+      { syncType: RECENT, later: true, progress: 100, messages: [dm("C3", "after the link", { at: 1795000000 - DAY / 2 })] },
     ],
     env: { WHATSAPP_TEST_HISTORY_QUIET_MS: "60000", WHATSAPP_TEST_WAIT_MS: "600" },
   });
@@ -185,7 +224,52 @@ test("a session closed while the history comes keeps what came, and the next che
     assert.deepEqual(readPending(t.keys).map(m => m.id), ["C1", "C2"]);
 
     t.server = await t.start();
-    assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 2 new");
+    // The phone sends the chunk the closed connection didn't take to the next one, and the check keeps it.
+    assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 3 new");
+    assert.match(t.fabrik.files.get("me_private/whatsapp/Kate.md"), /wa:C3 /);
     assert.deepEqual(readPending(t.keys), []);
+  } finally { await t.end(); }
+});
+
+test("no file passes 1 MB, not even a busy chat's single month, and a part that fills splits again", async () => {
+  // About 1.9 MB in one month.
+  const long = "y".repeat(110);
+  const at = i => Date.UTC(2026, 9, 1 + (i % 30), 8, 0, 0) / 1000 + (i % 3000);
+  const t = await setUp({ history: [{ syncType: RECENT, progress: 100, messages: Array.from({ length: 12000 }, (_, i) => dm(`B${i}`, `${long} ${i}`, { at: at(i) })) }] });
+  try {
+    await t.link(true);
+    assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 12000 new");
+    const sizes = () => t.saved().map(([k, v]) => [k, Buffer.byteLength(v)]);
+    assert.ok(sizes().length >= 3, JSON.stringify(sizes()));
+    for (const [k, n] of sizes()) assert.ok(n < 1024 * 1024, `${k} is ${n} bytes`);
+
+    // 3000 more messages on the first day of the month go to the part that holds it, which splits.
+    const before = sizes().length;
+    t.queue(Array.from({ length: 3000 }, (_, i) => dm(`L${i}`, `${long} late ${i}`, { at: Date.UTC(2026, 9, 1, 20, 0, 0) / 1000 + i })));
+    assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 3000 new");
+    assert.ok(sizes().length > before);
+    for (const [k, n] of sizes()) assert.ok(n < 1024 * 1024, `${k} is ${n} bytes`);
+    const all = t.saved().map(([, v]) => v).join("");
+    assert.equal(all.match(/<!-- wa:[BL]\d+ -->/g).length, 15000);
+    assert.equal(new Set(all.match(/<!-- wa:[BL]\d+ -->/g)).size, 15000);
+  } finally { await t.end(); }
+});
+
+test("a direct chat named by its LID in one place and its phone number in another keeps one file", async () => {
+  const lid = "99999999999999@lid";
+  const t = await setUp({
+    history: [{ syncType: RECENT, progress: 100, chats: [{ id: lid, pnJid: "447111000111@s.whatsapp.net" }], messages: [dm("H1", "from history", { jid: lid, at: 1795000000 - DAY })] }],
+  });
+  try {
+    await t.link(true);
+    // The same chat by its phone number, and a second chat whose LID only Baileys' store can name.
+    t.queue([dm("N1", "new", { at: 1795000000 }), dm("S1", "hi Sam", { jid: "447222000222@s.whatsapp.net", from: "Sam", at: 1795000000 })]);
+    await t.server.tool("whatsapp_check");
+    t.queue([dm("S2", "from the LID", { jid: "88888888888888@lid", from: "Sam", at: 1795000100 })]);
+    await t.server.tool("whatsapp_check");
+    const names = t.saved().map(([k]) => k).sort();
+    assert.deepEqual(names, ["me_private/whatsapp/Kate.md", "me_private/whatsapp/Sam.md"]);
+    assert.match(t.fabrik.files.get("me_private/whatsapp/Kate.md"), /wa:H1 [\s\S]*wa:N1 /);
+    assert.match(t.fabrik.files.get("me_private/whatsapp/Sam.md"), /wa:S1 [\s\S]*wa:S2 /);
   } finally { await t.end(); }
 });

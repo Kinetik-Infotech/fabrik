@@ -15,6 +15,11 @@
 // recent sync types to onMessage, as it does a new one. With `waitHistory` set, the connection stays open after the
 // queue is drained, until Baileys says the recent sync is complete or no chunk has come for `historyQuietMs`.
 //
+// Baileys holds back history while the first sync runs, and merges the chunks into one messaging-history.set named by
+// the last chunk's sync type. So the socket is told to process only the two kept types, and a set that comes is taken
+// whole whatever type it names. Nothing ends while Baileys still holds events back, since its word that the sync is
+// complete is never held back and can come first.
+//
 // It only reads. It connects with markOnlineOnConnect false, so it never shows the person online or sends read
 // receipts. It calls nothing that sends a message, a receipt or a presence. Media is noted, never downloaded.
 
@@ -142,6 +147,9 @@ export async function pullWhatsApp({
       sock = b.makeWASocket({
         version, auth: state, browser: b.Browsers.appropriate("Chrome"), logger: SILENT,
         markOnlineOnConnect: false, syncFullHistory: false,
+        // With history, Baileys processes only the kept types, so a merged set holds nothing else. Without it, Baileys'
+        // own default stands, and the plugin doesn't listen.
+        ...(history ? { shouldSyncHistoryMessage: ({ syncType }) => HISTORY_TYPES.has(syncType) } : {}),
       });
 
       sock.ev.on("creds.update", () => {
@@ -191,6 +199,7 @@ export async function pullWhatsApp({
             if (now() - lastActivity < quietMs) return;
             // Linking with history waits for the phone's last chunk: Baileys' word, or no chunk for historyQuietMs.
             if (waitHistory && !historyDone && now() - (lastChunk ?? drainAt) < historyQuietMs) return;
+            if (sock.ev.isBuffering?.()) return;
             clearInterval(quiet);
             quiet = null;
             log("pull-quiet", { quietMs, ...(waitHistory ? { historyDone } : {}) });
@@ -205,9 +214,16 @@ export async function pullWhatsApp({
       if (history) {
         sock.ev.on("messaging-history.set", ({ messages = [], chats = [], syncType, progress, chunkOrder }) => {
           lastActivity = now();
-          const kind = HISTORY_TYPES.get(syncType);
-          if (!kind) { log("history-skipped", { syncType: syncType ?? "none", messages: messages.length }); return; }
+          // Only the kept types reach Baileys' buffer, so a merged set is kept whatever type it names.
+          const kind = HISTORY_TYPES.get(syncType) ?? `merged-${syncType ?? "none"}`;
           lastChunk = now();
+          // A direct chat named by its LID in history is named by its phone number elsewhere: each pair goes with the
+          // chat's messages, so both names lead to one file.
+          const alias = new Map();
+          for (const c of chats) {
+            if (c?.id && c.pnJid) alias.set(c.id, c.pnJid);
+            else if (c?.id && c.lidJid) alias.set(c.id, c.lidJid);
+          }
           if (waitHistory && draining) arm(historyQuietMs + drainTimeoutMs, "drain-timeout");
           const t = (tally[kind] ??= { chats: 0, messages: 0 });
           t.chats += chats.length;
@@ -215,7 +231,7 @@ export async function pullWhatsApp({
           log("history-chunk", { syncType: kind, chunkOrder: chunkOrder ?? "none", progress: progress ?? "none", chats: chats.length, messages: messages.length });
           for (const m of messages) {
             received += 1;
-            try { onMessage(m, { history: syncType }); } catch (err) { log("message-error", { err: oneToken(err) }); }
+            try { onMessage(m, { history: syncType ?? -1, alt: alias.get(m?.key?.remoteJid) }); } catch (err) { log("message-error", { err: oneToken(err) }); }
           }
           if (syncType === RECENT && progress === 100) historyDone = true;
         });

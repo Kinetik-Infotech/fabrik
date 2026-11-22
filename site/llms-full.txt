@@ -800,7 +800,9 @@ It joins your WhatsApp as a linked device, the way WhatsApp on a computer does. 
 
 Claude asks for your number, and whether to bring in your recent chats as well as new messages. Your phone sends them only when a device links, so adding them later means linking again. Claude then shows an 8-character code. On your phone, open WhatsApp → Settings → Linked devices → Link a device, tap Link with phone number instead, and type the code. If the phone asks whether someone else asked for the code, it was you, so approve the link.
 
-If you chose your recent chats, Claude waits a few minutes after you type the code while your phone sends them. Say "check my WhatsApp" to save them in fabrik. Each check saves 20 chats, and says how many still wait, so check again until none do. A chat too big for one file keeps its newest month in `whatsapp/<chat name>.md`, and each older month goes in a file of its own. If you linked without them and want them now, say "link my WhatsApp again". WhatsApp sees each link as a new device, which adds to the risk below.
+If you chose your recent chats, Claude waits a few minutes after you type the code while your phone sends them. Say "check my WhatsApp" to save them in fabrik. Each check saves 20 chats, and says how many still wait, so check again until none do. No chat file passes 1 MB. A busy chat keeps its newest days in `whatsapp/<chat name>.md`. Its older days go in files of their own, each holding one month or part of one.
+
+If you linked without them and want them now, say "link my WhatsApp again". WhatsApp sees each link as a new device, which adds to the risk below.
 
 WhatsApp keeps no other history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
 

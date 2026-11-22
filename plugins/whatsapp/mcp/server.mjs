@@ -12,7 +12,7 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync 
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { halfLinked, linkedState, pullWhatsApp } from "./baileys.mjs";
-import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, PENDING, readPending } from "./pull.mjs";
+import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, LIDS, PENDING, readPending } from "./pull.mjs";
 import { MONTHS, saveChats } from "./archive.mjs";
 import { normalizeE164 } from "./normalize.mjs";
 import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
@@ -51,8 +51,8 @@ const credsOf = dir => readJson(join(dir, "creds.json"), null);
 const stateOf = dir => linkedState(credsOf(dir));
 
 /** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files and group
- * names, the scope. */
-const KEPT = new Set([PENDING, "chats.json", MONTHS, GROUPS, "settings.json"]);
+ * names, the LID and phone pairs, the scope. */
+const KEPT = new Set([PENDING, "chats.json", MONTHS, GROUPS, LIDS, "settings.json"]);
 
 /** Deletes the link's keys and keeps the rest of the folder. */
 function clearKeys(dir) {
@@ -71,6 +71,18 @@ function waitingLine(messages, chats, end) {
 }
 const BUSY = "A check is under way. Try again once it ends, in under a minute.";
 const WAIT_MS = hooks.waitMs ?? 60_000;
+/** What the link's history choice brought, from the count kept after each connection. */
+function historyLine(settings) {
+  if (!settings.history) return "Recent history wasn't chosen at linking. The phone sends it only at linking, so linking again with relink brings it.";
+  const n = settings.historyMessages ?? 0;
+  return n ? `Recent history was chosen at linking, and brought ${plural(n, "message")}.` : "Recent history was chosen at linking, and none has come.";
+}
+
+/** Adds the history messages a connection took to the count kept with the link. */
+function countHistory(dir, r) {
+  const n = r?.history?.messages ?? 0;
+  if (n) { const settings = settingsOf(dir); saveSettings(dir, { ...settings, historyMessages: (settings.historyMessages ?? 0) + n }); }
+}
 const historyCount = h => `${plural(h.messages, "message")} from ${plural(h.chats, "chat")}`;
 
 /** The person fabrik signs in as, and their keys folder: { ok, ref, email, dir } or { ok: false, problem }. */
@@ -141,7 +153,7 @@ const TOOLS = [
         linked ? `WhatsApp is linked as +${number}.` : "WhatsApp isn't linked on this computer.",
         `fabrik sign-in: ${person.email}.`,
         settings.scope ? `Chats go in the private scope ${settings.scope}.` : "Chats go in your private fabrik scope.",
-        ...(linked ? [settings.history ? "Recent history was brought in at linking." : "Recent history wasn't brought in. The phone sends it only at linking, so linking again with relink brings it."] : []),
+        ...(linked ? [historyLine(settings)] : []),
         ...(settings.lastCheck ? [`Last check: ${settings.lastCheck}.`] : []),
         ...(waiting ? [waitingLine(waiting, chatsIn(pending), "to be saved.")] : []),
         ...(link && !linked ? ["A link is waiting for the code to be typed on the phone."] : []),
@@ -176,7 +188,7 @@ const TOOLS = [
       const waiting = readPending(person.dir).length;
       if (waiting) notes.push(`${plural(waiting, "message")} from the old link ${waits(waiting)} to be saved. The first check after the link saves them.`);
       makeKeysFolder(person.dir);
-      saveSettings(person.dir, { ...settingsOf(person.dir), history });
+      saveSettings(person.dir, { ...settingsOf(person.dir), history, historyMessages: 0 });
       let gotCode;
       const code = new Promise(resolve => { gotCode = resolve; });
       const link = { run: null, history: { chats: 0, messages: 0 } };
@@ -184,7 +196,7 @@ const TOOLS = [
       link.run = run;
       links.set(person.dir, link);
       linkEnded.delete(person.dir);
-      run.then(r => linkEnded.set(person.dir, r), () => {}).finally(() => { links.delete(person.dir); lockDown(person.dir); gotCode(null); });
+      run.then(r => { countHistory(person.dir, r); linkEnded.set(person.dir, r); }, () => {}).finally(() => { links.delete(person.dir); lockDown(person.dir); gotCode(null); });
       const first = await Promise.race([code, run.then(() => null), new Promise(r => setTimeout(() => r(null), 30_000))]);
       if (!first) {
         const r = await Promise.race([run, new Promise(res => setTimeout(() => res(null), 1))]);
@@ -236,7 +248,10 @@ const TOOLS = [
       if (links.has(person.dir)) return refused("A link is waiting for its code. Finish it with whatsapp_link_wait first.");
       if (!stateOf(person.dir).linked) return refused("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
       if (scope) saveSettings(person.dir, { ...settingsOf(person.dir), scope });
-      const r = await pullFor(person).run({ trigger: "check" });
+      // The phone can send history chunks after the link's wait ends. Each check takes them, as Baileys acknowledges
+      // them to the phone whether or not anything listens.
+      const r = await pullFor(person).run({ trigger: "check", history: settingsOf(person.dir).history === true });
+      countHistory(person.dir, r);
       lockDown(person.dir);
       if (!r.reason) saveSettings(person.dir, { ...settingsOf(person.dir), lastCheck: new Date().toISOString() });
       const said = summary(r);
