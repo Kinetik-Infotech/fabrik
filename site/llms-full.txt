@@ -808,8 +808,6 @@ If you linked without them and want them now, say "link my WhatsApp again". What
 
 WhatsApp keeps no other history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
 
-A chat's file name keeps only the letters and marks fabrik's storage takes, so it drops accents, emoji and curly quotes. The first line of the file keeps the chat's name as WhatsApp has it.
-
 Check at least once a week. WhatsApp drops a linked device that hasn't connected for about 14 days, and the messages it held for it are lost.
 
 The link's keys stay on your computer, in `~/.config/fabrik/whatsapp/`, readable by you alone. Say "unlink WhatsApp" to remove the link and delete them. The chat files stay in fabrik.
