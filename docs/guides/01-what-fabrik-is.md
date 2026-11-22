@@ -16,6 +16,7 @@ fabrik stores your routines, records and files in a Supabase project you own. Cl
 - **Routines.** How you do a piece of work today, written down, and a better way designed with the connectors and plugins you have or could add.
 - **Imports.** Your LinkedIn, Notion, Obsidian, Substack and X exports, brought into fabrik.
 - **Email.** A mailbox you set up in fabrik, for a provider with no Claude connector. Claude reads and searches it, and drafts, sends and moves to Trash only what you approve.
+- **WhatsApp.** Your WhatsApp chats, saved in your private scope by the WhatsApp plugin, so Claude finds them in every app. It only reads. See the guide to more plugins.
 - **Drawing and printing.** Boards, graphs and PDFs made from what fabrik holds.
 - **Your writing voice.** Writing you mark as your own, so Claude drafts in your voice.
 
