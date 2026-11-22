@@ -389,7 +389,7 @@ test("a wrong password is refused with Supabase's own sentence", async () => {
 });
 
 test("sign-in options accept a project reference and nothing that could be taken for one", () => {
-  const none = { secondFactor: false, folder: undefined, owner: false };
+  const none = { secondFactor: false, folder: undefined, owner: false, local: false };
   assert.deepEqual(options(["--project", REF, "--email", USER.email, "--new-password"]), { project: REF, email: USER.email, url: undefined, key: undefined, newPassword: true, ...none });
   assert.deepEqual(options(["--url", `https://${REF}.supabase.co`, "--key", KEY]), { project: undefined, email: undefined, url: `https://${REF}.supabase.co`, key: KEY, newPassword: false, ...none });
   assert.throws(() => options(["--url", `https://${REF}.supabase.co`]), /go together/);
@@ -402,7 +402,7 @@ test("sign-in options accept a project reference and nothing that could be taken
   // The owner's first sign-in takes the project's address and key and the setup folder, and nothing else.
   const folder = home();
   assert.deepEqual(options(["--owner", "--url", `https://${REF}.supabase.co`, "--key", KEY, "--folder", folder]),
-    { project: undefined, email: undefined, url: `https://${REF}.supabase.co`, key: KEY, newPassword: false, secondFactor: false, folder, owner: true });
+    { project: undefined, email: undefined, url: `https://${REF}.supabase.co`, key: KEY, newPassword: false, secondFactor: false, folder, owner: true, local: false });
   assert.throws(() => options(["--owner", "--url", `https://${REF}.supabase.co`, "--key", KEY]), /--owner takes --url, --key and --folder/);
   assert.throws(() => options(["--owner", "--url", `https://${REF}.supabase.co`, "--key", KEY, "--folder", folder, "--email", USER.email]), /--owner takes --url, --key and --folder/);
   assert.throws(() => options(["--owner", "--url", `https://${REF}.supabase.co`, "--key", KEY, "--folder", folder, "--new-password"]), /--owner takes --url, --key and --folder/);
@@ -553,9 +553,9 @@ test("the sign-in answers every question in a real terminal, and echoes no passw
 test("sign-in --folder refuses a folder that does not exist before any question, and --upload-folder is no option", () => {
   const dir = mkdtempSync(join(tmpdir(), "actor-options-"));
   mkdirSync(join(dir, "uploads"));
-  assert.deepEqual(options(["--email", USER.email, "--folder", dir]), { project: undefined, email: USER.email, url: undefined, key: undefined, newPassword: false, secondFactor: false, folder: dir, owner: false });
+  assert.deepEqual(options(["--email", USER.email, "--folder", dir]), { project: undefined, email: USER.email, url: undefined, key: undefined, newPassword: false, secondFactor: false, folder: dir, owner: false, local: false });
   assert.throws(() => options(["--folder", join(dir, "missing")]), /given as --folder, is not a folder/);
-  assert.throws(() => options(["--folder", dir, "--upload-folder", join(dir, "uploads")]), /unknown option --upload-folder\. Usage: node sign-in\.mjs .*\[--folder <session folder>\]$/);
+  assert.throws(() => options(["--folder", dir, "--upload-folder", join(dir, "uploads")]), /unknown option --upload-folder\. Usage: node sign-in\.mjs .*\[--folder <session folder> \[--local\]\]$/);
   assert.doesNotMatch(USAGE, /upload/);
 });
 

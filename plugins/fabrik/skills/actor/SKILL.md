@@ -31,6 +31,13 @@ One folder on the person's computer works in one business's project as one perso
 **actor file**, `.fabrik-actor.json`, which names the project and the person's email address. It holds no
 password and no token.
 
+Some people can't add the fabrik-apps connector, such as a member of a Claude team that allows no custom
+connectors. They sign the folder in with `fabrik sign-in --folder <folder> --local`. The actor file then says
+`"connector": "local"`, and the folder goes on the list of local folders in `~/.config/fabrik`. The fabrik plugin's
+local connector then serves the connector's own tools in a Code session opened there. It passes each call to the
+fabrik-apps hosted function with the folder's saved sign-in. In a folder not on that list it lists no tools, whatever
+the folder's actor file says.
+
 The folder is the **agent folder**, the person's one folder for their agent.
 The person puts files there for the agent, and the agent uploads files directly in it into Storage.
 The agent also reads a call's JSON arguments there and writes its result there. It draws and

@@ -746,7 +746,7 @@ else { console.error("unexpected: " + cmd); process.exit(9); }
   await Deno.mkdir(`${ownerFolder}/sign-in`, { recursive: true });
   await Deno.writeTextFile(`${ownerFolder}/sign-in/notes.md`, "Olive's own notes.\n");
   const pageDir = `${ownerHome}/.config/fabrik/sign-in/${OWNER_REF}`;
-  owned = await ownerSetup([MGMT_TOKEN, "yes", "Olive Owner", "", PASSWORD, PASSWORD]);
+  owned = await ownerSetup([MGMT_TOKEN, "yes", "Olive Owner", "", PASSWORD, PASSWORD, "no"]);
   quote(owned.out);
   check("killed after a refused step and run again: it asks to clear the earlier attempt, then one progress line per stage, in order, ending with the summary, exit 0",
     owned.status === 0 && owned.out.includes("An earlier setup in Olive's fabrik stopped part way. Type 'yes' to clear it and set fabrik up again: yes\n")
@@ -754,8 +754,14 @@ else { console.error("unexpected: " + cmd); process.exit(9); }
         "Signed in as olive@owner.example.", "Making you the administrator: done.", "Checking everything works: done.", "Saving the setup record: done.", "Signed in to Cloudflare as olive@owner.example.", `Your sign-in page: done, at ${PAGES}.`,
         "Asymmetric signing key: already done.", "OAuth server, with dynamic OAuth apps: done.", "Authorization path /oauth/consent: done.", `Site URL ${PAGES}/prod: done.`, "Public sign-up off: done.",
         "fabrik is set up in Olive's fabrik, and you are its administrator.", "Your Supabase plan is Free, which pauses a project nobody uses for a week. A paid plan keeps it running.",
-        "One step is left. In Claude, open Settings, Connectors, and add a custom connector named fabrik at this address:",
-        `${PROJECT_URL}/functions/v1/fabrik-apps`, "Sign in there with the fabrik email and password you chose in this setup, not your Claude or Supabase login."]), owned.out);
+        "Can you add a custom connector in Claude's Settings? Some Claude teams don't allow it. Type 'no' if you can't, or press Enter if you can: no",
+        `fabrik's local connector is on in ${ownerFolder}. Open a Code session in the Claude desktop app in that folder, and fabrik's tools are there, with no connector in Claude's Settings.`,
+        "fabrik reaches only that folder's Code sessions this way, not claude.ai, the phone app or Cowork."]) && !owned.out.includes("One step is left"), owned.out);
+  const localList = await Deno.readTextFile(`${ownerHome}/.config/fabrik/local-folders.json`).catch(() => "null");
+  check("an owner who can't add a custom connector has the folder's actor file say connector local, and the folder on the list of local folders",
+    JSON.stringify(JSON.parse(Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`))) === JSON.stringify({ project_ref: OWNER_REF, auth_email: "olive@owner.example", connector: "local" })
+      && JSON.stringify(JSON.parse(localList)?.folders) === JSON.stringify([await Deno.realPath(ownerFolder)]),
+    { actor: Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`), localList });
   check("the owner's sign-in asks their name, offers their Supabase account's email, which Enter takes, asks their password twice, and shows no password",
     /Your name: Olive Owner\nYour email \(Enter for olive@owner\.example\): \nNothing shows as you type or paste\. Do it once, then press Enter\.\nChoose a password: \nNothing shows as you type or paste\. Do it once, then press Enter\.\nThe password again: \n/.test(owned.out) && !ownerOutputs.join("").includes(PASSWORD), owned.out);
   const wranglerCalls = Deno.readTextFileSync(`${ownerBin}/wrangler.log`).trim().split("\n").map(l => JSON.parse(l));
@@ -795,6 +801,9 @@ else { console.error("unexpected: " + cmd); process.exit(9); }
     mgmt.config.disable_signup === true, mgmt.config);
   kept = await readProject();
   check(".fabrik-setup-project.json keeps the project and the sign-in page's address, for a run again", kept?.ref === OWNER_REF && kept.site === PAGES, kept);
+
+  // The owner adds the connector after all, and takes "connector": "local" out of the folder's actor file.
+  Deno.writeTextFileSync(`${ownerFolder}/.fabrik-actor.json`, JSON.stringify({ project_ref: OWNER_REF, auth_email: "olive@owner.example" }));
 
   // E. Run again: setup has finished, so it goes straight to the connector's settings, all already done. A token is
   // pasted before its prompt, as a person may: it is not shown, and not joined to the one pasted at the prompt.
