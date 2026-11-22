@@ -22,7 +22,7 @@ fabrik stores your routines, records and files in a Supabase project you own. Cl
 
 ## How it acts
 
-Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Nothing in fabrik runs unattended: Claude acts only while you are in a session, on what you asked for in it.
+Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Claude acts while you are in a session, on what you asked for in it. fabrik itself schedules nothing. To have work done while you're away, set up one of Claude's own scheduled tasks, as the guide to fabrik in each Claude app says.
 
 ## Your agent's name
 
