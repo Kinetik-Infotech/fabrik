@@ -15,11 +15,17 @@
 // A check saves at most CHATS_PER_CHECK chats, the ones with the oldest messages first, so the recent history a link
 // brings reaches fabrik in batches its search reads in its own time. The other chats wait in the same list. A link
 // saves nothing: the first check after it does.
+//
+// Senders are named before a batch is saved. WhatsApp names many people only by a LID, an internal id that is not a
+// phone number, so each LID is looked up in what the check has learnt: lids.json, the LID and phone pairs, and
+// names.json, the names from contacts and messages. Both are filled from history, Baileys' events and its own store of
+// LIDs, and the person's own LID and number come from the link's keys.
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync, renameSync, chmodSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { formatInbound, chatKind, jidUser } from "./handler.mjs";
+import { formatInbound, chatKind, jidUser, cleanName, isLid, isPhone } from "./handler.mjs";
 import { pullWhatsApp as defaultPull } from "./baileys.mjs";
+import { namesToGive, readChats } from "./archive.mjs";
 
 export const PENDING = "pending.jsonl";
 export const LOCK = "check.lock";
@@ -28,15 +34,45 @@ export const GROUPS = "groups.json";
 export const CHATS_PER_CHECK = 20;
 /** Each direct chat's LID and phone number, learnt from WhatsApp, so a chat named either way leads to one file. */
 export const LIDS = "lids.json";
+/** The names learnt for people, by JID, from contacts and from the names people gave WhatsApp. */
+export const NAMES = "names.json";
 
 const phoneJid = jid => `${jidUser(jid)}@s.whatsapp.net`;
-const readLids = dir => { try { return JSON.parse(readFileSync(join(dir, LIDS), "utf8")) ?? {}; } catch { return {}; } };
-function saveLids(dir, pairs) {
-  if (!Object.keys(pairs).length) return;
-  const file = join(dir, LIDS);
+const readMap = (dir, name) => { try { const map = JSON.parse(readFileSync(join(dir, name), "utf8")); return map && typeof map === "object" ? map : {}; } catch { return {}; } };
+/** Adds `pairs` to a map in the keys folder. `under` are added only where the map has nothing. */
+function addToMap(dir, name, pairs, under = {}) {
+  if (!Object.keys(pairs).length && !Object.keys(under).length) return;
+  const file = join(dir, name);
   const temp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(temp, JSON.stringify({ ...readLids(dir), ...pairs }, null, 1), { mode: 0o600 });
+  writeFileSync(temp, JSON.stringify({ ...under, ...readMap(dir, name), ...pairs }, null, 1), { mode: 0o600 });
   renameSync(temp, file);
+}
+const readLids = dir => readMap(dir, LIDS);
+const saveLids = (dir, pairs) => addToMap(dir, LIDS, pairs);
+
+/** The person's own LID and phone number, from the link's keys, as { lid: phone }, or {}. */
+export function selfPair(dir) {
+  const me = readMap(dir, "creds.json").me;
+  return isLid(`${me?.lid ?? ""}`.replace(/:\d+@/, "@")) && isPhone(`${me?.id ?? ""}`.replace(/:\d+@/, "@"))
+    ? { [`${jidUser(me.lid)}@lid`]: phoneJid(me.id) } : {};
+}
+
+/**
+ * The record with its sender named from what was learnt: the name they gave WhatsApp, else a contact's name, else their
+ * phone number. A sender known only by a LID keeps an empty `from`, so the file never shows a LID as a number.
+ */
+export function withSender(r, lids, names) {
+  if (r.fromMe) return r;
+  // A record from before senders were kept names a LID sender as "+<LID>".
+  const old = !r.sender && /^\+(\d+)$/.exec(r.from ?? "");
+  const sender = r.sender || (old && (lids[`${old[1]}@lid`] || names[`${old[1]}@lid`]) ? `${old[1]}@lid` : "");
+  if (r.from && !old) return r;
+  if (r.from && old && !sender) return r;
+  const ids = [sender, r.senderAlt].filter(Boolean);
+  const all = [...ids, ...ids.filter(isLid).map(l => lids[l]).filter(Boolean)];
+  const name = all.map(j => cleanName(names[j])).find(Boolean);
+  const phone = all.find(isPhone);
+  return { ...r, sender, from: name || (phone ? `+${jidUser(phone)}` : "") };
 }
 
 /** The LID and phone pair a record names, as { lid: phone }, or null. */
@@ -67,14 +103,8 @@ export function nextBatch(list, limit = CHATS_PER_CHECK) {
   return list.filter(m => chosen.has(m.chat));
 }
 
-const readGroups = dir => { try { return JSON.parse(readFileSync(join(dir, GROUPS), "utf8")) ?? {}; } catch { return {}; } };
-function saveGroups(dir, names) {
-  if (!Object.keys(names).length) return;
-  const file = join(dir, GROUPS);
-  const temp = `${file}.${randomUUID()}.tmp`;
-  writeFileSync(temp, JSON.stringify({ ...readGroups(dir), ...names }, null, 1), { mode: 0o600 });
-  renameSync(temp, file);
-}
+const readGroups = dir => readMap(dir, GROUPS);
+const saveGroups = (dir, names) => addToMap(dir, GROUPS, names);
 
 /** The messages waiting to be saved, each once, in the order they came. A line cut short by a crash is skipped. */
 export function readPending(authDir) {
@@ -127,16 +157,30 @@ export function takeLock(authDir) {
   return null;
 }
 
-/** Group names, read while the socket is open: a query, never a message. Each waits at most `ms`. */
+/** A promise, or a refusal once `ms` have passed. */
+async function within(promise, ms) {
+  let timer;
+  try { return await Promise.race([promise, new Promise((_, no) => { timer = setTimeout(() => no(new Error("timeout")), ms); })]); }
+  finally { clearTimeout(timer); }
+}
+
+/** Group names, read while the socket is open: queries, never a message. The groups the person is in come in one
+ * query. A group that query can't answer is asked alone, each waiting at most `ms`. */
 async function groupNames(sock, jids, ms = 5000) {
   const names = {};
-  for (const jid of jids) {
-    let timer;
+  if (typeof sock?.groupFetchAllParticipating === "function") {
     try {
-      const meta = await Promise.race([sock.groupMetadata(jid), new Promise((_, no) => { timer = setTimeout(() => no(new Error("timeout")), ms); })]);
+      const all = await within(sock.groupFetchAllParticipating(), 10_000);
+      for (const [jid, meta] of Object.entries(all ?? {})) if (typeof meta?.subject === "string" && meta.subject.trim()) names[jid] = meta.subject.trim();
+      return names;
+    } catch { /* each group is asked alone */ }
+  }
+  if (typeof sock?.groupMetadata !== "function") return names;
+  for (const jid of jids) {
+    try {
+      const meta = await within(sock.groupMetadata(jid), ms);
       if (typeof meta?.subject === "string" && meta.subject.trim()) names[jid] = meta.subject.trim();
     } catch { /* the file is named by the group's id */ }
-    finally { clearTimeout(timer); }
   }
   return names;
 }
@@ -169,9 +213,23 @@ export function createWhatsAppPull({ authDir, archive, log = () => {}, pullImpl 
       const taken = [];
       let ignored = 0;
       const fromHistory = { chats: new Set(), messages: 0 };
+      // What this run learns of people and groups: pairs, contacts' names, push names, group names.
+      const learnt = { lids: {}, names: {}, pushNames: {}, groups: {} };
+      const onContacts = ({ lids = {}, names = {}, groups = {} } = {}) => {
+        Object.assign(learnt.lids, lids);
+        Object.assign(learnt.names, names);
+        Object.assign(learnt.groups, groups);
+      };
+      const keepLearnt = () => {
+        saveLids(authDir, learnt.lids);
+        addToMap(authDir, NAMES, learnt.names, learnt.pushNames);
+        saveGroups(authDir, learnt.groups);
+      };
       const onMessage = (waMessage, meta) => {
         let record = formatInbound(waMessage);
         if (!record) { ignored += 1; return; }
+        const push = cleanName(waMessage.pushName);
+        if (push && !record.fromMe) for (const jid of [record.sender, record.senderAlt]) if (jid) learnt.pushNames[jid] = push;
         if (meta?.alt && !record.alt && record.kind === "direct" && meta.alt !== record.chat) {
           record = { ...record, alt: meta.alt, number: record.number || (meta.alt.endsWith("@s.whatsapp.net") ? jidUser(meta.alt) : "") };
         }
@@ -185,49 +243,54 @@ export function createWhatsAppPull({ authDir, archive, log = () => {}, pullImpl 
       };
       const names = {};
       const drained = async sock => {
-        const groups = [...new Set(taken.filter(r => chatKind(r.chat) === "group").map(r => r.chat))];
+        keepLearnt();
+        // Every chat and saved file still to be named: what this run took, what waits, and what is saved under an id.
+        const all = [...taken, ...readPending(authDir)];
+        const groups = [...new Set([...all.map(r => r.chat), ...Object.keys(readChats(authDir))].filter(c => chatKind(c) === "group"))];
         const known = readGroups(authDir);
         const unnamed = groups.filter(g => !known[g]);
-        if (unnamed.length && typeof sock?.groupMetadata === "function") Object.assign(names, await groupNames(sock, unnamed));
+        if (unnamed.length) Object.assign(names, await groupNames(sock, unnamed));
         saveGroups(authDir, names);
-        // A direct chat WhatsApp names only by its LID: Baileys' own store of LIDs and phone numbers names its number.
+        // A chat or sender WhatsApp names only by a LID: Baileys' own store of LIDs and phone numbers names its number.
         const paired = readLids(authDir);
-        const lids = [...new Set(taken.filter(r => r.chat.endsWith("@lid") && !r.alt && !paired[r.chat]).map(r => r.chat))];
+        const lids = [...new Set(all.flatMap(r => [r.alt ? "" : r.chat, r.sender, r.senderAlt]).filter(j => isLid(j) && !paired[j]))];
         const lookup = sock?.signalRepository?.lidMapping;
         const found = {};
         for (const lid of typeof lookup?.getPNForLID === "function" ? lids : []) {
-          let timer;
           try {
-            const pn = await Promise.race([lookup.getPNForLID(lid), new Promise((_, no) => { timer = setTimeout(() => no(new Error("timeout")), 2000); })]);
+            const pn = await within(lookup.getPNForLID(lid), 2000);
             if (typeof pn === "string" && pn.includes("@")) found[lid] = phoneJid(pn);
-          } catch { /* the chat keeps its LID */ }
-          finally { clearTimeout(timer); }
+          } catch { /* the LID stays unknown */ }
         }
         saveLids(authDir, found);
         if (afterDrain) await afterDrain(sock);
       };
-      const r = await pullImpl({ authDir, log: plog, selfNumber, pair, onMessage, onPairingCode, afterDrain: drained, history, now });
+      const r = await pullImpl({ authDir, log: plog, selfNumber, pair, onMessage, onContacts, onPairingCode, afterDrain: drained, history, now });
 
       // Once the phone accepts the code, WhatsApp asks for a new connection, and the phone sends the history on it.
       let historyReason;
       if (pair && r.reason === "linked" && history) {
         plog("history-wait", {});
-        const h = await pullImpl({ authDir, log: plog, onMessage, afterDrain: drained, history, waitHistory: true, now });
+        const h = await pullImpl({ authDir, log: plog, onMessage, onContacts, afterDrain: drained, history, waitHistory: true, now });
         historyReason = h.reason;
         r.count = h.count;
         plog("history-done", { reason: h.reason ?? "none", chats: fromHistory.chats.size, messages: fromHistory.messages, ...Object.fromEntries(Object.entries(h.history ?? {}).map(([k, v]) => [k, `${v.chats}/${v.messages}`])) });
       }
 
-      // What waited from before, and what this run took, each message once, with the LID and phone pairs it names.
-      saveLids(authDir, Object.assign({}, ...readPending(authDir).map(pairOf).filter(Boolean)));
+      // What waited from before, and what this run took, each message once, with the LID and phone pairs it names, the
+      // person's own among them, and each sender named.
+      keepLearnt();
+      saveLids(authDir, Object.assign(selfPair(authDir), ...readPending(authDir).map(pairOf).filter(Boolean)));
       const lids = readLids(authDir);
-      const waiting = readPending(authDir).map(r => withAlias(r, lids));
+      const people = readMap(authDir, NAMES);
+      const waiting = readPending(authDir).map(r => withSender(withAlias(r, lids), lids, people));
 
       let report = null;
       let saved = 0;
-      if (waiting.length && archive && trigger !== "link") {
+      const groupNamesKnown = { ...readGroups(authDir), ...names };
+      if ((waiting.length || namesToGive(authDir, groupNamesKnown)) && archive && trigger !== "link") {
         try {
-          report = await archive(nextBatch(waiting), { ...readGroups(authDir), ...names });
+          report = await archive(nextBatch(waiting), groupNamesKnown);
           const done = new Set((report?.saved ?? []).map(m => `${m.chat} ${m.id}`));
           const left = waiting.filter(m => !done.has(`${m.chat} ${m.id}`));
           saved = waiting.length - left.length;

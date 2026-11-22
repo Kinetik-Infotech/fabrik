@@ -24,7 +24,11 @@ const history = () => {
   writeFileSync(counter, String(sent));
   return { holdMs: sent === 1 ? holdMs : undefined, chunks: chunks.filter(c => (sent === 1 ? !c.later : c.later && sent === 2)) };
 };
-const groups = { "120363000000000001@g.us": "Family" };
+// The group names WhatsApp gives, from the JSON file WHATSAPP_TEST_GROUPS names when a test sets one, read at each
+// connection, so a test can give a name later.
+const groups = () => {
+  try { return JSON.parse(readFileSync(process.env.WHATSAPP_TEST_GROUPS, "utf8")); } catch { return { "120363000000000001@g.us": "Family" }; }
+};
 const lids = { "88888888888888@lid": "447222000222:0@s.whatsapp.net" };
 
 const accept = process.env.WHATSAPP_TEST_ACCEPT !== "no";
@@ -35,5 +39,5 @@ export const waitMs = Number(process.env.WHATSAPP_TEST_WAIT_MS ?? 60000);
 
 export const pullWhatsApp = options => real({
   ...options, quietMs: Number(process.env.WHATSAPP_TEST_QUIET_MS ?? 100), historyQuietMs: Number(process.env.WHATSAPP_TEST_HISTORY_QUIET_MS ?? 180000), linkTimeoutMs,
-  baileys: fakeBaileys({ messages, history: options.pair ? () => ({ chunks: [] }) : history, calls, groups, lids, accept, lateMs }),
+  baileys: fakeBaileys({ messages, history: options.pair ? () => ({ chunks: [] }) : history, calls, groups: groups(), lids, accept, lateMs }),
 });

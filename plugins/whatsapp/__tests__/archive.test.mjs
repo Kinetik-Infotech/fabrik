@@ -72,7 +72,7 @@ test("a chat whose file can't be written waits, and the other chats are still sa
 
 test("file names stay one safe part of a path", () => {
   assert.equal(fileName("../Mum / Dad: \"home\""), "Mum Dad home");
-  assert.equal(fileName("..."), "chat");
+  assert.equal(fileName("..."), "", "a name with nothing safe in it leaves the chat's id to name its file");
 });
 
 test("a sender's text can't pass for a message id, a day or a chat, however it breaks its lines", async () => {

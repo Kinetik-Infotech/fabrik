@@ -84,9 +84,19 @@ days, and the messages it held for it are lost.
 
 ## Read what was saved
 
-Each chat file starts with the chat's name, and the other person's number when WhatsApp gives it. Each day has its
-own heading, and each message is a line with its time, the sender and the text. The person's own messages show as
+Each chat file starts with the chat's full name, and the other person's number when WhatsApp gives it. Each day has
+its own heading, and each message is a line with its time, the sender and the text. The person's own messages show as
 Me. A group's file is named after the group.
+
+fabrik's storage takes only plain letters, digits, spaces and a few marks in a file name. So a file name drops accents,
+emoji and curly quotes, and the first line keeps the name as WhatsApp has it. A group whose name WhatsApp hadn't given
+yet is saved as `whatsapp/group <id>.md`. It keeps that file once the name comes, and the name goes in its first line.
+
+WhatsApp names some people only by an internal id, not a phone number. The plugin shows such a sender by name or
+number once it learns them. Until then the line shows them as `Unknown (WhatsApp id …)`.
+
+When a check finds one chat saved in two files, it adds the second file's messages to the first and says so. The
+person can then delete the second file in fabrik.
 
 To answer a question about WhatsApp, search fabrik for the person's or the group's name and the words they asked
 about. Then read the chat's file with fabrik's `read_file`. In a Code session on the linked computer, check first, so

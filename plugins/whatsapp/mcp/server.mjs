@@ -12,8 +12,8 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync 
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { halfLinked, linkedState, pullWhatsApp } from "./baileys.mjs";
-import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, LIDS, PENDING, readPending } from "./pull.mjs";
-import { MONTHS, saveChats } from "./archive.mjs";
+import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, LIDS, NAMES, PENDING, readPending } from "./pull.mjs";
+import { MONTHS, saveChats, TITLED } from "./archive.mjs";
 import { normalizeE164 } from "./normalize.mjs";
 import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
 
@@ -51,8 +51,8 @@ const credsOf = dir => readJson(join(dir, "creds.json"), null);
 const stateOf = dir => linkedState(credsOf(dir));
 
 /** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files and group
- * names, the LID and phone pairs, the scope. */
-const KEPT = new Set([PENDING, "chats.json", MONTHS, GROUPS, LIDS, "settings.json"]);
+ * names, the LID and phone pairs, people's names, the scope. */
+const KEPT = new Set([PENDING, "chats.json", MONTHS, GROUPS, TITLED, LIDS, NAMES, "settings.json"]);
 
 /** Deletes the link's keys and keeps the rest of the folder. */
 function clearKeys(dir) {
@@ -124,10 +124,12 @@ function summary(r) {
   if (report?.scope) {
     const changed = (report.chats ?? []).filter(c => c.added);
     if (changed.length) lines.push(`Saved in ${report.scope.name} (${report.scope.code}):`, ...changed.map(c => `- ${c.file}: ${c.added} new`));
+    for (const f of report.titled ?? []) lines.push(`- ${f.file} is the group ${f.name}, and now says so in its first line.`);
+    for (const j of report.joined ?? []) lines.push(`- ${j.file} was the same chat as ${j.into}. Its messages are now in ${j.into} too, so it can be deleted.`);
     for (const f of report.failed ?? []) lines.push(`- ${f.file} wasn't saved: ${f.problem}`);
   }
   const added = (report?.chats ?? []).reduce((n, c) => n + c.added, 0);
-  if (!r.reason && !added && !report?.problem && !report?.failed?.length) lines.push("No new messages.");
+  if (!r.reason && !added && !report?.problem && !report?.failed?.length && !report?.titled?.length && !report?.joined?.length) lines.push("No new messages.");
   if (r.waiting) lines.push(waitingLine(r.waiting, r.chatsWaiting ?? 1, "on this computer to be saved at the next check."));
   return lines.join("\n");
 }
