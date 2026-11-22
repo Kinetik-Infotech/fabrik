@@ -25,7 +25,7 @@
     },
     {
       "name": "whatsapp",
-      "description": "Reads your WhatsApp messages and saves each chat in your private fabrik scope, so Claude finds them in every app. It links as a device by a code you type on your phone, and never sends, replies or marks a message read.",
+      "description": "Reads your WhatsApp messages and saves each chat in your private fabrik scope, so Claude finds them in every app. It links as a device by a code you type on your phone, and never sends, replies or marks a message read, because Meta bans numbers that send automated messages.",
       "source": "./plugins/whatsapp"
     },
     {
