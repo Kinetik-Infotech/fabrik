@@ -12,8 +12,8 @@ import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync 
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { halfLinked, linkedState, pullWhatsApp } from "./baileys.mjs";
-import { createWhatsAppPull, PENDING, readPending } from "./pull.mjs";
-import { saveChats } from "./archive.mjs";
+import { CHATS_PER_CHECK, chatsIn, createWhatsAppPull, GROUPS, PENDING, readPending } from "./pull.mjs";
+import { MONTHS, saveChats } from "./archive.mjs";
 import { normalizeE164 } from "./normalize.mjs";
 import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
 
@@ -50,8 +50,9 @@ const saveSettings = (dir, value) => writeFileSync(join(dir, "settings.json"), J
 const credsOf = dir => readJson(join(dir, "creds.json"), null);
 const stateOf = dir => linkedState(credsOf(dir));
 
-/** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files, the scope. */
-const KEPT = new Set([PENDING, "chats.json", "settings.json"]);
+/** What the keys folder keeps when a link is dropped: the messages waiting to be saved, the chats' files and group
+ * names, the scope. */
+const KEPT = new Set([PENDING, "chats.json", MONTHS, GROUPS, "settings.json"]);
 
 /** Deletes the link's keys and keeps the rest of the folder. */
 function clearKeys(dir) {
@@ -61,7 +62,16 @@ function clearKeys(dir) {
 }
 
 const plural = (n, one) => `${n} ${one}${n === 1 ? "" : "s"}`;
+const waits = n => (n === 1 ? "waits" : "wait");
+
+/** The messages waiting on this computer, and their chats, as one sentence. */
+function waitingLine(messages, chats, end) {
+  const more = chats > CHATS_PER_CHECK ? ` Each check saves ${CHATS_PER_CHECK} chats.` : "";
+  return `${plural(messages, "message")} from ${plural(chats, "chat")} ${waits(messages)} ${end}${more}`;
+}
 const BUSY = "A check is under way. Try again once it ends, in under a minute.";
+const WAIT_MS = hooks.waitMs ?? 60_000;
+const historyCount = h => `${plural(h.messages, "message")} from ${plural(h.chats, "chat")}`;
 
 /** The person fabrik signs in as, and their keys folder: { ok, ref, email, dir } or { ok: false, problem }. */
 function who() {
@@ -106,12 +116,14 @@ function summary(r) {
   }
   const added = (report?.chats ?? []).reduce((n, c) => n + c.added, 0);
   if (!r.reason && !added && !report?.problem && !report?.failed?.length) lines.push("No new messages.");
-  if (r.waiting) lines.push(`${plural(r.waiting, "message")} ${r.waiting === 1 ? "waits" : "wait"} on this computer to be saved at the next check.`);
+  if (r.waiting) lines.push(waitingLine(r.waiting, r.chatsWaiting ?? 1, "on this computer to be saved at the next check."));
   return lines.join("\n");
 }
 
-/** The link under way, while the person types the code. */
+/** The link under way, while the person types the code and the phone sends the history: { run, history }. */
 const links = new Map();
+/** A link's answer once it has ended, kept for the whatsapp_link_wait that comes after it. */
+const linkEnded = new Map();
 
 const TOOLS = [
   {
@@ -121,31 +133,37 @@ const TOOLS = [
     annotations: { readOnlyHint: true },
     async run(person) {
       const { linked, number } = stateOf(person.dir);
-      const waiting = readPending(person.dir).length;
+      const pending = readPending(person.dir);
+      const waiting = pending.length;
       const settings = settingsOf(person.dir);
+      const link = links.get(person.dir);
       return text([
         linked ? `WhatsApp is linked as +${number}.` : "WhatsApp isn't linked on this computer.",
         `fabrik sign-in: ${person.email}.`,
         settings.scope ? `Chats go in the private scope ${settings.scope}.` : "Chats go in your private fabrik scope.",
+        ...(linked ? [settings.history ? "Recent history was brought in at linking." : "Recent history wasn't brought in. The phone sends it only at linking, so linking again with relink brings it."] : []),
         ...(settings.lastCheck ? [`Last check: ${settings.lastCheck}.`] : []),
-        ...(waiting ? [`${plural(waiting, "message")} ${waiting === 1 ? "waits" : "wait"} to be saved.`] : []),
-        ...(links.has(person.dir) ? ["A link is waiting for the code to be typed on the phone."] : []),
+        ...(waiting ? [waitingLine(waiting, chatsIn(pending), "to be saved.")] : []),
+        ...(link && !linked ? ["A link is waiting for the code to be typed on the phone."] : []),
+        ...(link && linked ? [`The phone is sending recent history: ${historyCount(link.history)} so far.`] : []),
       ].join("\n"));
     },
   },
   {
     name: "whatsapp_link",
-    description: "Starts linking the person's WhatsApp as a device on this computer. Takes the WhatsApp number in international format. Answers an 8-character code the person types on their phone, under WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead. Then call whatsapp_link_wait.",
+    description: "Starts linking the person's WhatsApp as a device on this computer. Takes the WhatsApp number in international format, and the person's choice whether to bring in recent history. Ask them first: the phone sends recent history only at linking. Answers an 8-character code the person types on their phone, under WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead. Then call whatsapp_link_wait.",
     inputSchema: {
       type: "object",
       properties: {
         phone: { type: "string", description: "The WhatsApp number to link, in international format, such as +44 7700 900123." },
+        history: { type: "boolean", description: "The person's answer: true to bring in the recent chats the phone sends at linking, false for new messages only. The phone sends them only at linking, so ask before every link." },
         relink: { type: "boolean", description: "True to drop the link this computer holds and link again." },
       },
-      required: ["phone"],
+      required: ["phone", "history"],
       additionalProperties: false,
     },
-    async run(person, { phone, relink = false }) {
+    async run(person, { phone, history, relink = false }) {
+      if (typeof history !== "boolean") return refused("Ask the person whether to bring in recent history first, and pass their answer as history, true or false. The phone sends it only at linking, so adding it later means linking again.");
       const digits = normalizeE164(phone);
       if (!digits || digits.length < 8) return refused(`${phone} isn't a phone number. Give it in international format, such as +44 7700 900123.`);
       if (links.has(person.dir)) return refused("A link is already waiting for its code. Call whatsapp_link_wait, or wait three minutes for it to end.");
@@ -156,13 +174,17 @@ const TOOLS = [
       if (halfLinked(credsOf(person.dir))) notes.push("The last code was never typed, so this is a fresh link with a new code.");
       if (state.linked || halfLinked(credsOf(person.dir))) clearKeys(person.dir);
       const waiting = readPending(person.dir).length;
-      if (waiting) notes.push(`${plural(waiting, "message")} from the old link ${waiting === 1 ? "waits" : "wait"} to be saved. The first check after the link saves them.`);
+      if (waiting) notes.push(`${plural(waiting, "message")} from the old link ${waits(waiting)} to be saved. The first check after the link saves them.`);
       makeKeysFolder(person.dir);
+      saveSettings(person.dir, { ...settingsOf(person.dir), history });
       let gotCode;
       const code = new Promise(resolve => { gotCode = resolve; });
-      const run = pullFor(person).run({ trigger: "link", pair: true, selfNumber: digits, onPairingCode: c => gotCode(c) });
-      links.set(person.dir, run);
-      run.finally(() => { links.delete(person.dir); lockDown(person.dir); gotCode(null); });
+      const link = { run: null, history: { chats: 0, messages: 0 } };
+      const run = pullFor(person).run({ trigger: "link", pair: true, selfNumber: digits, onPairingCode: c => gotCode(c), history, onHistory: n => { link.history = n; } });
+      link.run = run;
+      links.set(person.dir, link);
+      linkEnded.delete(person.dir);
+      run.then(r => linkEnded.set(person.dir, r), () => {}).finally(() => { links.delete(person.dir); lockDown(person.dir); gotCode(null); });
       const first = await Promise.race([code, run.then(() => null), new Promise(r => setTimeout(() => r(null), 30_000))]);
       if (!first) {
         const r = await Promise.race([run, new Promise(res => setTimeout(() => res(null), 1))]);
@@ -175,18 +197,29 @@ const TOOLS = [
   },
   {
     name: "whatsapp_link_wait",
-    description: "Waits up to 60 seconds for the phone to accept the code whatsapp_link gave. Call it again while it says it is still waiting.",
+    description: "Waits up to 60 seconds for the phone to accept the code whatsapp_link gave, and then, when the person chose recent history, for the phone to send it. Call it again while it says it is still waiting.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     annotations: { readOnlyHint: true },
     async run(person) {
-      const run = links.get(person.dir);
-      if (!run) {
+      const link = links.get(person.dir) ?? (linkEnded.has(person.dir) ? { run: Promise.resolve(linkEnded.get(person.dir)) } : null);
+      linkEnded.delete(person.dir);
+      if (!link) {
         const state = stateOf(person.dir);
         return state.linked ? text(`WhatsApp is linked as +${state.number}. Check for messages with whatsapp_check.`) : refused("No link is under way. Start one with whatsapp_link.");
       }
-      const r = await Promise.race([run, new Promise(res => setTimeout(() => res(null), 60_000))]);
-      if (!r) return text("Still waiting for the code to be typed on the phone. Call whatsapp_link_wait again.");
+      const r = await Promise.race([link.run, new Promise(res => setTimeout(() => res(null), WAIT_MS))]);
       const state = stateOf(person.dir);
+      if (!r && state.linked) return text(`WhatsApp is linked as +${state.number}. The phone is still sending recent history: ${historyCount(link.history)} so far. Call whatsapp_link_wait again.`);
+      if (!r) return text("Still waiting for the code to be typed on the phone. Call whatsapp_link_wait again.");
+      if (state.linked && settingsOf(person.dir).history) {
+        const lines = [`WhatsApp is linked as +${state.number}.`];
+        if (r.history?.messages) lines.push(`Recent history brought ${historyCount(r.history)}.`);
+        else lines.push("The phone sent no recent history.");
+        if (r.historyReason) lines.push(`The connection ended before the phone said the history was complete (${r.historyReason}). The next check takes what's left.`);
+        if (r.waiting) lines.push(waitingLine(r.waiting, r.chatsWaiting ?? 1, "on this computer to be saved."));
+        lines.push(`Save them with whatsapp_check. Each check saves ${CHATS_PER_CHECK} chats, so check again while it says chats wait.`);
+        return text(lines.join("\n"));
+      }
       if (state.linked) return text(`WhatsApp is linked as +${state.number}. Check for messages with whatsapp_check.`);
       return refused(r.reason === "connect-timeout" ? "The code ran out before the phone accepted it. Start again with whatsapp_link." : `The link didn't complete. ${summary(r)}`.trim());
     },
