@@ -1,6 +1,6 @@
 {
   "name": "whatsapp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Reads your WhatsApp messages and saves each chat in your private fabrik scope, so Claude finds them through fabrik's search. It links as a device by a code you type on your phone, and never sends, replies or marks a message read.",
   "author": { "name": "Joel Smalley" },
   "keywords": ["whatsapp", "messages", "fabrik", "read-only", "mcp"],

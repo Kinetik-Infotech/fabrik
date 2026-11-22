@@ -16,8 +16,11 @@ ticks.
 When the person asks Claude to send or answer a WhatsApp message, say that this plugin can't, and that they
 send it from their phone.
 
-WhatsApp keeps no history that a linked device can ask for later, the way a mailbox does. So the plugin collects.
-Each check connects, takes what WhatsApp holds for this device since the last check, and
+WhatsApp keeps no history that a linked device can ask for later, the way a mailbox does. The phone sends a new
+device a batch of recent chats once, when it links. If the person chooses it at linking, the plugin saves that batch
+too, so their chats in fabrik start before the day they linked.
+
+After that the plugin collects. Each check connects, takes what WhatsApp holds for this device since the last check, and
 disconnects. It saves each chat as `whatsapp/<chat name>.md` in the person's private fabrik scope. fabrik's search
 then finds the messages in every Claude app, at claude.ai and on the phone too.
 
@@ -38,14 +41,25 @@ saved sign-in, the one `fabrik sign-in` saved for their folder. Open the session
 
 1. Call `whatsapp_status`. If WhatsApp is already linked, say so and stop, unless the person asks to link it again.
 2. Ask for the WhatsApp number, in international format, such as +44 7700 900123.
-3. Call `whatsapp_link` with the number as `phone`. To link again, also pass `relink` true. Show the person the code
+3. Ask whether to bring in their recent chats as well as new messages. Tell them the phone sends recent history only
+   at linking, so adding it later means linking again. Ask this before every link, and wait for their answer.
+4. Call `whatsapp_link` with the number as `phone` and their answer as `history`, true or false. To link again, also
+   pass `relink` true. Show the person the code
    it answers, and tell them how to enter it. On the phone with that number, they open WhatsApp → Settings → Linked
    devices → Link a device. They tap Link with phone number instead, and type the code.
-4. Tell them the phone may ask whether someone else asked for the code. It was them, so they carry on and approve
+5. Tell them the phone may ask whether someone else asked for the code. It was them, so they carry on and approve
    the link. Without that, the link doesn't finish.
-5. Call `whatsapp_link_wait`. While it says it is still waiting, call it again. Don't ask for a new code unless the
-   person asks, or the tool says the code ran out.
-6. Once it says WhatsApp is linked, call `whatsapp_check` for the first time.
+6. Call `whatsapp_link_wait`. While it says it is still waiting, call it again. Don't ask for a new code unless the
+   person asks, or the tool says the code ran out. With history, the phone keeps sending chats for a few minutes after
+   it accepts the code. The tool waits for the last of them and then says how many chats and messages came.
+7. Once it says WhatsApp is linked, call `whatsapp_check` for the first time. With history, call it again while it
+   says chats wait.
+
+When the phone sends more history after the wait ends, the next check saves it.
+
+A person who linked without history and now wants it links again with `relink` true and `history` true. Tell them
+first that WhatsApp sees each link as a new device, which adds to the risk below. `whatsapp_status` says whether the
+link brought history.
 
 ## Check for messages
 
@@ -55,6 +69,11 @@ lately. It answers each chat file that changed and how many messages it gained.
 - The chats go in the person's private fabrik scope. If they own more than one, the tool names them. Ask which one,
   and call it again with that code as `scope`. The plugin remembers it.
 - If they own none, an administrator adds one for them, as section 20 of the `fabrik:records` skill describes.
+- A check saves at most 20 chats, oldest first, so fabrik's search can read the files in its own time. The other chats
+  wait on the computer, and the answer says how many. Check again to save the next 20.
+- No chat file passes 1 MB. When a chat's messages would take its file past that, its older days move to files of
+  their own, each holding one month or part of one, such as `whatsapp/Kate 2026-09.md`. The newest days stay in
+  `whatsapp/Kate.md`.
 - If fabrik can't be reached, the messages wait on the computer, and the next check saves them. WhatsApp has already
   handed them over, so they are nowhere else.
 - A photo, video, voice note or document is noted in the file by its kind, its name and its caption. The plugin

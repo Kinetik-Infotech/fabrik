@@ -36,5 +36,7 @@ export function startServer(env) {
     return { text: result.content.map(c => c.text).join("\n"), isError: !!result.isError };
   };
   const stop = () => new Promise(r => { child.on("exit", r); child.stdin.end(); });
-  return { request, tool, stop, lines, stderr: () => stderr };
+  // As when the Code session closes mid-call: the process ends at once.
+  const kill = () => new Promise(r => { child.on("exit", r); child.kill("SIGKILL"); });
+  return { request, tool, stop, kill, lines, stderr: () => stderr };
 }

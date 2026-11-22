@@ -1,6 +1,11 @@
 // The chat files: one Markdown file per chat, `whatsapp/<chat name>.md`, each day under its own heading. A check adds
 // each chat's new messages to its file. A message whose id the file already holds is skipped, so a check that takes a
 // message twice leaves it in the file once.
+//
+// No file passes FILE_LIMIT. When a chat's messages would take its file past that, its older days move to part files,
+// `whatsapp/<chat name> <year>-<month>.md`, each within one month, and the newest days stay in
+// `whatsapp/<chat name>.md`. A part file is held to the same rule as a chat file: one that names another chat, or that
+// this computer didn't write, is never added to, and the part takes the next name free.
 import { readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -8,6 +13,8 @@ import { jidUser, mediaNote, cleanName } from "./handler.mjs";
 
 export const FOLDER = "whatsapp";
 const CHATS = "chats.json";
+export const MONTHS = "months.json";
+export const FILE_LIMIT = 1024 * 1024;
 // A message's id, read only at the end of a list item's first line, where entry() writes it.
 const ID = /^- .* <!-- wa:([A-Za-z0-9_.-]+) -->$/gm;
 // The chat a file belongs to, read only on its own line, where mergeChat writes it.
@@ -73,6 +80,34 @@ function items(lines) {
   return out.map(lines => ({ time: /^- (\d{2}:\d{2})/.exec(lines[0])?.[1] ?? "", text: lines.join("\n") }));
 }
 
+/** A chat file's lines before its first day, and each day's lines: { head, days }. */
+function parseChat(text) {
+  const head = [];
+  const days = new Map();
+  let current = null;
+  for (const line of String(text).split("\n")) {
+    const day = DAY.exec(line);
+    if (day) { current = day[1]; if (!days.has(current)) days.set(current, []); continue; }
+    if (current) days.get(current).push(line);
+    else head.push(line);
+  }
+  return { head, days };
+}
+
+/** A chat file from its head and days, each day's messages in time order. */
+function renderChat(head, days) {
+  const top = [...head];
+  while (top.length && !top[top.length - 1].trim()) top.pop();
+  const out = [...top, ""];
+  for (const day of [...days.keys()].sort()) {
+    const sorted = items(days.get(day)).map((x, i) => ({ ...x, i })).sort((a, b) => a.time.localeCompare(b.time) || a.i - b.i);
+    out.push(`## ${day}`, "", ...sorted.map(x => x.text), "");
+  }
+  return out.join("\n");
+}
+
+const newFile = (title, chat) => `# ${oneLine(title)}\n${chat ? `<!-- wa-chat:${chat} -->\n` : ""}`;
+
 /**
  * The chat file with `records` added: { text, added }. `existing` is the file as fabrik holds it, or null for a new one.
  * What the file held stays as it was; each new message goes under its day's heading, in time order.
@@ -82,52 +117,135 @@ export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
   const fresh = [...records].filter(m => !have.has(safeId(m.id))).sort((a, b) => a.at - b.at);
   const unique = fresh.filter((m, i) => fresh.findIndex(o => o.id === m.id) === i);
   if (!unique.length && existing !== null) return { text: existing, added: 0 };
-
-  const head = [];
-  const days = new Map();
-  let current = null;
-  for (const line of (existing ?? `# ${oneLine(title)}\n${chat ? `<!-- wa-chat:${chat} -->\n` : ""}`).split("\n")) {
-    const day = DAY.exec(line);
-    if (day) { current = day[1]; if (!days.has(current)) days.set(current, []); continue; }
-    if (current) days.get(current).push(line);
-    else head.push(line);
-  }
+  const { head, days } = parseChat(existing ?? newFile(title, chat));
   for (const m of unique) {
     const { day } = when(m.at, timeZone);
     if (!days.has(day)) days.set(day, []);
     days.get(day).push(...entry(m, timeZone).split("\n"));
   }
-  while (head.length && !head[head.length - 1].trim()) head.pop();
-  const out = [...head, ""];
-  for (const day of [...days.keys()].sort()) {
-    const sorted = items(days.get(day)).map((x, i) => ({ ...x, i })).sort((a, b) => a.time.localeCompare(b.time) || a.i - b.i);
-    out.push(`## ${day}`, "", ...sorted.map(x => x.text), "");
-  }
-  return { text: out.join("\n"), added: unique.length };
+  return { text: renderChat(head, days), added: unique.length };
 }
 
-/** The file each chat keeps, from chats.json in the keys folder, so a chat stays in one file when a name changes. */
-export function readChats(dir) {
-  try { const map = JSON.parse(readFileSync(join(dir, CHATS), "utf8")); return map && typeof map === "object" ? map : {}; }
+/** A part file with the days of `more` added, each message once: { text, added }. */
+export function mergeDays(existing, title, more, { chat } = {}) {
+  const have = idsIn(existing);
+  const { head, days } = parseChat(existing ?? newFile(title, chat));
+  let added = 0;
+  for (const [day, lines] of more) {
+    const fresh = items(lines).filter(x => { const id = /<!-- wa:([A-Za-z0-9_.-]+) -->$/m.exec(x.text)?.[1]; return !id || !have.has(id); });
+    if (!fresh.length) continue;
+    if (!days.has(day)) days.set(day, []);
+    for (const x of fresh) days.get(day).push(...x.text.split("\n"));
+    added += fresh.length;
+  }
+  return { text: added || existing === null ? renderChat(head, days) : existing, added };
+}
+
+
+function readJson(file) {
+  try { const map = JSON.parse(readFileSync(file, "utf8")); return map && typeof map === "object" ? map : {}; }
   catch { return {}; }
 }
 
-function writeChats(dir, map) {
-  const file = join(dir, CHATS);
+function writeJson(file, map) {
   const temp = `${file}.${randomUUID()}.tmp`;
   writeFileSync(temp, JSON.stringify(map, null, 1), { mode: 0o600 });
   renameSync(temp, file);
+}
+
+/** The file each chat keeps, from chats.json in the keys folder, so a chat stays in one file when a name changes. */
+export const readChats = dir => readJson(join(dir, CHATS));
+const writeChats = (dir, map) => writeJson(join(dir, CHATS), map);
+
+/** A day's size in a file, in bytes, with its heading. */
+const daySize = (day, lines) => Buffer.byteLength(`## ${day}\n\n${lines.join("\n")}\n`, "utf8");
+
+/** Days, in order, packed into runs that each stay under `room` bytes and within one month. A day bigger than `room`
+ * makes a run of its own. */
+export function packDays(days, room) {
+  const runs = [];
+  let run = null;
+  let size = 0;
+  for (const [day, lines] of days) {
+    const n = daySize(day, lines);
+    if (!run || size + n > room || run[0][0].slice(0, 7) !== day.slice(0, 7)) { run = []; size = 0; runs.push(run); }
+    run.push([day, lines]);
+    size += n;
+  }
+  return runs;
+}
+
+/** The chat a message is saved under: a name `map` already holds for it, else its phone number's name, else its own. */
+export function chatKey(m, map) {
+  const names = [m.chat, m.alt].filter(Boolean);
+  return names.find(n => map[n]) ?? names.find(n => n.endsWith("@s.whatsapp.net")) ?? m.chat;
 }
 
 /**
  * Saves the records, chat by chat, through `files` ({ read(path) → text or null, write(path, text) }). Answers
  * { saved: [records], chats: [{ file, added }], failed: [{ file, problem }] }. A chat whose file can't be read or written
  * is left for the next check, and the others are still saved.
+ *
+ * A direct chat's messages carry its other name in `alt` when WhatsApp gives it, its LID or its phone number, and both
+ * names lead to one file.
+ *
+ * No file passes `limit`. A chat's older days move to part files, `whatsapp/<chat name> <year>-<month>.md` and then
+ * `... <year>-<month> 2.md`, each within one month, and the newest days stay in `whatsapp/<chat name>.md`. months.json
+ * keeps, per chat, the first day each part holds and the first day the chat file holds, so every later message goes to
+ * the file that holds its day.
  */
-export async function saveChats(records, groupNames, { dir, files, timeZone }) {
+export async function saveChats(records, groupNames, { dir, files, timeZone, limit = FILE_LIMIT }) {
   const map = readChats(dir);
+  const months = readJson(join(dir, MONTHS));
+  const keepMonths = () => writeJson(join(dir, MONTHS), months);
+  const dayOf = m => when(m.at, timeZone).day;
+  const partsOf = chat => (Array.isArray(months[chat]?.parts) ? months[chat] : (months[chat] = { until: "", parts: [] }));
+  // The chat files and part files other chats hold.
+  const takenBy = chat => new Set([
+    ...Object.entries(map).filter(([other]) => other !== chat).map(([, file]) => file),
+    ...Object.entries(months).filter(([other]) => other !== chat).flatMap(([, v]) => (Array.isArray(v?.parts) ? v.parts.map(p => p.file) : [])),
+  ]);
+  // A new part file for the chat's month: the first name free whose file is missing or names this chat.
+  const newPart = async (chat, path, month) => {
+    const taken = takenBy(chat);
+    taken.add(path);
+    for (const p of partsOf(chat).parts) taken.add(p.file);
+    const base = path.replace(/\.md$/, "");
+    const stems = [base, `${base} ${jidUser(chat)}`];
+    const names = [...stems.map(stem => `${stem} ${month}`), ...Array.from({ length: 30 }, (_, i) => stems.map(stem => `${stem} ${month} ${i + 2}`)).flat()];
+    for (const file of names.map(n => `${n}.md`)) {
+      if (taken.has(file)) continue;
+      const there = await files.read(file);
+      if (there === null || chatIn(there) === chat) return { file, existing: there };
+    }
+    throw new Error(`no free file name for ${month} of the chat ${chat}`);
+  };
+  // Writes days into new parts, one a run, and records each part in months.json before the files are written.
+  const addParts = async (chat, path, title, runs) => {
+    for (const run of runs) {
+      const month = run[0][0].slice(0, 7);
+      const { file, existing } = await newPart(chat, path, month);
+      const book = partsOf(chat);
+      book.parts.push({ from: run[0][0], file });
+      book.parts.sort((a, b) => a.from.localeCompare(b.from));
+      keepMonths();
+      const merged = mergeDays(existing, `${title}, ${month}`, new Map(run), { chat });
+      if (merged.added || existing === null) await files.write(file, merged.text);
+    }
+  };
+  // The part that holds a day before the chat file's first day: the last whose first day is on or before it.
+  const partFor = (chat, day) => {
+    const { until, parts } = partsOf(chat);
+    if (!parts.length || day >= until) return null;
+    return [...parts].reverse().find(p => p.from <= day) ?? parts[0];
+  };
+
   const byChat = new Map();
-  for (const m of records) { if (!byChat.has(m.chat)) byChat.set(m.chat, []); byChat.get(m.chat).push(m); }
+  for (const m of records) {
+    const key = chatKey(m, map);
+    if (!byChat.has(key)) byChat.set(key, []);
+    byChat.get(key).push(m);
+  }
   const saved = [];
   const chats = [];
   const failed = [];
@@ -139,7 +257,7 @@ export async function saveChats(records, groupNames, { dir, files, timeZone }) {
       // A file holds one chat, named on its own line. A file another chat holds, or one this computer didn't write, is
       // never added to: the chat takes the next name free, its own id added to it.
       if (!path || (existing !== null && chatIn(existing) !== chat)) {
-        const taken = new Set(Object.entries(map).filter(([other]) => other !== chat).map(([, file]) => file));
+        const taken = takenBy(chat);
         const names = [name, `${name} ${jidUser(chat)}`, ...Array.from({ length: 20 }, (_, i) => `${name} ${jidUser(chat)} ${i + 2}`)];
         path = null;
         for (const candidate of names.map(n => `${FOLDER}/${fileName(n)}.md`)) {
@@ -151,8 +269,47 @@ export async function saveChats(records, groupNames, { dir, files, timeZone }) {
         map[chat] = path;
         writeChats(dir, map);
       }
-      const { text, added } = mergeChat(existing, title, list, { timeZone, chat });
-      if (added) await files.write(path, text);
+      let added = 0;
+      // A message of a day a part holds goes to that part. A part that would pass the limit splits into more.
+      const toParts = new Map();
+      const toMain = [];
+      for (const m of list) {
+        const part = partFor(chat, dayOf(m));
+        if (!part) { toMain.push(m); continue; }
+        if (!toParts.has(part.file)) toParts.set(part.file, []);
+        toParts.get(part.file).push(m);
+      }
+      for (const [file, recs] of toParts) {
+        const merged = mergeChat(await files.read(file), `${title}, ${dayOf(recs[0]).slice(0, 7)}`, recs, { timeZone, chat });
+        if (!merged.added) continue;
+        added += merged.added;
+        if (Buffer.byteLength(merged.text, "utf8") <= limit) { await files.write(file, merged.text); continue; }
+        const { head, days } = parseChat(merged.text);
+        const [first, ...rest] = packDays([...days].sort((a, b) => a[0].localeCompare(b[0])), limit - Buffer.byteLength(head.join("\n")) - 256);
+        await addParts(chat, path, title, rest);
+        await files.write(file, renderChat(head, new Map(first)));
+      }
+      // The chat file keeps its newest days, within one month and half the limit, so it has room to grow. The days
+      // before them move to new parts.
+      let { text, added: fresh } = mergeChat(existing, title, toMain, { timeZone, chat });
+      if (fresh && Buffer.byteLength(text, "utf8") > limit) {
+        const { head, days } = parseChat(text);
+        const sorted = [...days].sort((a, b) => a[0].localeCompare(b[0]));
+        const room = limit - Buffer.byteLength(head.join("\n")) - 256;
+        let cut = sorted.length - 1;
+        let size = daySize(...sorted[cut]);
+        while (cut > 0 && sorted[cut - 1][0].slice(0, 7) === sorted[cut][0].slice(0, 7) && size + daySize(...sorted[cut - 1]) <= room / 2) {
+          cut -= 1;
+          size += daySize(...sorted[cut]);
+        }
+        if (cut > 0) {
+          partsOf(chat).until = sorted[cut][0];
+          await addParts(chat, path, title, packDays(sorted.slice(0, cut), room));
+          text = renderChat(head, new Map(sorted.slice(cut)));
+        }
+      }
+      if (fresh) await files.write(path, text);
+      added += fresh;
       saved.push(...list);
       chats.push({ file: path, added });
     } catch (err) {
