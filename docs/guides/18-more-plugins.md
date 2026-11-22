@@ -8,7 +8,7 @@ fabrik's marketplace has three more plugins: WhatsApp, TripAgent and the animato
 
 The WhatsApp plugin reads your WhatsApp messages and saves each chat in your private fabrik scope, as `whatsapp/<chat name>.md`. Claude then finds them through fabrik's search, at claude.ai and on your phone too.
 
-It only reads. It never sends, replies or reacts, and it never marks a message read. Baileys, the library it connects with, still sends two things of its own on each check. It tells WhatsApp each message arrived, so the sender sees two grey ticks, and it shows you as unavailable, never online. The plugin never sends blue ticks.
+It only reads, because Meta, which owns WhatsApp, bans numbers that send automated messages from anything but its paid business service. It never sends, replies or reacts, and it never marks a message read. Baileys, the library it connects with, still sends two things of its own on each check. It tells WhatsApp each message arrived, so the sender sees two grey ticks, and it shows you as unavailable, never online. The plugin never sends blue ticks.
 
 It joins your WhatsApp as a linked device, the way WhatsApp on a computer does. In a Terminal tab, install it with `claude plugin install whatsapp@fabrik`. Then open a new Code session in your fabrik folder, the one you signed in with `fabrik sign-in --folder`, and say "link my WhatsApp".
 
