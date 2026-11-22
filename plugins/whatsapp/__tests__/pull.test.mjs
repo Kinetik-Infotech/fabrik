@@ -2,10 +2,10 @@
 // replaced by the archive callback: what is kept, single flight, and messages that wait when fabrik can't be reached.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createWhatsAppPull, readPending } from "../mcp/pull.mjs";
+import { createWhatsAppPull, LOCK, readPending } from "../mcp/pull.mjs";
 import { dm } from "./stand-ins.mjs";
 
 const dir = () => mkdtempSync(join(tmpdir(), "wa-pull-"));
@@ -79,4 +79,46 @@ test("a failure the connection reports is passed on, with what was taken", async
   const r = await pull.run();
   assert.equal(r.reason, "connect-timeout");
   assert.equal(r.taken, 0);
+});
+
+test("each message is on disk as it arrives, before the connection ends", async () => {
+  const authDir = dir();
+  let onDisk = null;
+  const pull = createWhatsAppPull({
+    authDir,
+    pullImpl: async ({ onMessage }) => {
+      onMessage(dm("A", "one"));
+      // The session could end here, with the connection still open.
+      onDisk = readPending(authDir).map(m => m.id);
+      return { count: 1, received: 1, reason: null };
+    },
+  });
+  await pull.run();
+  assert.deepEqual(onDisk, ["A"]);
+});
+
+test("a second session finds the keys folder locked and connects nothing; a dead session's lock is taken over", async () => {
+  const authDir = dir();
+  let connects = 0;
+  const pullImpl = async () => { connects += 1; return { count: 0, received: 0, reason: null }; };
+  writeFileSync(join(authDir, LOCK), String(process.pid));
+  const busy = await createWhatsAppPull({ authDir, pullImpl }).run();
+  assert.equal(busy.reason, "busy");
+  assert.equal(connects, 0);
+  writeFileSync(join(authDir, LOCK), "999999");
+  const r = await createWhatsAppPull({ authDir, pullImpl }).run();
+  assert.equal(r.reason, null);
+  assert.equal(connects, 1);
+  assert.equal(existsSync(join(authDir, LOCK)), false, "the lock goes when the run ends");
+});
+
+test("an unlink while a check runs is busy, and doesn't take the check's result", async () => {
+  let release;
+  const pull = createWhatsAppPull({ authDir: dir(), pullImpl: () => new Promise(r => { release = () => r({ count: 0, received: 0, reason: null }); }) });
+  const check = pull.run({ trigger: "check" });
+  await new Promise(r => setImmediate(r));
+  const unlink = await pull.run({ trigger: "unlink" });
+  assert.equal(unlink.reason, "busy");
+  release();
+  assert.equal((await check).reason, null);
 });

@@ -2,7 +2,8 @@
 //
 // It never holds a socket open: an open one was dropped with code 428 about every 57 seconds and lost messages. Each
 // check connects with the saved keys, takes what WhatsApp queued since the last connection, and disconnects once Baileys
-// says the queue is delivered (receivedPendingNotifications). WhatsApp clears its queue once this device has it.
+// says the queue is delivered (receivedPendingNotifications) and no message has come for a few seconds.
+// WhatsApp clears its queue once this device has it.
 //
 // Pairing is folded in. With `pair` set and the account not linked, the first `qr` signal asks Baileys for an
 // 8-character code for the person's number. The code goes to onPairingCode, and the deadline widens so the person can
@@ -12,30 +13,59 @@
 // It only reads. It connects with markOnlineOnConnect false, so it never shows the person online or sends read
 // receipts. It calls nothing that sends a message, a receipt or a presence. Media is noted, never downloaded.
 
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
 // One whitespace-free token, so a thrown value stays a single k=v field.
 const oneToken = e => String((e && e.message) || e || "none").replace(/\s+/g, "_").slice(0, 160);
 
 // Baileys logs through a pino-style logger, to stdout by default, which is this server's JSON-RPC channel.
 const SILENT = { level: "silent", child: () => SILENT, trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {} };
 
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const ENTRY = join(ROOT, "node_modules", "@whiskeysockets", "baileys", "lib", "index.js");
+
+/** Installs the plugin's packages from its lockfile, beside the plugin. Claude Code does this itself when it copies a
+ * plugin from a marketplace into its cache; a plugin loaded in place from a folder, or an older Claude Code, skips it. */
+export function installPackages(root = ROOT) {
+  return new Promise((resolve, reject) => {
+    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+    execFile(npm, ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: root, timeout: 180_000, shell: process.platform === "win32" },
+      (err, _out, stderr) => (err ? reject(new Error(String(stderr || err.message).trim().split("\n").slice(-3).join(" "))) : resolve()));
+  });
+}
+
 let loaded = null;
-/** Baileys itself, loaded on first use, so the server starts, and answers status and unlink, without it. */
-export async function loadBaileys() {
+/** Baileys itself, loaded on first use, so the server starts, and answers status and unlink, without it. When it
+ * isn't beside the plugin, it is installed once from the plugin's lockfile, and loaded again. */
+export async function loadBaileys({ root = ROOT, entry = ENTRY, install = installPackages } = {}) {
   if (!loaded) {
-    loaded = import("@whiskeysockets/baileys").catch(err => {
-      loaded = null;
-      throw new Error(`Baileys, the WhatsApp library this plugin uses, isn't installed beside the plugin (${oneToken(err)}). Reinstall the plugin with: claude plugin install whatsapp@fabrik`);
-    });
+    loaded = (async () => {
+      if (!existsSync(entry)) {
+        try { await install(root); }
+        catch (err) {
+          throw new Error(`Baileys, the WhatsApp library this plugin uses, isn't installed, and installing it failed: ${oneToken(err)}. `
+            + `In a Terminal, run: cd '${root.replaceAll("'", "'\\''")}' && npm ci --omit=dev --ignore-scripts`);
+        }
+      }
+      return await import(pathToFileURL(entry).href);
+    })().catch(err => { loaded = null; throw err; });
   }
   return loaded;
 }
 
-/** Whether the keys under authDir belong to a linked device, and its number: { linked, number }. */
+/** Whether the keys belong to a linked device, and its number: { linked, number }. Only a finished pairing writes
+ * `account`. Asking for a code writes `me` alone, so keys with `me` and no `account` are a link that never finished. */
 export function linkedState(creds) {
   const id = creds?.me?.id;
-  if (!id || creds?.registered === false) return { linked: false, number: "" };
+  if (!id || !creds?.account) return { linked: false, number: "" };
   return { linked: true, number: String(id).split("@")[0].split(":")[0] };
 }
+
+/** Whether the keys hold a link that never finished, such as a code that was never typed. */
+export const halfLinked = creds => !!creds && !linkedState(creds).linked && !!(creds.me || creds.pairingCode);
 
 /**
  * One connection that drains WhatsApp's offline queue and disconnects.
@@ -49,7 +79,7 @@ export function linkedState(creds) {
  */
 export async function pullWhatsApp({
   authDir, log = () => {}, selfNumber = "", pair = false, onMessage = () => {}, onPairingCode = () => {}, afterDrain = null,
-  baileys = null, connectTimeoutMs = 20000, linkTimeoutMs = 180000, drainTimeoutMs = 30000, now = () => Date.now(),
+  baileys = null, connectTimeoutMs = 20000, linkTimeoutMs = 180000, drainTimeoutMs = 30000, quietMs = 3000, now = () => Date.now(),
 }) {
   const b = baileys ?? await loadBaileys();
   const { state, saveCreds } = await b.useMultiFileAuthState(authDir);
@@ -64,15 +94,19 @@ export async function pullWhatsApp({
   let paired = false;
   // The keys saved so far: a run ends only once they are on disk, so the next connection finds them.
   let saving = Promise.resolve();
+  // When WhatsApp last sent a message frame, or Baileys last handed one over.
+  let lastActivity = now();
 
   return await new Promise(resolve => {
     let settled = false;
     let deadline = null;
     let draining = false;
+    let quiet = null;
     const finish = reason => {
       if (settled) return;
       settled = true;
       if (deadline) clearTimeout(deadline);
+      if (quiet) clearInterval(quiet);
       try {
         sock?.ev?.removeAllListeners();
         sock?.ws?.removeAllListeners?.();
@@ -97,6 +131,10 @@ export async function pullWhatsApp({
       });
 
       // The announced queue, read from the protocol's <offline count='N'/> node.
+      // Baileys decrypts the queue's messages one by one after WhatsApp says the queue is delivered, and it tells
+      // WhatsApp each one arrived before it hands it over. So the run waits until messages stop coming.
+      sock.ws.on("CB:message", () => { lastActivity = now(); });
+
       sock.ws.on("CB:ib,,offline", node => {
         count = +(b.getBinaryNodeChild(node, "offline")?.attrs?.count || 0);
         log("pull-offline", { count });
@@ -129,15 +167,23 @@ export async function pullWhatsApp({
         if (receivedPendingNotifications && !draining) {
           draining = true;
           arm(drainTimeoutMs, "drain-timeout");
-          Promise.resolve()
-            .then(() => (afterDrain ? afterDrain(sock) : undefined))
-            .catch(err => log("after-drain-error", { err: oneToken(err) }))
-            .then(() => finish(null));
+          lastActivity = now();
+          quiet = setInterval(() => {
+            if (now() - lastActivity < quietMs) return;
+            clearInterval(quiet);
+            quiet = null;
+            log("pull-quiet", { quietMs });
+            Promise.resolve()
+              .then(() => (afterDrain ? afterDrain(sock) : undefined))
+              .catch(err => log("after-drain-error", { err: oneToken(err) }))
+              .then(() => finish(null));
+          }, Math.max(10, Math.min(250, quietMs / 4)));
         }
       });
 
       sock.ev.on("messages.upsert", ({ messages, type }) => {
         if (type !== "notify" && type !== "append") return;
+        lastActivity = now();
         for (const m of messages) {
           received += 1;
           try { onMessage(m); } catch (err) { log("message-error", { err: oneToken(err) }); }

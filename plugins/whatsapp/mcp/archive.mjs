@@ -67,7 +67,8 @@ function items(lines) {
   const out = [];
   for (const line of lines) {
     if (line.startsWith("- ")) out.push([line]);
-    else if (out.length && line.trim()) out[out.length - 1].push(line);
+    // A message's own lines are indented under it, its blank ones too, so a blank line in a message stays.
+    else if (out.length && (line.trim() || line.startsWith("  "))) out[out.length - 1].push(line);
   }
   return out.map(lines => ({ time: /^- (\d{2}:\d{2})/.exec(lines[0])?.[1] ?? "", text: lines.join("\n") }));
 }

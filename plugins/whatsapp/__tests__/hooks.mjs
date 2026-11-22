@@ -9,4 +9,8 @@ const calls = { push: one => appendFileSync(process.env.WHATSAPP_TEST_CALLS, JSO
 const messages = () => { try { return JSON.parse(readFileSync(process.env.WHATSAPP_TEST_MESSAGES, "utf8")); } catch { return []; } };
 const groups = { "120363000000000001@g.us": "Family" };
 
-export const pullWhatsApp = options => real({ ...options, baileys: fakeBaileys({ messages, calls, groups }) });
+const accept = process.env.WHATSAPP_TEST_ACCEPT !== "no";
+const lateMs = Number(process.env.WHATSAPP_TEST_LATE_MS ?? 0);
+const linkTimeoutMs = Number(process.env.WHATSAPP_TEST_LINK_TIMEOUT_MS ?? 180000);
+
+export const pullWhatsApp = options => real({ ...options, quietMs: Number(process.env.WHATSAPP_TEST_QUIET_MS ?? 100), linkTimeoutMs, baileys: fakeBaileys({ messages, calls, groups, accept, lateMs }) });
