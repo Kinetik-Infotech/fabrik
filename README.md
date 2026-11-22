@@ -13,6 +13,7 @@ Most assistants keep your data on their makers' servers, for those companies to 
 - **Memory.** Tell Claude about a person, meeting or decision once, and fabrik stores it. Ask for it months later, in your own words.
 - **Updates.** Ask what's new on LinkedIn or any site you're signed in to, and get the short version, with people you know picked out.
 - **Email.** Find that message from your accountant while you're out, and reply to it. fabrik reads your mail, and sends only what you approve.
+- **WhatsApp.** Ask what someone said on WhatsApp, and Claude finds it in fabrik. The WhatsApp plugin links to your WhatsApp as a device and saves each chat in your private scope. When you link it, you choose whether it brings in your recent chats too. It only reads, and never sends.
 - **Content.** Posts, proposals and replies that sound like you, because they're drafted from what you've already written.
 - **Planning.** Tell Claude what you're working on and what's holding things up, and Claude lists what you can get on with next.
 - **Networking.** Before a call, ask who someone is and get everything you've noted about them.
