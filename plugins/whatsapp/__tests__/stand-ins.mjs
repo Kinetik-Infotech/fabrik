@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export function fakeBaileys({ messages = () => [], linkAs = "447700900123", calls = [], groups = {}, accept = true, lateMs = 0 } = {}) {
+export function fakeBaileys({ messages = () => [], history = () => ({ chunks: [] }), linkAs = "447700900123", calls = [], groups = {}, lids = {}, accept = true, lateMs = 0 } = {}) {
   return {
     calls,
     async useMultiFileAuthState(dir) {
@@ -27,6 +27,8 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
     makeWASocket(config) {
       calls.push({ op: "connect", markOnlineOnConnect: config.markOnlineOnConnect, syncFullHistory: config.syncFullHistory });
       const ev = new EventEmitter();
+      let holding = false;
+      ev.isBuffering = () => holding;
       const ws = new EventEmitter();
       const creds = config.auth.creds;
       const sock = {
@@ -48,6 +50,8 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
           }, 50);
           return "ABCD1234";
         },
+        // Baileys' store of each contact's LID and phone number.
+        signalRepository: { lidMapping: { async getPNForLID(lid) { calls.push({ op: "lid", lid }); return lids[lid] ?? null; } } },
         async groupMetadata(jid) { calls.push({ op: "group-name", jid }); return { subject: groups[jid] ?? "" }; },
         async logout() { calls.push({ op: "logout" }); },
         end() { calls.push({ op: "end" }); },
@@ -64,6 +68,34 @@ export function fakeBaileys({ messages = () => [], linkAs = "447700900123", call
         setTimeout(() => {
           for (const m of list) { ws.emit("CB:message", {}); ev.emit("messages.upsert", { type: "append", messages: [m] }); }
         }, lateMs);
+        // The recent history the phone sends a new device, in chunks, each `afterMs` after the queue is delivered. As
+        // Baileys does, a chunk of a type the socket's shouldSyncHistoryMessage refuses is dropped. A chunk with
+        // `status` is followed by Baileys' word that its sync type is complete, which is never held back. With
+        // `holdMs`, Baileys holds the chunks back and, at holdMs, hands them over as one set named by the last chunk's
+        // type.
+        const { chunks = [], holdMs } = history();
+        const keep = config.shouldSyncHistoryMessage ?? (({ syncType }) => syncType !== 2);
+        const held = [];
+        if (holdMs !== undefined) {
+          holding = true;
+          setTimeout(() => {
+            holding = false;
+            if (!held.length) return;
+            const last = held[held.length - 1];
+            ev.emit("messaging-history.set", { ...last, chats: held.flatMap(c => c.chats), messages: held.flatMap(c => c.messages) });
+          }, holdMs);
+        }
+        for (const chunk of chunks) {
+          setTimeout(() => {
+            const { afterMs: _a, status, chats, ...set } = chunk;
+            const full = { chats: chats ?? [...new Set(set.messages.map(m => m.key.remoteJid))].map(id => ({ id })), ...set };
+            if (keep({ syncType: set.syncType })) {
+              if (holding) held.push(full);
+              else ev.emit("messaging-history.set", full);
+            }
+            if (status) ev.emit("messaging-history.status", { syncType: set.syncType, status, explicit: true });
+          }, chunk.afterMs ?? 0);
+        }
       });
       return sock;
     },

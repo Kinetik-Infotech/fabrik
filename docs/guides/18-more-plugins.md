@@ -10,9 +10,15 @@ The WhatsApp plugin reads your WhatsApp messages and saves each chat in your pri
 
 It only reads. It never sends, replies or reacts, and it never marks a message read. Baileys, the library it connects with, still sends two things of its own on each check. It tells WhatsApp each message arrived, so the sender sees two grey ticks, and it shows you as unavailable, never online. The plugin never sends blue ticks.
 
-It joins your WhatsApp as a linked device, the way WhatsApp on a computer does. In a Terminal tab, install it with `claude plugin install whatsapp@fabrik`. Then open a new Code session in your fabrik folder, the one you signed in with `fabrik sign-in --folder`, and say "link my WhatsApp". Claude asks for your number and shows an 8-character code. On your phone, open WhatsApp → Settings → Linked devices → Link a device, tap Link with phone number instead, and type the code. If the phone asks whether someone else asked for the code, it was you, so approve the link.
+It joins your WhatsApp as a linked device, the way WhatsApp on a computer does. In a Terminal tab, install it with `claude plugin install whatsapp@fabrik`. Then open a new Code session in your fabrik folder, the one you signed in with `fabrik sign-in --folder`, and say "link my WhatsApp".
 
-WhatsApp keeps no history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
+Claude asks for your number, and whether to bring in your recent chats as well as new messages. Your phone sends them only when a device links, so adding them later means linking again. Claude then shows an 8-character code. On your phone, open WhatsApp → Settings → Linked devices → Link a device, tap Link with phone number instead, and type the code. If the phone asks whether someone else asked for the code, it was you, so approve the link.
+
+If you chose your recent chats, Claude waits a few minutes after you type the code while your phone sends them. Say "check my WhatsApp" to save them in fabrik. Each check saves 20 chats, and says how many still wait, so check again until none do. No chat file passes 1 MB. A busy chat keeps its newest days in `whatsapp/<chat name>.md`. Its older days go in files of their own, each holding one month or part of one.
+
+If you linked without them and want them now, say "link my WhatsApp again". WhatsApp sees each link as a new device, which adds to the risk below.
+
+WhatsApp keeps no other history that a linked device can fetch later. So say "check my WhatsApp" in a Code session on that computer whenever you want the new messages in fabrik. Each check connects, takes what arrived since the last one, and disconnects. Photos, videos, voice notes and documents are noted by their kind and name, and stay on your phone.
 
 Check at least once a week. WhatsApp drops a linked device that hasn't connected for about 14 days, and the messages it held for it are lost.
 

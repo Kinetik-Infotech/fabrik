@@ -48,7 +48,7 @@ test("single flight: two runs at once share one connection and one result", asyn
   assert.equal(connects, 2);
 });
 
-test("messages archive couldn't save wait in pending.json, once each, for the next run", async () => {
+test("messages archive couldn't save wait in pending.jsonl, once each, for the next run", async () => {
   const authDir = dir();
   let refuse = true;
   const archived = [];

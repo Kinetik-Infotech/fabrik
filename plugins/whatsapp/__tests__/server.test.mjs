@@ -50,7 +50,7 @@ test("link by code, check, check again and unlink, as the person does them", asy
     assert.equal(early.isError, true);
     assert.match(early.text, /isn't linked/);
 
-    const link = await tool("whatsapp_link", { phone: "+44 7700 900123" });
+    const link = await tool("whatsapp_link", { phone: "+44 7700 900123", history: false });
     assert.match(link.text, /^Code: ABCD-1234$/m);
     assert.match(link.text, /Link with phone number instead/);
     assert.match((await tool("whatsapp_link_wait")).text, /^WhatsApp is linked as \+447700900123\./);
@@ -66,7 +66,7 @@ test("link by code, check, check again and unlink, as the person does them", asy
       "- 11:08 **Me:** Yes, see you then <!-- wa:A2 -->", "",
     ].join("\n"));
     assert.equal(t.fabrik.files.get("me_private/whatsapp/Family.md"), "# WhatsApp group: Family\n<!-- wa-chat:120363000000000001@g.us -->\n\n## 2026-11-18\n\n- 11:10 **Sam:** [photo] the cake <!-- wa:G1 -->\n");
-    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n<!-- wa-chat:99988877766655@lid -->\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
+    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n<!-- wa-chat:447333000333@s.whatsapp.net -->\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
     assert.ok(t.fabrik.uploads.every(u => u.type === "text/markdown"));
 
     // The same messages again leave every file as it was, and upload nothing.
@@ -98,7 +98,7 @@ test("messages taken while fabrik refuses wait on the computer, and the next che
   const t = await setUp();
   try {
     const { tool } = t.server;
-    await tool("whatsapp_link", { phone: "+447700900123" });
+    await tool("whatsapp_link", { phone: "+447700900123", history: false });
     await tool("whatsapp_link_wait");
     // fabrik refuses the sign-in: the token no longer matches.
     const session = join(t.home, ".config", "supabase-auth", "abcdefghijklmnopqrst", "pat@example.com.json");
@@ -108,7 +108,7 @@ test("messages taken while fabrik refuses wait on the computer, and the next che
     const refused = await tool("whatsapp_check");
     assert.equal(refused.isError, true);
     assert.match(refused.text, /The messages weren't saved in fabrik/);
-    assert.match(refused.text, /^1 message waits on this computer to be saved at the next check\.$/m);
+    assert.match(refused.text, /^1 message from 1 chat waits on this computer to be saved at the next check\.$/m);
     assert.equal(t.fabrik.files.size, 0);
 
     // WhatsApp hands over nothing more: the message is only on this computer now.
@@ -124,11 +124,11 @@ test("a code that was never typed leaves no half-made link: the next whatsapp_li
   const t = await setUp({ WHATSAPP_TEST_ACCEPT: "no", WHATSAPP_TEST_LINK_TIMEOUT_MS: "200" });
   try {
     const { tool } = t.server;
-    assert.match((await tool("whatsapp_link", { phone: "+447700900123" })).text, /^Code: ABCD-1234$/m);
+    assert.match((await tool("whatsapp_link", { phone: "+447700900123", history: false })).text, /^Code: ABCD-1234$/m);
     const ran = await tool("whatsapp_link_wait");
     assert.equal(ran.isError, true);
     assert.match(ran.text, /The code ran out/);
-    const again = await tool("whatsapp_link", { phone: "+447700900123" });
+    const again = await tool("whatsapp_link", { phone: "+447700900123", history: false });
     assert.match(again.text, /^The last code was never typed, so this is a fresh link with a new code\./);
     assert.match(again.text, /^Code: ABCD-1234$/m);
     assert.equal(t.calls().filter(c => c.op === "pairing-code").length, 2);
@@ -139,7 +139,7 @@ test("whatsapp_unlink and a relink while a check runs are refused, and the check
   const t = await setUp({ WHATSAPP_TEST_LATE_MS: "400", WHATSAPP_TEST_QUIET_MS: "600" });
   try {
     const { tool } = t.server;
-    await tool("whatsapp_link", { phone: "+447700900123" });
+    await tool("whatsapp_link", { phone: "+447700900123", history: false });
     await tool("whatsapp_link_wait");
     t.queue([dm("A1", "hi")]);
     const check = tool("whatsapp_check");
@@ -147,7 +147,7 @@ test("whatsapp_unlink and a relink while a check runs are refused, and the check
     const unlink = await tool("whatsapp_unlink");
     assert.equal(unlink.isError, true);
     assert.match(unlink.text, /^A check is under way/);
-    const relink = await tool("whatsapp_link", { phone: "+447700900123", relink: true });
+    const relink = await tool("whatsapp_link", { phone: "+447700900123", history: false, relink: true });
     assert.equal(relink.isError, true);
     assert.match((await check).text, /whatsapp\/Kate\.md: 1 new/);
     assert.equal(t.calls().filter(c => c.op === "logout").length, 0);
@@ -159,14 +159,14 @@ test("a relink keeps the messages waiting to be saved, says so, and the next che
   const t = await setUp();
   try {
     const { tool } = t.server;
-    await tool("whatsapp_link", { phone: "+447700900123" });
+    await tool("whatsapp_link", { phone: "+447700900123", history: false });
     await tool("whatsapp_link_wait");
     const session = join(t.home, ".config", "supabase-auth", "abcdefghijklmnopqrst", "pat@example.com.json");
     const saved = JSON.parse(readFileSync(session, "utf8"));
     writeFileSync(session, JSON.stringify({ ...saved, accessToken: "token-old" }), { mode: 0o600 });
     t.queue([dm("A1", "kept")]);
     await tool("whatsapp_check");
-    const relink = await tool("whatsapp_link", { phone: "+447700900123", relink: true });
+    const relink = await tool("whatsapp_link", { phone: "+447700900123", history: false, relink: true });
     assert.match(relink.text, /^1 message from the old link waits to be saved\. The first check after the link saves them\./);
     await tool("whatsapp_link_wait");
     writeFileSync(session, JSON.stringify(saved), { mode: 0o600 });
