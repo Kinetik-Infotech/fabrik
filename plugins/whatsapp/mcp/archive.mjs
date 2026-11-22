@@ -8,7 +8,10 @@ import { jidUser, mediaNote, cleanName } from "./handler.mjs";
 
 export const FOLDER = "whatsapp";
 const CHATS = "chats.json";
-const ID = /<!-- wa:(\S+) -->/g;
+// A message's id, read only at the end of a list item's first line, where entry() writes it.
+const ID = /^- .* <!-- wa:([A-Za-z0-9_.-]+) -->$/gm;
+// The chat a file belongs to, read only on its own line, where mergeChat writes it.
+const CHAT = /^<!-- wa-chat:(\S+) -->$/m;
 const DAY = /^## (\d{4}-\d{2}-\d{2})\s*$/;
 
 /** The day and time a message was sent, in the computer's time zone unless one is given: { day, time }. */
@@ -18,12 +21,24 @@ export function when(at, timeZone) {
   return { day, time: clock.slice(0, 5) };
 }
 
+/** A sender's text made safe inside a list item: every kind of line break becomes one, and an HTML comment can't open
+ * or close, so no text can pass for a marker the file relies on. */
+export function plain(text) {
+  return String(text).replace(/\r\n|[\r\n\v\f\u0085\u2028\u2029]/g, "\n").replace(/<!--/g, "<!- -").replace(/-->/g, "- ->");
+}
+
+/** A message id as the file holds it: letters, digits and _ . - only. */
+export const safeId = id => String(id).replace(/[^A-Za-z0-9_.-]/g, "_");
+
 /** One message as the list item it is in the file. Lines after the first are indented under it. */
 export function entry(m, timeZone) {
-  const body = [m.text && !m.media ? m.text : "", m.media ? mediaNote(m.media) : ""].filter(Boolean).join(" ").trim() || "(no text)";
-  const [first, ...rest] = body.split(/\r?\n/);
-  return [`- ${when(m.at, timeZone).time} **${m.from}:** ${first} <!-- wa:${m.id} -->`, ...rest.map(line => `  ${line}`)].join("\n");
+  const body = plain([m.text && !m.media ? m.text : "", m.media ? mediaNote(m.media) : ""].filter(Boolean).join(" ").trim()) || "(no text)";
+  const [first, ...rest] = body.split("\n");
+  return [`- ${when(m.at, timeZone).time} **${plain(m.from)}:** ${first} <!-- wa:${safeId(m.id)} -->`, ...rest.map(line => `  ${line}`)].join("\n");
 }
+
+/** The chat a file says it belongs to, or null for a file with no such line. */
+export const chatIn = text => CHAT.exec(String(text ?? ""))?.[1] ?? null;
 
 /** The ids a chat file already holds. */
 export const idsIn = text => new Set([...String(text ?? "").matchAll(ID)].map(x => x[1]));
@@ -58,16 +73,16 @@ function items(lines) {
  * The chat file with `records` added: { text, added }. `existing` is the file as fabrik holds it, or null for a new one.
  * What the file held stays as it was; each new message goes under its day's heading, in time order.
  */
-export function mergeChat(existing, title, records, { timeZone } = {}) {
+export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
   const have = idsIn(existing);
-  const fresh = [...records].filter(m => !have.has(m.id)).sort((a, b) => a.at - b.at);
+  const fresh = [...records].filter(m => !have.has(safeId(m.id))).sort((a, b) => a.at - b.at);
   const unique = fresh.filter((m, i) => fresh.findIndex(o => o.id === m.id) === i);
   if (!unique.length && existing !== null) return { text: existing, added: 0 };
 
   const head = [];
   const days = new Map();
   let current = null;
-  for (const line of (existing ?? `# ${title}\n`).split("\n")) {
+  for (const line of (existing ?? `# ${plain(title)}\n${chat ? `<!-- wa-chat:${chat} -->\n` : ""}`).split("\n")) {
     const day = DAY.exec(line);
     if (day) { current = day[1]; if (!days.has(current)) days.set(current, []); continue; }
     if (current) days.get(current).push(line);
@@ -114,21 +129,30 @@ export async function saveChats(records, groupNames, { dir, files, timeZone }) {
   const failed = [];
   for (const [chat, list] of byChat) {
     const { title, name } = chatTitle(list, groupNames?.[chat]);
-    if (!map[chat]) {
-      let base = fileName(name);
-      if (Object.values(map).includes(`${FOLDER}/${base}.md`)) base = fileName(`${name} ${jidUser(chat)}`);
-      map[chat] = `${FOLDER}/${base}.md`;
-      writeChats(dir, map);
-    }
-    const path = map[chat];
+    let path = map[chat];
     try {
-      const existing = await files.read(path);
-      const { text, added } = mergeChat(existing, title, list, { timeZone });
+      let existing = path ? await files.read(path) : null;
+      // A file holds one chat, named on its own line. A file another chat holds, or one this computer didn't write, is
+      // never added to: the chat takes the next name free, its own id added to it.
+      if (!path || (existing !== null && chatIn(existing) !== chat)) {
+        const taken = new Set(Object.entries(map).filter(([other]) => other !== chat).map(([, file]) => file));
+        const names = [name, `${name} ${jidUser(chat)}`, ...Array.from({ length: 20 }, (_, i) => `${name} ${jidUser(chat)} ${i + 2}`)];
+        path = null;
+        for (const candidate of names.map(n => `${FOLDER}/${fileName(n)}.md`)) {
+          if (taken.has(candidate)) continue;
+          const there = await files.read(candidate);
+          if (there === null || chatIn(there) === chat) { path = candidate; existing = there; break; }
+        }
+        if (!path) throw new Error(`no free file name for the chat ${name}`);
+        map[chat] = path;
+        writeChats(dir, map);
+      }
+      const { text, added } = mergeChat(existing, title, list, { timeZone, chat });
       if (added) await files.write(path, text);
       saved.push(...list);
       chats.push({ file: path, added });
     } catch (err) {
-      failed.push({ file: path, problem: err instanceof Error ? err.message : String(err) });
+      failed.push({ file: path ?? `${FOLDER}/${fileName(name)}.md`, problem: err instanceof Error ? err.message : String(err) });
     }
   }
   return { saved, chats, failed };
