@@ -40,6 +40,16 @@ Then open a Code session in that folder. The local connector works only in a fol
 
 claude.ai, the phone app and Cowork can't reach fabrik this way. Mail checks and the rest of fabrik's work in Supabase carry on as before. A change to fabrik's tools reaches you once fabrik's update deploys it to your project. Your next session has it, with nothing to reconnect.
 
+## Work on a schedule
+
+fabrik runs nothing on its own. To have work done while you're away, use Claude's own [scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks). A scheduled task runs a prompt you write at the times you set, such as "every morning, list my new email and save the replies I owe as tasks". Each run is a new session, and uses your Claude plan's usage.
+
+A task on your computer runs only while the Claude desktop app is open and the computer is awake. After the computer wakes, it runs once to catch up. It can use what's on your computer, such as the fabrik plugin and your WhatsApp link.
+
+A task in the cloud runs even when your computer is off, at most once an hour. It reaches fabrik through its connector, so it works with your records, files and mail. It can't reach anything kept only on your computer.
+
+Claude still asks before anything that sends, pays, books or deletes. So write the prompt to gather and draft, and approve the rest yourself.
+
 ## A change to the connector
 
 When fabrik's tools change, Claude keeps the tool list it read when you connected. In **Settings**, then **Connectors**, disconnect fabrik and connect it again to read the new list.
