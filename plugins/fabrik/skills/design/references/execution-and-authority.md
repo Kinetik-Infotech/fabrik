@@ -20,11 +20,11 @@ Each row is checked against the simpler choice. An exact rule stays in code, not
 
 Code is an exact rule an application the person uses already runs, or one they set up. A step done through a connector names the connector, whether the person has it now, and its source from the stock-take. A step can be split: code checks an input, Claude drafts, and the person approves.
 
-## What never runs on its own
+## Who runs what
 
-fabrik never runs work unattended. So:
+fabrik schedules nothing. The person may run a routine on a schedule with one of Claude's scheduled tasks, which they set up and own. So:
 
-- No step runs on a schedule or in the background.
+- A design names no schedule of its own. A step may say the person runs it in a scheduled task, and then it is a step that reads, gathers, drafts or saves.
 - A step that sends, pays, books, buys, accepts terms or deletes is the person's. Claude can prepare it, and the person confirms it in a session they are watching.
 - Claude's answer grants no permission to act. The person's approval does, for that one step.
 - A new service that would receive the business's data needs the person's approval before any data goes to it.
