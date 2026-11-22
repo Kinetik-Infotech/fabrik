@@ -24,7 +24,7 @@ const folder = process.env.FABRIK_SESSION_FOLDER || process.cwd();
 const hooks = process.env.WHATSAPP_TEST_HOOKS ? await import(process.env.WHATSAPP_TEST_HOOKS) : {};
 
 const INSTRUCTIONS = "Reads the person's WhatsApp and saves each chat in their private fabrik scope, as whatsapp/<chat>.md. "
-  + "It never sends, replies, reacts or marks a message read, and has no tool that could. Use the whatsapp skill to link, check and read.";
+  + "It never sends, replies, reacts or marks a message read, and has no tool that could: Meta, which owns WhatsApp, bans numbers that send automated messages. Use the whatsapp skill to link, check and read.";
 
 const send = msg => process.stdout.write(JSON.stringify(msg) + "\n");
 const log = (op, fields = {}) => process.stderr.write(`[whatsapp] op=${op} ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(" ")}\n`);
