@@ -91,3 +91,17 @@ test("a real name that starts with Unknown names an Unknown line", () => {
   const fox = formatInbound(fromHistory("U1", { participant: "447222000222@s.whatsapp.net", pushName: "Unknownfox" }));
   assert.match(mergeChat(text, "Rubysoft Crew", [fox], { timeZone: TZ, chat: GROUP }).text, /\*\*Unknownfox:\*\* from history/);
 });
+
+test("a later copy with other text gives a waiting message neither its text nor its sender", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { addPending, readPending } = await import("../mcp/pull.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "wa-queue-"));
+  addPending(dir, { ...formatInbound(fromHistory("Q2")), from: "", sender: "" });
+  const forged = formatInbound(fromHistory("Q2", { participant: "447999000999@s.whatsapp.net", pushName: "Mallory" }));
+  addPending(dir, { ...forged, text: "something else" });
+  const [kept] = readPending(dir);
+  assert.equal(kept.text, "from history");
+  assert.equal(kept.from, "");
+});
