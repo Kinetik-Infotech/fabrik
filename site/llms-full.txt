@@ -59,6 +59,7 @@ fabrik's connector makes your records available to everything else Claude does. 
 - **Plugins and skills.** Anything in Claude's plugin directory, or your organisation's own.
 - **Claude in Chrome and computer use.** Claude works on sites you're signed in to, and in apps on your computer.
 - **Code.** Analysis, files and whole applications.
+- **Scheduled tasks.** Work done while you're away, at times you set in Claude. fabrik itself schedules nothing.
 
 ## How it works
 
@@ -142,7 +143,7 @@ fabrik stores your routines, records and files in a Supabase project you own. Cl
 
 ## How it acts
 
-Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Nothing in fabrik runs unattended: Claude acts only while you are in a session, on what you asked for in it.
+Every tool works as you, within your own grants. Claude shows you each change before it saves it, and waits for you to approve it. Claude acts while you are in a session, on what you asked for in it. fabrik itself schedules nothing. To have work done while you're away, set up one of Claude's own scheduled tasks, as the guide to fabrik in each Claude app says.
 
 ## Your agent's name
 
@@ -197,6 +198,16 @@ node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs sign-in
 Then open a Code session in that folder. The local connector works only in a folder signed in with `--local` on this computer. A folder that has the connector doesn't show each tool twice.
 
 claude.ai, the phone app and Cowork can't reach fabrik this way. Mail checks and the rest of fabrik's work in Supabase carry on as before. A change to fabrik's tools reaches you once fabrik's update deploys it to your project. Your next session has it, with nothing to reconnect.
+
+## Work on a schedule
+
+fabrik runs nothing on its own. To have work done while you're away, use Claude's own [scheduled tasks](https://code.claude.com/docs/en/desktop-scheduled-tasks). A scheduled task runs a prompt you write at the times you set, such as "every morning, list my new email and save the replies I owe as tasks". Each run is a new session, and uses your Claude plan's usage.
+
+A task on your computer runs only while the Claude desktop app is open and the computer is awake. After the computer wakes, it runs once to catch up. It can use what's on your computer, such as the fabrik plugin and your WhatsApp link.
+
+A task in the cloud runs even when your computer is off, at most once an hour. It reaches fabrik through its connector, so it works with your records, files and mail. It can't reach anything kept only on your computer.
+
+Claude still asks before anything that sends, pays, books or deletes. So write the prompt to gather and draft, and approve the rest yourself.
 
 ## A change to the connector
 

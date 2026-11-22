@@ -57,6 +57,7 @@ fabrik's connector makes your records available to everything else Claude does. 
 - **Plugins and skills.** Anything in Claude's plugin directory, or your organisation's own.
 - **Claude in Chrome and computer use.** Claude works on sites you're signed in to, and in apps on your computer.
 - **Code.** Analysis, files and whole applications.
+- **Scheduled tasks.** Work done while you're away, at times you set in Claude. fabrik itself schedules nothing.
 
 ## How it works
 
