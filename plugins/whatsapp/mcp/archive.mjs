@@ -135,9 +135,11 @@ const newFile = (title, chat) => `# ${oneLine(title)}\n${chat ? `<!-- wa-chat:${
  */
 export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
   const have = idsIn(existing);
+  const named = existing === null ? existing : nameUnknown(existing, records);
   const fresh = [...records].filter(m => !have.has(safeId(m.id))).sort((a, b) => a.at - b.at);
   const unique = fresh.filter((m, i) => fresh.findIndex(o => o.id === m.id) === i);
-  if (!unique.length && existing !== null) return { text: existing, added: 0 };
+  if (!unique.length && existing !== null) return { text: named, added: 0 };
+  existing = named;
   const { head, days } = parseChat(existing ?? newFile(title, chat));
   for (const m of unique) {
     const { day } = when(m.at, timeZone);
@@ -145,6 +147,15 @@ export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
     days.get(day).push(...entry(m, timeZone).split("\n"));
   }
   return { text: renderChat(head, days), added: unique.length };
+}
+
+/** The file with each line saved as Unknown given its sender's name, when the same message comes again with one. */
+export function nameUnknown(text, records) {
+  const known = new Map();
+  for (const m of records) { const who = senderName(m); if (!who.startsWith("Unknown")) known.set(safeId(m.id), who); }
+  if (!known.size) return text;
+  return String(text).replace(/^(- \d{2}:\d{2} \*\*)Unknown(?: \(WhatsApp id [^)]*\))?(:\*\* .*<!-- wa:([A-Za-z0-9_.-]+) -->)$/gm,
+    (line, start, rest, id) => known.has(id) ? `${start}${oneLine(known.get(id))}${rest}` : line);
 }
 
 /** A part file with the days of `more` added, each message once: { text, added }. */
@@ -354,8 +365,9 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
         toParts.get(part.file).push(m);
       }
       for (const [file, recs] of toParts) {
-        const merged = mergeChat(await files.read(file), `${title}, ${dayOf(recs[0]).slice(0, 7)}`, recs, { timeZone, chat });
-        if (!merged.added) continue;
+        const was = await files.read(file);
+        const merged = mergeChat(was, `${title}, ${dayOf(recs[0]).slice(0, 7)}`, recs, { timeZone, chat });
+        if (!merged.added && merged.text === was) continue;
         added += merged.added;
         if (Buffer.byteLength(merged.text, "utf8") <= limit) { await files.write(file, merged.text); continue; }
         const { head, days } = parseChat(merged.text);
@@ -366,7 +378,7 @@ export async function saveChats(records, groupNames, { dir, files, timeZone, lim
       // The chat file keeps its newest days, within one month and half the limit, so it has room to grow. The days
       // before them move to new parts.
       let { text, added: fresh } = mergeChat(existing, title, toMain, { timeZone, chat });
-      const changed = fresh > 0 || existing !== before;
+      const changed = fresh > 0 || existing !== before || text !== existing;
       if (changed && Buffer.byteLength(text, "utf8") > limit) {
         const { head, days } = parseChat(text);
         const sorted = [...days].sort((a, b) => a[0].localeCompare(b[0]));
