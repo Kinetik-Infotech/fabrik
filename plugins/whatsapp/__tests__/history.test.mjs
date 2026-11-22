@@ -116,7 +116,7 @@ test("45 chats of history take three checks, of 20, 20 and 5 chats", async () =>
   } finally { await t.end(); }
 });
 
-test("a chat whose file would pass 1 MB keeps its newest month, and its older months go to a file each", async () => {
+test("a chat whose file would pass 1 MB keeps its newest month, and its older months go to a file each, never one it doesn't own", async () => {
   // Three months of one chat, about 1.2 MB in all.
   const at = (month, i) => Date.UTC(2026, month, 1 + (i % 27), 9, 0, 0) / 1000 + (i % 600);
   const long = "x".repeat(110);
@@ -126,20 +126,25 @@ test("a chat whose file would pass 1 MB keeps its newest month, and its older mo
   }));
   const t = await setUp({ history });
   try {
+    // The person's own notes already have the name September's file would take.
+    const notes = "# Kate, September\n\nMy own notes.\n";
+    t.fabrik.files.set("me_private/whatsapp/Kate 2026-09.md", notes);
     await t.link(true);
     assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 9000 new");
+    assert.equal(t.fabrik.files.get("me_private/whatsapp/Kate 2026-09.md"), notes);
+    t.fabrik.files.delete("me_private/whatsapp/Kate 2026-09.md");
     const files = Object.fromEntries(t.saved().map(([k, v]) => [k.slice("me_private/".length), v]));
-    assert.deepEqual(Object.keys(files).sort(), ["whatsapp/Kate 2026-09.md", "whatsapp/Kate 2026-10.md", "whatsapp/Kate.md"]);
+    assert.deepEqual(Object.keys(files).sort(), ["whatsapp/Kate 2026-10.md", "whatsapp/Kate 447111000111 2026-09.md", "whatsapp/Kate.md"]);
     for (const [name, text] of Object.entries(files)) assert.ok(Buffer.byteLength(text) < 1024 * 1024, name);
     assert.deepEqual([...new Set(files["whatsapp/Kate.md"].match(/^## (\d{4}-\d{2})/gm))], ["## 2026-11"]);
-    assert.deepEqual([...new Set(files["whatsapp/Kate 2026-09.md"].match(/^## (\d{4}-\d{2})/gm))], ["## 2026-09"]);
-    assert.match(files["whatsapp/Kate 2026-09.md"], /^# WhatsApp: Kate \(\+447111000111\), 2026-09\n<!-- wa-chat:447111000111@s\.whatsapp\.net -->\n/);
+    assert.deepEqual([...new Set(files["whatsapp/Kate 447111000111 2026-09.md"].match(/^## (\d{4}-\d{2})/gm))], ["## 2026-09"]);
+    assert.match(files["whatsapp/Kate 447111000111 2026-09.md"], /^# WhatsApp: Kate \(\+447111000111\), 2026-09\n<!-- wa-chat:447111000111@s\.whatsapp\.net -->\n/);
     assert.equal(Object.values(files).join("").match(/<!-- wa:M/g).length, 9000);
 
     // A later message of a month that has its own file goes there, once.
     t.queue([dm("M9-5", `${long} 5`, { at: at(9, 5) }), dm("LATE", "late for September", { at: at(8, 1) + 5 })]);
     assert.equal((await t.server.tool("whatsapp_check")).text, "Saved in My notes (me_private):\n- whatsapp/Kate.md: 1 new");
-    const september = t.fabrik.files.get("me_private/whatsapp/Kate 2026-09.md");
+    const september = t.fabrik.files.get("me_private/whatsapp/Kate 447111000111 2026-09.md");
     assert.match(september, /wa:LATE /);
     assert.doesNotMatch(t.fabrik.files.get("me_private/whatsapp/Kate.md"), /wa:LATE /);
   } finally { await t.end(); }
