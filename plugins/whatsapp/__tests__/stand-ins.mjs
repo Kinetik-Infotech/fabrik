@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-export function fakeBaileys({ messages = () => [], history = () => ({ chunks: [] }), linkAs = "447700900123", calls = [], groups = {}, lids = {}, accept = true, lateMs = 0 } = {}) {
+export function fakeBaileys({ messages = () => [], history = () => ({ chunks: [] }), linkAs = "447700900123", linkLid = "151333290147945", calls = [], groups = {}, lids = {}, accept = true, lateMs = 0 } = {}) {
   return {
     calls,
     async useMultiFileAuthState(dir) {
@@ -41,7 +41,7 @@ export function fakeBaileys({ messages = () => [], history = () => ({ chunks: []
           ev.emit("creds.update", creds);
           if (!accept) return "ABCD1234";
           setTimeout(() => {
-            creds.me = { id: `${linkAs}:7@s.whatsapp.net` };
+            creds.me = { id: `${linkAs}:7@s.whatsapp.net`, lid: `${linkLid}:7@lid` };
             creds.registered = true;
             creds.account = { details: "signed" };
             ev.emit("creds.update", creds);
@@ -53,6 +53,11 @@ export function fakeBaileys({ messages = () => [], history = () => ({ chunks: []
         // Baileys' store of each contact's LID and phone number.
         signalRepository: { lidMapping: { async getPNForLID(lid) { calls.push({ op: "lid", lid }); return lids[lid] ?? null; } } },
         async groupMetadata(jid) { calls.push({ op: "group-name", jid }); return { subject: groups[jid] ?? "" }; },
+        // The groups the person is in, with their names, in one query, as Baileys asks for them.
+        async groupFetchAllParticipating() {
+          calls.push({ op: "group-names" });
+          return Object.fromEntries(Object.entries(groups).map(([id, subject]) => [id, { id, subject }]));
+        },
         async logout() { calls.push({ op: "logout" }); },
         end() { calls.push({ op: "end" }); },
       };
@@ -113,6 +118,10 @@ export async function standInFabrik({ actorId = "11111111-1111-1111-1111-1111111
       const body = Buffer.concat(chunks);
       const url = new URL(req.url, "http://x");
       const json = (status, value) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(value)); };
+      // Storage refuses a key with a character outside its list, as isValidKey in supabase/storage does.
+      const key = /^\/storage\/v1\/object\/(?:authenticated\/)?[^/]+\/(.+)$/.exec(url.pathname)?.[1];
+      if (key && !/^[A-Za-z0-9_/!.*'() &$=@;:+,?-]+$/.test(key.split("/").map(decodeURIComponent).join("/")))
+        return json(400, { statusCode: "400", error: "InvalidKey", message: `Invalid key: ${decodeURIComponent(key)}` });
       if (req.headers.authorization !== "Bearer token-1") return json(401, { message: "Invalid JWT" });
       if (url.pathname === "/rest/v1/rpc/fabrik_get_actor") return json(200, { actor_id: actorId, display_name: "Pat" });
       if (url.pathname === "/rest/v1/rpc/fabrik_get_scopes")

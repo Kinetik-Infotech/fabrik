@@ -20,6 +20,11 @@
 // whole whatever type it names. Nothing ends while Baileys still holds events back, since its word that the sync is
 // complete is never held back and can come first.
 //
+// Names come the same way. WhatsApp names many people only by a LID, an internal id that is not a phone number. The
+// connection hands onContacts what it learns of them: the LID and phone number pairs and the contacts history brings,
+// with the push names its PUSH_NAME sync carries, Baileys' contact and LID events, and group names from history's
+// chats and Baileys' group events.
+//
 // It only reads. It connects with markOnlineOnConnect false, so it never shows the person online or sends read
 // receipts. It calls nothing that sends a message, a receipt or a presence. Media is noted, never downloaded.
 
@@ -70,6 +75,38 @@ export async function loadBaileys({ root = ROOT, entry = ENTRY, install = instal
  * numbers them. FULL (2) and ON_DEMAND (6) are left alone. */
 export const HISTORY_TYPES = new Map([[0, "initial"], [3, "recent"]]);
 const RECENT = 3;
+/** The PUSH_NAME (4) sync, kept too: it carries the names people gave WhatsApp, and no messages. */
+const PUSH_NAME = 4;
+
+/**
+ * What a set of contacts, chats and LID pairs names: { lids: { lid: phone }, names: { jid: name }, groups: { jid: name } }.
+ * A contact's saved name comes before the name they gave WhatsApp.
+ */
+export function contactsOf({ contacts = [], chats = [], lidPnMappings = [] } = {}) {
+  const lids = {};
+  const names = {};
+  const groups = {};
+  const text = v => (typeof v === "string" ? v.trim() : "");
+  // A JID without its device: "447…:12@s.whatsapp.net" is "447…@s.whatsapp.net".
+  const bare = jid => { const [user, server] = text(jid).split("@"); return server ? `${user.split(":")[0]}@${server}` : ""; };
+  const pair = (lid, pn) => { if (bare(lid).endsWith("@lid") && bare(pn).endsWith("@s.whatsapp.net")) lids[bare(lid)] = bare(pn); };
+  for (const m of lidPnMappings ?? []) pair(m?.lid, m?.pn);
+  for (const c of [...(contacts ?? []), ...(chats ?? [])]) {
+    const id = bare(c?.id);
+    if (!id) continue;
+    if (id.endsWith("@g.us")) {
+      const subject = text(c.subject) || text(c.name);
+      if (subject) groups[id] = subject;
+      continue;
+    }
+    const lid = c.lid ?? c.lidJid ?? (id.endsWith("@lid") ? id : "");
+    const pn = c.phoneNumber ?? c.pnJid ?? (id.endsWith("@s.whatsapp.net") ? id : "");
+    pair(lid, pn);
+    const name = text(c.name) || text(c.notify) || text(c.verifiedName);
+    if (name) for (const jid of [id, bare(lid), bare(pn)]) if (jid) names[jid] = name;
+  }
+  return { lids, names, groups };
+}
 
 /** Whether the keys belong to a linked device, and its number: { linked, number }. Only a finished pairing writes
  * `account`. Asking for a code writes `me` alone, so keys with `me` and no `account` are a link that never finished. */
@@ -95,7 +132,7 @@ export const halfLinked = creds => !!creds && !linkedState(creds).linked && !!(c
  * "logged-out", "closed" or, for a pairing the phone accepted, "linked".
  */
 export async function pullWhatsApp({
-  authDir, log = () => {}, selfNumber = "", pair = false, onMessage = () => {}, onPairingCode = () => {}, afterDrain = null,
+  authDir, log = () => {}, selfNumber = "", pair = false, onMessage = () => {}, onPairingCode = () => {}, onContacts = () => {}, afterDrain = null,
   history = false, waitHistory = false, historyQuietMs = 180000,
   baileys = null, connectTimeoutMs = 20000, linkTimeoutMs = 180000, drainTimeoutMs = 30000, quietMs = 3000, now = () => Date.now(),
 }) {
@@ -149,8 +186,17 @@ export async function pullWhatsApp({
         markOnlineOnConnect: false, syncFullHistory: false,
         // With history, Baileys processes only the kept types, so a merged set holds nothing else. Without it, Baileys'
         // own default stands, and the plugin doesn't listen.
-        ...(history ? { shouldSyncHistoryMessage: ({ syncType }) => HISTORY_TYPES.has(syncType) } : {}),
+        ...(history ? { shouldSyncHistoryMessage: ({ syncType }) => HISTORY_TYPES.has(syncType) || syncType === PUSH_NAME } : {}),
       });
+
+      // What WhatsApp says of people and groups, as it comes. These are Baileys' own events, never a query.
+      const learn = set => { try { onContacts(contactsOf(set)); } catch (err) { log("contacts-error", { err: oneToken(err) }); } };
+      sock.ev.on("contacts.upsert", contacts => learn({ contacts }));
+      sock.ev.on("contacts.update", contacts => learn({ contacts }));
+      sock.ev.on("chats.upsert", chats => learn({ chats }));
+      sock.ev.on("groups.upsert", groups => learn({ chats: groups }));
+      sock.ev.on("groups.update", groups => learn({ chats: groups }));
+      sock.ev.on("lid-mapping.update", pair => learn({ lidPnMappings: [pair] }));
 
       sock.ev.on("creds.update", () => {
         saving = saving.then(saveCreds).catch(err => log("creds-save-error", { err: oneToken(err) }));
@@ -212,8 +258,9 @@ export async function pullWhatsApp({
       });
 
       if (history) {
-        sock.ev.on("messaging-history.set", ({ messages = [], chats = [], syncType, progress, chunkOrder }) => {
+        sock.ev.on("messaging-history.set", ({ messages = [], chats = [], contacts = [], lidPnMappings = [], syncType, progress, chunkOrder }) => {
           lastActivity = now();
+          learn({ contacts, chats, lidPnMappings });
           // Only the kept types reach Baileys' buffer, so a merged set is kept whatever type it names.
           const kind = HISTORY_TYPES.get(syncType) ?? `merged-${syncType ?? "none"}`;
           lastChunk = now();
