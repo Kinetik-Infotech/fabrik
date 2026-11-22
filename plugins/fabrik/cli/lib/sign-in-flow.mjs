@@ -2,6 +2,7 @@
 import { readFileSync, rmSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { LOCAL, readActorFile, writeActorFile } from "./actor-file.mjs";
+import { addLocalFolder, isLocalFolder } from "./local-folders.mjs";
 import { accountEmail, currentUser, enrolFactor, passwordSignIn, projectUrl, readSession, refFromUrl, removeFactor, setPassword, signInLevel, verifiedFactors, verifyFactor, writeSession, PROJECT_REF } from "./session.mjs";
 
 export const USAGE = "Usage: node sign-in.mjs [--project <ref> --email <email>] [--url <project URL> --key <publishable key>] [--new-password] [--second-factor] [--folder <session folder> [--local]]";
@@ -156,8 +157,9 @@ export async function signIn({ project, email: given, url: knownUrl, key: knownK
   say(`Signed in as ${email}. Session saved to ${path}.`);
   if (folder !== undefined) {
     const actor = writeActorFile(folder, { projectRef: ref, email, local });
+    if (local) addLocalFolder(folder);
     say(`Actor file saved to ${actor}. A session opened on ${folder} works as ${email}.`);
-    if (readActorFile(folder)?.value?.connector === LOCAL)
+    if (readActorFile(folder)?.value?.connector === LOCAL && isLocalFolder(folder))
       say(`fabrik's local connector is on in ${folder}: a Code session opened there reaches fabrik through the fabrik plugin, with no connector in Claude's Settings.`);
   } else {
     say(`Set auth_email to ${email} in the fabrik plugin's settings, or sign in again with --folder to work as ${email} in one folder.`);

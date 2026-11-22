@@ -7,7 +7,8 @@
 //
 // It checks that initialize names fabrik-apps with fabrik's instructions, that tools/list gives the connector's tools,
 // and that a record saved through the relay is found by search through it, as the person. A folder signed in without
-// --local lists no tools. run.sh runs it.
+// --local lists no tools, and so does a folder whose actor file says local but that isn't on the list of local folders.
+// run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from "npm:jose@6.2.17";
 
@@ -92,8 +93,9 @@ async function load(url: URL) {
 connector = await load(new URL("../../setup/functions/fabrik-apps/index.ts", import.meta.url));
 fileSearch = await load(new URL("../../setup/functions/file-search/index.ts", import.meta.url));
 
-/** A home with the person's sign-in saved as fabrik sign-in saves it, and a folder whose actor file holds actor. */
-async function place(name: string, token: string, actor: Record<string, string>) {
+/** A home with the person's sign-in saved as fabrik sign-in saves it, and a folder whose actor file holds actor. With
+ * listed, the home's list of local folders names the folder, as sign-in --local writes it. */
+async function place(name: string, token: string, actor: Record<string, string>, listed = true) {
   const home = `${WORK}/${name}/home`, folder = `${WORK}/${name}/folder`;
   const sessions = `${home}/.config/supabase-auth/${REF}`;
   await Deno.mkdir(sessions, { recursive: true, mode: 0o700 });
@@ -102,6 +104,11 @@ async function place(name: string, token: string, actor: Record<string, string>)
   await Deno.chmod(`${sessions}/${EMAIL}.json`, 0o600);
   await Deno.mkdir(folder, { recursive: true });
   await Deno.writeTextFile(`${folder}/.fabrik-actor.json`, JSON.stringify(actor));
+  if (listed) {
+    await Deno.mkdir(`${home}/.config/fabrik`, { recursive: true, mode: 0o700 });
+    await Deno.writeTextFile(`${home}/.config/fabrik/local-folders.json`, JSON.stringify({ version: 1, folders: [await Deno.realPath(folder)] }), { mode: 0o600 });
+    await Deno.chmod(`${home}/.config/fabrik/local-folders.json`, 0o600);
+  }
   return { home, folder };
 }
 
@@ -171,6 +178,11 @@ try {
   const off = await relay(plain, [INIT, { id: 2, method: "tools/list" }]);
   check("a folder signed in without --local lists no tools through the relay",
     off.answers.get(1)?.result?.serverInfo?.name === "fabrik" && JSON.stringify(off.answers.get(2)?.result?.tools) === "[]", [...off.answers.values()]);
+
+  const unlisted = await place("unlisted", token, { project_ref: REF, auth_email: EMAIL, connector: "local" }, false);
+  const refused = await relay(unlisted, [INIT, { id: 2, method: "tools/list" }]);
+  check("a folder whose actor file says connector local, but that isn't on the list of local folders, lists no tools",
+    JSON.stringify(refused.answers.get(2)?.result?.tools) === "[]" && /isn't turned on for/.test(refused.answers.get(1)?.result?.instructions ?? ""), [...refused.answers.values()]);
 } catch (err) {
   console.log(`FAIL - the relay step stopped: ${err instanceof Error ? err.stack : err}`);
   failed++;
