@@ -1,0 +1,107 @@
+// A group message's sender. A message from the phone's history names its group sender in the message's own
+// `participant`, not in its key, so a group's history once showed every sender as "Unknown".
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { formatInbound } from "../mcp/handler.mjs";
+import { mergeChat } from "../mcp/archive.mjs";
+
+const TZ = "Europe/London";
+const GROUP = "120363000000000009@g.us";
+const fromHistory = (id, { participant, pushName } = {}) =>
+  ({ key: { id, remoteJid: GROUP, fromMe: false }, participant, ...(pushName ? { pushName } : {}), message: { conversation: "from history" }, messageTimestamp: 1795000000 });
+
+test("a history message names its group sender from the message's own participant", () => {
+  const r = formatInbound(fromHistory("H1", { participant: "447222000222@s.whatsapp.net" }));
+  assert.equal(r.sender, "447222000222@s.whatsapp.net");
+  assert.equal(r.from, "+447222000222");
+});
+
+test("a history message from a LID sender keeps the LID, so the check can name them", () => {
+  const r = formatInbound(fromHistory("H2", { participant: "7303000@lid" }));
+  assert.equal(r.sender, "7303000@lid");
+  assert.equal(r.from, "");
+});
+
+test("a line saved as Unknown takes the sender's name when the same message comes again", () => {
+  const unknown = { ...formatInbound(fromHistory("H3")), from: "", sender: "" };
+  let { text } = mergeChat(null, "Rubysoft Crew", [unknown], { timeZone: TZ, chat: GROUP });
+  assert.match(text, /\*\*Unknown:\*\* from history/);
+  const named = formatInbound(fromHistory("H3", { participant: "447222000222@s.whatsapp.net", pushName: "Sam" }));
+  const again = mergeChat(text, "Rubysoft Crew", [named], { timeZone: TZ, chat: GROUP });
+  assert.match(again.text, /\*\*Sam:\*\* from history/);
+  assert.doesNotMatch(again.text, /Unknown/);
+  assert.equal(again.added, 0);
+  assert.equal((again.text.match(/wa:H3/g) ?? []).length, 1);
+});
+
+test("a named line is never renamed", () => {
+  const first = formatInbound(fromHistory("H4", { participant: "447222000222@s.whatsapp.net", pushName: "Sam" }));
+  const { text } = mergeChat(null, "Rubysoft Crew", [first], { timeZone: TZ, chat: GROUP });
+  const other = formatInbound(fromHistory("H4", { participant: "447222000222@s.whatsapp.net", pushName: "Samuel" }));
+  assert.equal(mergeChat(text, "Rubysoft Crew", [other], { timeZone: TZ, chat: GROUP }).text, text);
+});
+
+test("a check saves a chat file whose Unknown lines it named, though it added no message", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { saveChats } = await import("../mcp/archive.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "wa-senders-"));
+  const files = new Map();
+  const store = { read: async p => files.get(p) ?? null, write: async (p, t) => { files.set(p, t); } };
+  const unknown = { ...formatInbound(fromHistory("H5")), from: "", sender: "" };
+  await saveChats([unknown], { [GROUP]: "Rubysoft Crew" }, { dir, files: store, timeZone: TZ });
+  const [path] = files.keys();
+  assert.match(files.get(path), /\*\*Unknown:\*\*/);
+  const named = formatInbound(fromHistory("H5", { participant: "447222000222@s.whatsapp.net", pushName: "Sam" }));
+  await saveChats([named], { [GROUP]: "Rubysoft Crew" }, { dir, files: store, timeZone: TZ });
+  assert.match(files.get(path), /\*\*Sam:\*\* from history/);
+});
+
+test("a named copy of a waiting message replaces an Unknown copy waiting before it", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { addPending, readPending } = await import("../mcp/pull.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "wa-queue-"));
+  addPending(dir, { ...formatInbound(fromHistory("Q1")), from: "", sender: "" });
+  addPending(dir, formatInbound(fromHistory("Q1", { participant: "447222000222@s.whatsapp.net", pushName: "Sam" })));
+  const list = readPending(dir);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].from, "Sam");
+});
+
+test("a history sender loses its device suffix, and a hosted number reads as a phone number", () => {
+  assert.equal(formatInbound(fromHistory("D1", { participant: "7303000:5@lid" })).sender, "7303000@lid");
+  const hosted = formatInbound(fromHistory("D2", { participant: "447222000222@hosted" }));
+  assert.equal(hosted.sender, "447222000222@s.whatsapp.net");
+  assert.equal(hosted.from, "+447222000222");
+});
+
+test("a bare Unknown line takes the WhatsApp id of a sender known only by a LID", () => {
+  const unknown = { ...formatInbound(fromHistory("L1")), from: "", sender: "" };
+  const { text } = mergeChat(null, "Rubysoft Crew", [unknown], { timeZone: TZ, chat: GROUP });
+  const lid = formatInbound(fromHistory("L1", { participant: "7303000@lid" }));
+  assert.match(mergeChat(text, "Rubysoft Crew", [lid], { timeZone: TZ, chat: GROUP }).text, /\*\*Unknown \(WhatsApp id 7303000\):\*\*/);
+});
+
+test("a real name that starts with Unknown names an Unknown line", () => {
+  const unknown = { ...formatInbound(fromHistory("U1")), from: "", sender: "" };
+  const { text } = mergeChat(null, "Rubysoft Crew", [unknown], { timeZone: TZ, chat: GROUP });
+  const fox = formatInbound(fromHistory("U1", { participant: "447222000222@s.whatsapp.net", pushName: "Unknownfox" }));
+  assert.match(mergeChat(text, "Rubysoft Crew", [fox], { timeZone: TZ, chat: GROUP }).text, /\*\*Unknownfox:\*\* from history/);
+});
+
+test("a later copy with other text gives a waiting message neither its text nor its sender", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { addPending, readPending } = await import("../mcp/pull.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "wa-queue-"));
+  addPending(dir, { ...formatInbound(fromHistory("Q2")), from: "", sender: "" });
+  const forged = formatInbound(fromHistory("Q2", { participant: "447999000999@s.whatsapp.net", pushName: "Mallory" }));
+  addPending(dir, { ...forged, text: "something else" });
+  const [kept] = readPending(dir);
+  assert.equal(kept.text, "from history");
+  assert.equal(kept.from, "");
+});
