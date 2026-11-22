@@ -56,8 +56,9 @@ export function classifyInbound(waMessage) {
 
 /**
  * The record kept for one message, or null for one that isn't kept:
- * { id, chat, kind, number, from, fromMe, at, text, media }. `chat` is the chat's JID, `number` the other person's
- * phone number in a direct chat when WhatsApp gives it, `from` the sender's name, and `at` the time in milliseconds.
+ * { id, chat, alt, kind, number, from, fromMe, at, text, media }. `chat` is the chat's JID, `alt` its other JID in a
+ * direct chat (its LID or its phone number) when WhatsApp gives it, `number` the other person's phone number in a direct
+ * chat when WhatsApp gives it, `from` the sender's name, and `at` the time in milliseconds.
  */
 export function formatInbound(waMessage) {
   if (classifyInbound(waMessage) === "ignore") return null;
@@ -69,8 +70,9 @@ export function formatInbound(waMessage) {
   const sender = kind === "group" ? (key.participantAlt ?? key.participant) : chat;
   const from = key.fromMe ? "Me" : cleanName(waMessage.pushName) || (jidUser(sender) ? `+${jidUser(sender)}` : "Unknown");
   const seconds = Number(waMessage.messageTimestamp?.toString?.() ?? waMessage.messageTimestamp ?? 0);
+  const alt = kind === "direct" && chatKind(key.remoteJidAlt) === "direct" && key.remoteJidAlt !== chat ? key.remoteJidAlt : "";
   return {
-    id: key.id, chat, kind, number: kind === "direct" && phoneJid ? jidUser(phoneJid) : "", from, fromMe: !!key.fromMe,
+    id: key.id, chat, alt, kind, number: kind === "direct" && phoneJid ? jidUser(phoneJid) : "", from, fromMe: !!key.fromMe,
     at: seconds > 0 ? seconds * 1000 : Date.now(), text: text ?? "", media,
   };
 }

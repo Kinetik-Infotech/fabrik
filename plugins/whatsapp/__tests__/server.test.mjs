@@ -66,7 +66,7 @@ test("link by code, check, check again and unlink, as the person does them", asy
       "- 11:08 **Me:** Yes, see you then <!-- wa:A2 -->", "",
     ].join("\n"));
     assert.equal(t.fabrik.files.get("me_private/whatsapp/Family.md"), "# WhatsApp group: Family\n<!-- wa-chat:120363000000000001@g.us -->\n\n## 2026-11-18\n\n- 11:10 **Sam:** [photo] the cake <!-- wa:G1 -->\n");
-    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n<!-- wa-chat:99988877766655@lid -->\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
+    assert.equal(t.fabrik.files.get("me_private/whatsapp/Lee.md"), "# WhatsApp: Lee (+447333000333)\n<!-- wa-chat:447333000333@s.whatsapp.net -->\n\n## 2026-11-19\n\n- 11:06 **Lee:** [document] invoice.pdf <!-- wa:D1 -->\n");
     assert.ok(t.fabrik.uploads.every(u => u.type === "text/markdown"));
 
     // The same messages again leave every file as it was, and upload nothing.

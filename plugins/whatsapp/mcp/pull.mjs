@@ -18,7 +18,7 @@
 import { appendFileSync, closeSync, openSync, readFileSync, writeFileSync, renameSync, chmodSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { formatInbound, chatKind } from "./handler.mjs";
+import { formatInbound, chatKind, jidUser } from "./handler.mjs";
 import { pullWhatsApp as defaultPull } from "./baileys.mjs";
 
 export const PENDING = "pending.jsonl";
@@ -26,6 +26,35 @@ export const LOCK = "check.lock";
 /** The group names read while a socket was open, kept so messages saved at a later check still have them. */
 export const GROUPS = "groups.json";
 export const CHATS_PER_CHECK = 20;
+/** Each direct chat's LID and phone number, learnt from WhatsApp, so a chat named either way leads to one file. */
+export const LIDS = "lids.json";
+
+const phoneJid = jid => `${jidUser(jid)}@s.whatsapp.net`;
+const readLids = dir => { try { return JSON.parse(readFileSync(join(dir, LIDS), "utf8")) ?? {}; } catch { return {}; } };
+function saveLids(dir, pairs) {
+  if (!Object.keys(pairs).length) return;
+  const file = join(dir, LIDS);
+  const temp = `${file}.${randomUUID()}.tmp`;
+  writeFileSync(temp, JSON.stringify({ ...readLids(dir), ...pairs }, null, 1), { mode: 0o600 });
+  renameSync(temp, file);
+}
+
+/** The LID and phone pair a record names, as { lid: phone }, or null. */
+function pairOf(r) {
+  const lid = [r.chat, r.alt].find(j => j?.endsWith("@lid"));
+  const pn = [r.chat, r.alt].find(j => j?.endsWith("@s.whatsapp.net"));
+  return lid && pn ? { [lid]: phoneJid(pn) } : null;
+}
+
+/** The record with its chat's other name and phone number filled in from the pairs learnt. */
+export function withAlias(r, lids) {
+  if (r.kind !== "direct" || r.alt) return r;
+  const pn = lids[r.chat];
+  const lid = pn ? null : Object.keys(lids).find(l => lids[l] === r.chat);
+  const alt = pn ?? lid;
+  if (!alt) return r;
+  return { ...r, alt, number: r.number || jidUser(pn ?? r.chat) };
+}
 
 /** The chats waiting to be saved. */
 export const chatsIn = list => new Set(list.map(m => m.chat)).size;
@@ -141,8 +170,11 @@ export function createWhatsAppPull({ authDir, archive, log = () => {}, pullImpl 
       let ignored = 0;
       const fromHistory = { chats: new Set(), messages: 0 };
       const onMessage = (waMessage, meta) => {
-        const record = formatInbound(waMessage);
+        let record = formatInbound(waMessage);
         if (!record) { ignored += 1; return; }
+        if (meta?.alt && !record.alt && record.kind === "direct" && meta.alt !== record.chat) {
+          record = { ...record, alt: meta.alt, number: record.number || (meta.alt.endsWith("@s.whatsapp.net") ? jidUser(meta.alt) : "") };
+        }
         taken.push(record);
         addPending(authDir, record);
         if (meta?.history !== undefined) {
@@ -158,6 +190,20 @@ export function createWhatsAppPull({ authDir, archive, log = () => {}, pullImpl 
         const unnamed = groups.filter(g => !known[g]);
         if (unnamed.length && typeof sock?.groupMetadata === "function") Object.assign(names, await groupNames(sock, unnamed));
         saveGroups(authDir, names);
+        // A direct chat WhatsApp names only by its LID: Baileys' own store of LIDs and phone numbers names its number.
+        const paired = readLids(authDir);
+        const lids = [...new Set(taken.filter(r => r.chat.endsWith("@lid") && !r.alt && !paired[r.chat]).map(r => r.chat))];
+        const lookup = sock?.signalRepository?.lidMapping;
+        const found = {};
+        for (const lid of typeof lookup?.getPNForLID === "function" ? lids : []) {
+          let timer;
+          try {
+            const pn = await Promise.race([lookup.getPNForLID(lid), new Promise((_, no) => { timer = setTimeout(() => no(new Error("timeout")), 2000); })]);
+            if (typeof pn === "string" && pn.includes("@")) found[lid] = phoneJid(pn);
+          } catch { /* the chat keeps its LID */ }
+          finally { clearTimeout(timer); }
+        }
+        saveLids(authDir, found);
         if (afterDrain) await afterDrain(sock);
       };
       const r = await pullImpl({ authDir, log: plog, selfNumber, pair, onMessage, onPairingCode, afterDrain: drained, history, now });
@@ -172,8 +218,10 @@ export function createWhatsAppPull({ authDir, archive, log = () => {}, pullImpl 
         plog("history-done", { reason: h.reason ?? "none", chats: fromHistory.chats.size, messages: fromHistory.messages, ...Object.fromEntries(Object.entries(h.history ?? {}).map(([k, v]) => [k, `${v.chats}/${v.messages}`])) });
       }
 
-      // What waited from before, and what this run took, each message once.
-      const waiting = readPending(authDir);
+      // What waited from before, and what this run took, each message once, with the LID and phone pairs it names.
+      saveLids(authDir, Object.assign({}, ...readPending(authDir).map(pairOf).filter(Boolean)));
+      const lids = readLids(authDir);
+      const waiting = readPending(authDir).map(r => withAlias(r, lids));
 
       let report = null;
       let saved = 0;

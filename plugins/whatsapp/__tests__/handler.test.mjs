@@ -25,7 +25,7 @@ test("status updates, channels, stickers, reactions and keyless messages are lef
 
 test("a record carries the chat, the sender's name, the time, and Me for the person's own message", () => {
   const r = formatInbound(msg({ extendedTextMessage: { text: "see you" } }));
-  assert.deepEqual(r, { id: "1", chat: DM, kind: "direct", number: "447700900123", from: "Kate", fromMe: false, at: 1795000000000, text: "see you", media: null });
+  assert.deepEqual(r, { id: "1", chat: DM, alt: "", kind: "direct", number: "447700900123", from: "Kate", fromMe: false, at: 1795000000000, text: "see you", media: null });
   assert.equal(formatInbound(msg({ conversation: "x" }, { fromMe: true })).from, "Me");
 });
 

@@ -55,6 +55,8 @@ saved sign-in, the one `fabrik sign-in` saved for their folder. Open the session
 7. Once it says WhatsApp is linked, call `whatsapp_check` for the first time. With history, call it again while it
    says chats wait.
 
+When the phone sends more history after the wait ends, the next check saves it.
+
 A person who linked without history and now wants it links again with `relink` true and `history` true. Tell them
 first that WhatsApp sees each link as a new device, which adds to the risk below. `whatsapp_status` says whether the
 link brought history.
@@ -69,8 +71,9 @@ lately. It answers each chat file that changed and how many messages it gained.
 - If they own none, an administrator adds one for them, as section 20 of the `fabrik:records` skill describes.
 - A check saves at most 20 chats, oldest first, so fabrik's search can read the files in its own time. The other chats
   wait on the computer, and the answer says how many. Check again to save the next 20.
-- A chat file stays under 1 MB. When a chat's history would take it past that, its older months move to files of their
-  own, such as `whatsapp/Kate 2026-09.md`, and the newest month stays in `whatsapp/Kate.md`.
+- No chat file passes 1 MB. When a chat's messages would take its file past that, its older days move to files of
+  their own, each holding one month or part of one, such as `whatsapp/Kate 2026-09.md`. The newest days stay in
+  `whatsapp/Kate.md`.
 - If fabrik can't be reached, the messages wait on the computer, and the next check saves them. WhatsApp has already
   handed them over, so they are nowhere else.
 - A photo, video, voice note or document is noted in the file by its kind, its name and its caption. The plugin
