@@ -117,10 +117,15 @@ export function readPending(authDir) {
     try { m = JSON.parse(line); } catch { continue; }
     if (!m?.chat || !m?.id) continue;
     const key = `${m.chat} ${m.id}`;
-    // A copy that names its sender replaces one waiting before it that doesn't.
+    // A copy that names its sender gives its sender to one waiting before it that doesn't, when the two are the same
+    // message: same time and same text. The text and media kept are always the first copy's.
     if (seen.has(key)) {
       const i = seen.get(key);
-      if (!list[i].fromMe && !list[i].from && !list[i].sender && (m.from || m.sender)) list[i] = m;
+      const w = list[i];
+      const same = w.at === m.at && w.text === m.text && JSON.stringify(w.media ?? null) === JSON.stringify(m.media ?? null);
+      if (same && !w.fromMe && !m.fromMe && !w.from && !w.sender && (m.from || m.sender)) {
+        list[i] = { ...w, from: m.from ?? "", sender: m.sender ?? "", senderAlt: m.senderAlt ?? "" };
+      }
       continue;
     }
     seen.set(key, list.length);
