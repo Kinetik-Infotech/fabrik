@@ -192,7 +192,9 @@ To turn it on, say no when setup asks whether you can add a custom connector. To
 node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs sign-in --folder ~/fabrik --local
 ```
 
-Then open a Code session in that folder. The local connector works only in a folder signed in with `--local`, so a folder that has the connector doesn't show each tool twice. claude.ai, the phone app and Cowork can't reach fabrik this way. Mail checks and the rest of fabrik's work in Supabase carry on as before. A change to fabrik's tools reaches you with the next plugin update, with nothing to reconnect.
+Then open a Code session in that folder. The local connector works only in a folder signed in with `--local` on this computer. A folder that has the connector doesn't show each tool twice.
+
+claude.ai, the phone app and Cowork can't reach fabrik this way. Mail checks and the rest of fabrik's work in Supabase carry on as before. A change to fabrik's tools reaches you once fabrik's update deploys it to your project. Your next session has it, with nothing to reconnect.
 
 ## A change to the connector
 

@@ -122,9 +122,10 @@ export function settingsEmail(home = homedir(), configDir = process.env.CLAUDE_C
 export function signInArgs(argv, email, cwd = process.cwd()) {
   const person = argv.includes("--email") || argv.includes("--project");
   const named = person || argv.includes("--folder");
-  // --folder alone names a folder signed in before, whose actor file names its person.
+  // --folder alone names a folder signed in before, whose actor file names its person. With --url, it is a first
+  // sign-in to that project, and the folder's old project is not used.
   const given = argv.includes("--folder") ? argv[argv.indexOf("--folder") + 1] : undefined;
-  if (!person) {
+  if (!person && !(given !== undefined && argv.includes("--url"))) {
     const actor = readActor(given ?? cwd);
     if (actor && !actor.ok) throw new Error(actor.problem);
     if (actor) {

@@ -757,9 +757,11 @@ else { console.error("unexpected: " + cmd); process.exit(9); }
         "Can you add a custom connector in Claude's Settings? Some Claude teams don't allow it. Type 'no' if you can't, or press Enter if you can: no",
         `fabrik's local connector is on in ${ownerFolder}. Open a Code session in the Claude desktop app in that folder, and fabrik's tools are there, with no connector in Claude's Settings.`,
         "fabrik reaches only that folder's Code sessions this way, not claude.ai, the phone app or Cowork."]) && !owned.out.includes("One step is left"), owned.out);
-  check("an owner who can't add a custom connector has the folder's actor file say connector local, beside their sign-in",
-    JSON.stringify(JSON.parse(Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`))) === JSON.stringify({ project_ref: OWNER_REF, auth_email: "olive@owner.example", connector: "local" }),
-    Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`));
+  const localList = await Deno.readTextFile(`${ownerHome}/.config/fabrik/local-folders.json`).catch(() => "null");
+  check("an owner who can't add a custom connector has the folder's actor file say connector local, and the folder on the list of local folders",
+    JSON.stringify(JSON.parse(Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`))) === JSON.stringify({ project_ref: OWNER_REF, auth_email: "olive@owner.example", connector: "local" })
+      && JSON.stringify(JSON.parse(localList)?.folders) === JSON.stringify([await Deno.realPath(ownerFolder)]),
+    { actor: Deno.readTextFileSync(`${ownerFolder}/.fabrik-actor.json`), localList });
   check("the owner's sign-in asks their name, offers their Supabase account's email, which Enter takes, asks their password twice, and shows no password",
     /Your name: Olive Owner\nYour email \(Enter for olive@owner\.example\): \nNothing shows as you type or paste\. Do it once, then press Enter\.\nChoose a password: \nNothing shows as you type or paste\. Do it once, then press Enter\.\nThe password again: \n/.test(owned.out) && !ownerOutputs.join("").includes(PASSWORD), owned.out);
   const wranglerCalls = Deno.readTextFileSync(`${ownerBin}/wrangler.log`).trim().split("\n").map(l => JSON.parse(l));
