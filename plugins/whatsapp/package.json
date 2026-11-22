@@ -1,0 +1,9 @@
+{
+  "name": "whatsapp",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14"
+  },
+  "license": "MIT"
+}

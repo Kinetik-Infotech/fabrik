@@ -1,0 +1,263 @@
+#!/usr/bin/env node
+// The WhatsApp plugin's MCP server over stdio. It reads the person's WhatsApp as a linked device, and saves each chat
+// in their private fabrik scope. It has no tool that sends: it links, waits for the link, says how the link stands,
+// checks for new messages, and removes the link.
+//
+// The link's keys stay on this computer, in ~/.config/fabrik/whatsapp/<fabrik email>, a folder only the person can
+// read. They never go to fabrik, and no tool's answer holds them.
+//
+// The protocol on stdio is newline-delimited JSON-RPC, written directly as fabrik's relay does, so the server needs
+// Node and Baileys alone. Baileys loads on the first call that connects.
+import { chmodSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { linkedState, pullWhatsApp } from "./baileys.mjs";
+import { createWhatsAppPull, readPending } from "./pull.mjs";
+import { saveChats } from "./archive.mjs";
+import { normalizeE164 } from "./normalize.mjs";
+import { openFabrik, privateScope, scopeFiles, whichSignIn } from "./fabrik.mjs";
+
+const SERVER = { name: "whatsapp", version: "1" };
+const DEFAULT_PROTOCOL = "2025-06-18";
+const folder = process.env.FABRIK_SESSION_FOLDER || process.cwd();
+/** Stand-ins the tests pass, through the environment, for the connection and for fabrik. */
+const hooks = process.env.WHATSAPP_TEST_HOOKS ? await import(process.env.WHATSAPP_TEST_HOOKS) : {};
+
+const INSTRUCTIONS = "Reads the person's WhatsApp and saves each chat in their private fabrik scope, as whatsapp/<chat>.md. "
+  + "It never sends, replies, reacts or marks a message read, and has no tool that could. Use the whatsapp skill to link, check and read.";
+
+const send = msg => process.stdout.write(JSON.stringify(msg) + "\n");
+const log = (op, fields = {}) => process.stderr.write(`[whatsapp] op=${op} ${Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(" ")}\n`);
+const text = value => ({ content: [{ type: "text", text: value }] });
+const refused = value => ({ content: [{ type: "text", text: value }], isError: true });
+
+/** The keys folder for the person fabrik signs in as. */
+const keysPath = (email, home = homedir()) => join(home, ".config", "fabrik", "whatsapp", email);
+
+/** Makes the keys folder, readable by the person alone. */
+function makeKeysFolder(dir) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+}
+
+function lockDown(dir) {
+  try { for (const f of readdirSync(dir)) chmodSync(join(dir, f), 0o600); } catch { /* gone */ }
+}
+
+const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return fallback; } };
+const settingsOf = dir => readJson(join(dir, "settings.json"), {});
+const saveSettings = (dir, value) => writeFileSync(join(dir, "settings.json"), JSON.stringify(value, null, 1), { mode: 0o600 });
+const stateOf = dir => linkedState(readJson(join(dir, "creds.json"), null));
+
+/** The person fabrik signs in as, and their keys folder: { ok, ref, email, dir } or { ok: false, problem }. */
+function who() {
+  const signIn = whichSignIn(folder);
+  if (signIn.problem) return { ok: false, problem: signIn.problem };
+  return { ok: true, ...signIn, dir: keysPath(signIn.email) };
+}
+
+const pulls = new Map();
+/** The one check per keys folder, so two connections never share its keys. */
+function pullFor(person) {
+  if (!pulls.has(person.dir)) {
+    const archive = async (records, groupNames) => {
+      const opened = await (hooks.openFabrik ?? openFabrik)(person);
+      if (!opened.ok) throw new Error(opened.problem);
+      const settings = settingsOf(person.dir);
+      const scope = await (hooks.privateScope ?? privateScope)(opened.access, settings.scope);
+      if (!scope.ok) throw new Error(scope.problem);
+      const files = (hooks.scopeFiles ?? scopeFiles)(opened.access, scope.code);
+      return { scope, ...(await saveChats(records, groupNames, { dir: person.dir, files })) };
+    };
+    const pullImpl = hooks.pullWhatsApp ?? pullWhatsApp;
+    pulls.set(person.dir, createWhatsAppPull({ authDir: person.dir, archive, log, pullImpl }));
+  }
+  return pulls.get(person.dir);
+}
+
+/** What a check did, in a few lines for the person. */
+function summary(r) {
+  const lines = [];
+  if (r.reason === "not-linked" || r.reason === "logged-out") lines.push("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
+  else if (r.reason === "connect-timeout") lines.push("WhatsApp didn't answer within 20 seconds. Check the computer is online, then check again.");
+  else if (r.reason === "drain-timeout") lines.push("WhatsApp kept sending for longer than 30 seconds, so the check stopped. Check again for the rest.");
+  else if (r.reason === "closed") lines.push("WhatsApp closed the connection. Check again in a minute.");
+  const report = r.report;
+  if (report?.problem) lines.push(`The messages weren't saved in fabrik: ${report.problem}`);
+  if (report?.scope) {
+    const changed = (report.chats ?? []).filter(c => c.added);
+    if (changed.length) lines.push(`Saved in ${report.scope.name} (${report.scope.code}):`, ...changed.map(c => `- ${c.file}: ${c.added} new`));
+    for (const f of report.failed ?? []) lines.push(`- ${f.file} wasn't saved: ${f.problem}`);
+  }
+  const added = (report?.chats ?? []).reduce((n, c) => n + c.added, 0);
+  if (!r.reason && !added && !report?.problem && !report?.failed?.length) lines.push("No new messages.");
+  if (r.waiting) lines.push(`${r.waiting} message${r.waiting === 1 ? "" : "s"} wait on this computer to be saved at the next check.`);
+  return lines.join("\n");
+}
+
+/** The link under way, while the person types the code. */
+const links = new Map();
+
+const TOOLS = [
+  {
+    name: "whatsapp_status",
+    description: "Says whether WhatsApp is linked on this computer, and the linked number. Also names the private fabrik scope the chats go in, and how many messages wait to be saved. Reads only this computer.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    async run(person) {
+      const { linked, number } = stateOf(person.dir);
+      const waiting = readPending(person.dir).length;
+      const settings = settingsOf(person.dir);
+      return text([
+        linked ? `WhatsApp is linked as +${number}.` : "WhatsApp isn't linked on this computer.",
+        `fabrik sign-in: ${person.email}.`,
+        settings.scope ? `Chats go in the private scope ${settings.scope}.` : "Chats go in your private fabrik scope.",
+        ...(settings.lastCheck ? [`Last check: ${settings.lastCheck}.`] : []),
+        ...(waiting ? [`${waiting} message${waiting === 1 ? "" : "s"} wait to be saved.`] : []),
+        ...(links.has(person.dir) ? ["A link is waiting for the code to be typed on the phone."] : []),
+      ].join("\n"));
+    },
+  },
+  {
+    name: "whatsapp_link",
+    description: "Starts linking the person's WhatsApp as a device on this computer. Takes the WhatsApp number in international format. Answers an 8-character code the person types on their phone, under WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead. Then call whatsapp_link_wait.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        phone: { type: "string", description: "The WhatsApp number to link, in international format, such as +44 7700 900123." },
+        relink: { type: "boolean", description: "True to drop the link this computer holds and link again." },
+      },
+      required: ["phone"],
+      additionalProperties: false,
+    },
+    async run(person, { phone, relink = false }) {
+      const digits = normalizeE164(phone);
+      if (!digits || digits.length < 8) return refused(`${phone} isn't a phone number. Give it in international format, such as +44 7700 900123.`);
+      if (links.has(person.dir)) return refused("A link is already waiting for its code. Call whatsapp_link_wait, or wait three minutes for it to end.");
+      const state = stateOf(person.dir);
+      if (state.linked && !relink) return text(`WhatsApp is already linked as +${state.number}. To link again, call whatsapp_link with relink true.`);
+      if (state.linked && relink) rmSync(person.dir, { recursive: true, force: true });
+      makeKeysFolder(person.dir);
+      let gotCode;
+      const code = new Promise(resolve => { gotCode = resolve; });
+      const run = pullFor(person).run({ trigger: "link", pair: true, selfNumber: digits, onPairingCode: c => gotCode(c) });
+      links.set(person.dir, run);
+      run.finally(() => { links.delete(person.dir); lockDown(person.dir); gotCode(null); });
+      const first = await Promise.race([code, run.then(() => null), new Promise(r => setTimeout(() => r(null), 30_000))]);
+      if (!first) {
+        const r = await Promise.race([run, new Promise(res => setTimeout(() => res(null), 1))]);
+        return refused(r ? `WhatsApp gave no code. ${summary(r) || r.reason || ""}`.trim() : "WhatsApp gave no code within 30 seconds. Check the computer is online, then try again.");
+      }
+      const shown = first.length === 8 ? `${first.slice(0, 4)}-${first.slice(4)}` : first;
+      return text(`Code: ${shown}\n\nOn the phone with +${digits}, open WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead, and type the code. `
+        + "If the phone asks whether someone else asked you for this code, it was you: carry on and approve the link. The code works for about three minutes. Then call whatsapp_link_wait.");
+    },
+  },
+  {
+    name: "whatsapp_link_wait",
+    description: "Waits up to 60 seconds for the phone to accept the code whatsapp_link gave. Call it again while it says it is still waiting.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    async run(person) {
+      const run = links.get(person.dir);
+      if (!run) {
+        const state = stateOf(person.dir);
+        return state.linked ? text(`WhatsApp is linked as +${state.number}. Check for messages with whatsapp_check.`) : refused("No link is under way. Start one with whatsapp_link.");
+      }
+      const r = await Promise.race([run, new Promise(res => setTimeout(() => res(null), 60_000))]);
+      if (!r) return text("Still waiting for the code to be typed on the phone. Call whatsapp_link_wait again.");
+      const state = stateOf(person.dir);
+      if (state.linked) return text(`WhatsApp is linked as +${state.number}. Check for messages with whatsapp_check.`);
+      return refused(r.reason === "connect-timeout" ? "The code ran out before the phone accepted it. Start again with whatsapp_link." : `The link didn't complete. ${summary(r)}`.trim());
+    },
+  },
+  {
+    name: "whatsapp_check",
+    description: "Connects, takes the WhatsApp messages that arrived since the last check, and saves each chat as whatsapp/<chat>.md in the person's private fabrik scope. Photos, videos, voice notes and documents are noted by kind and name, never downloaded. Sends nothing, and marks nothing read.",
+    inputSchema: {
+      type: "object",
+      properties: { scope: { type: "string", description: "The code of the private scope to save in, only when the person owns more than one. It is kept for later checks." } },
+      additionalProperties: false,
+    },
+    async run(person, { scope } = {}) {
+      if (links.has(person.dir)) return refused("A link is waiting for its code. Finish it with whatsapp_link_wait first.");
+      if (!stateOf(person.dir).linked) return refused("WhatsApp isn't linked on this computer. Link it with whatsapp_link.");
+      if (scope) saveSettings(person.dir, { ...settingsOf(person.dir), scope });
+      const r = await pullFor(person).run({ trigger: "check" });
+      lockDown(person.dir);
+      if (!r.reason) saveSettings(person.dir, { ...settingsOf(person.dir), lastCheck: new Date().toISOString() });
+      const said = summary(r);
+      return r.reason || r.report?.problem ? refused(said) : text(said);
+    },
+  },
+  {
+    name: "whatsapp_unlink",
+    description: "Removes this computer's WhatsApp link: saves what WhatsApp holds for it first, asks WhatsApp to drop the device, and deletes the keys folder. Ask the person before calling it.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    annotations: { destructiveHint: true },
+    async run(person) {
+      if (links.has(person.dir)) return refused("A link is waiting for its code. Let it end first, about three minutes.");
+      let dropped = false;
+      let r = null;
+      if (stateOf(person.dir).linked) {
+        r = await pullFor(person).run({ trigger: "unlink", afterDrain: async sock => { await sock.logout(); dropped = true; } });
+      }
+      const lost = readPending(person.dir).length;
+      rmSync(person.dir, { recursive: true, force: true });
+      pulls.delete(person.dir);
+      return text([
+        dropped ? "WhatsApp dropped this device, and the keys folder is deleted." : "The keys folder is deleted. WhatsApp couldn't be reached to drop the device, so remove it on the phone under Settings → Linked devices.",
+        ...(r ? [summary(r)] : []),
+        ...(lost ? [`${lost} message${lost === 1 ? "" : "s"} couldn't be saved in fabrik and went with the folder.`] : []),
+      ].filter(Boolean).join("\n"));
+    },
+  },
+];
+
+async function call(id, name, args) {
+  const tool = TOOLS.find(t => t.name === name);
+  if (!tool) return send({ jsonrpc: "2.0", id, error: { code: -32602, message: `No tool named ${name}.` } });
+  const person = who();
+  if (!person.ok) return send({ jsonrpc: "2.0", id, result: refused(person.problem) });
+  let result;
+  try { result = await tool.run(person, args ?? {}); }
+  catch (err) { result = refused(err instanceof Error ? err.message : String(err)); }
+  send({ jsonrpc: "2.0", id, result });
+}
+
+async function handle(msg) {
+  const { id, method, params } = msg;
+  if (id === undefined || method === undefined) return;
+  if (method === "initialize")
+    return send({ jsonrpc: "2.0", id, result: { protocolVersion: params?.protocolVersion ?? DEFAULT_PROTOCOL, capabilities: { tools: {} }, serverInfo: SERVER, instructions: INSTRUCTIONS } });
+  if (method === "ping") return send({ jsonrpc: "2.0", id, result: {} });
+  if (method === "tools/list") return send({ jsonrpc: "2.0", id, result: { tools: TOOLS.map(({ run: _run, ...t }) => t) } });
+  if (method === "tools/call") return call(id, params?.name, params?.arguments);
+  send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+}
+
+let buffer = "";
+let inFlight = 0;
+let ended = false;
+const settle = () => { if (ended && inFlight === 0) process.stdout.write("", () => process.exit(0)); };
+
+async function one(line) {
+  let msg;
+  try { msg = JSON.parse(line); } catch { return send({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error: the line is not JSON." } }); }
+  inFlight += 1;
+  try { await handle(msg); }
+  catch (err) { if (msg?.id !== undefined) send({ jsonrpc: "2.0", id: msg.id, error: { code: -32603, message: err instanceof Error ? err.message : String(err) } }); }
+  finally { inFlight -= 1; settle(); }
+}
+
+process.stdin.setEncoding("utf-8");
+process.stdin.on("data", chunk => {
+  buffer += chunk;
+  let nl;
+  while ((nl = buffer.indexOf("\n")) !== -1) {
+    const line = buffer.slice(0, nl).trim();
+    buffer = buffer.slice(nl + 1);
+    if (line) one(line);
+  }
+});
+process.stdin.on("end", () => { ended = true; settle(); });
