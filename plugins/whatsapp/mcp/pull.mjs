@@ -110,13 +110,20 @@ const saveGroups = (dir, names) => addToMap(dir, GROUPS, names);
 export function readPending(authDir) {
   let text = "";
   try { text = readFileSync(join(authDir, PENDING), "utf8"); } catch { return []; }
-  const seen = new Set();
+  const seen = new Map();
   const list = [];
   for (const line of text.split("\n")) {
     let m;
     try { m = JSON.parse(line); } catch { continue; }
-    if (!m?.chat || !m?.id || seen.has(`${m.chat} ${m.id}`)) continue;
-    seen.add(`${m.chat} ${m.id}`);
+    if (!m?.chat || !m?.id) continue;
+    const key = `${m.chat} ${m.id}`;
+    // A copy that names its sender replaces one waiting before it that doesn't.
+    if (seen.has(key)) {
+      const i = seen.get(key);
+      if (!list[i].fromMe && !list[i].from && !list[i].sender && (m.from || m.sender)) list[i] = m;
+      continue;
+    }
+    seen.set(key, list.length);
     list.push(m);
   }
   return list;

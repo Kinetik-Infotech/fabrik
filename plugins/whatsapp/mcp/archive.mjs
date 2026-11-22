@@ -152,10 +152,16 @@ export function mergeChat(existing, title, records, { timeZone, chat } = {}) {
 /** The file with each line saved as Unknown given its sender's name, when the same message comes again with one. */
 export function nameUnknown(text, records) {
   const known = new Map();
-  for (const m of records) { const who = senderName(m); if (!who.startsWith("Unknown")) known.set(safeId(m.id), who); }
+  // A name, or the WhatsApp id of a sender known only by one. A record with neither names nobody.
+  for (const m of records) { const who = senderName(m); if (m.from || who !== "Unknown") known.set(safeId(m.id), { who, named: !!m.from }); }
   if (!known.size) return text;
-  return String(text).replace(/^(- \d{2}:\d{2} \*\*)Unknown(?: \(WhatsApp id [^)]*\))?(:\*\* .*<!-- wa:([A-Za-z0-9_.-]+) -->)$/gm,
-    (line, start, rest, id) => known.has(id) ? `${start}${oneLine(known.get(id))}${rest}` : line);
+  return String(text).replace(/^(- \d{2}:\d{2} \*\*)(Unknown(?: \(WhatsApp id [^)]*\))?)(:\*\* .*<!-- wa:([A-Za-z0-9_.-]+) -->)$/gm,
+    (line, start, label, rest, id) => {
+      const k = known.get(id);
+      // A name replaces any Unknown; an id fills in only a bare Unknown.
+      if (!k || (!k.named && label !== "Unknown")) return line;
+      return `${start}${oneLine(k.who)}${rest}`;
+    });
 }
 
 /** A part file with the days of `more` added, each message once: { text, added }. */
