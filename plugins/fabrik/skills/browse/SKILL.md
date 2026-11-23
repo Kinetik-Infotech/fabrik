@@ -49,12 +49,20 @@ What the agent takes from the web is marked as an outside source with its link, 
 
 ## The record that ends each task
 
+The record is evidence of what was done on the web. It is never an activity. fabrik keeps every activity as a pending task with an owner, and a finished browse leaves the person nothing to do.
+
 When a task that worked on a site ends, the agent shows the record below and asks "Save a record of <task>?" with Yes and No. On Yes it calls `remember` with:
 
 - `title`: the task, such as "Compared standing desks under £500".
-- `kind`: `activity`, and `type`: `Browse task`.
+- `type`: `Note`. `kind` is left out, so the record is evidence.
 - `text`: the steps taken, each approval given with the step it was for, and the outcome, in at most 4000 characters. The URLs go in `properties`, not here. When the steps run longer, give one line to each site rather than each step.
 - `properties`: `urls`, the list of URLs used, and `browser`, `chrome` or `built-in`.
 - `links`: one `{ target, relation: "mentions" }` for each person and project record the task touched.
+
+`remember` saves a note's standing as `stated` and its source as empty. The agent then calls `save_record` with `record`, the new record's `record_id`, `reason` "Record of <task>", and `fields`:
+
+- `standing`: `observed`.
+- `source_reference`: the main URL the task worked on, with no `?` part.
+- `source_date`: the day of the task, as YYYY-MM-DD.
 
 Every task skill ends with this record, with two exceptions. A catch-up that saved nothing ends without one. A page saved on its own, with `save-page`, is its own record.
