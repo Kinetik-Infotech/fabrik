@@ -62,7 +62,9 @@ When a task that worked on a site ends, the agent shows the record below and ask
 `remember` saves a note's standing as `stated` and its source as empty. The agent then calls `save_record` with `record`, the new record's `record_id`, `reason` "Record of <task>", and `fields`:
 
 - `standing`: `observed`.
-- `source_reference`: the main URL the task worked on, with no `?` part.
+- `source_reference`: the site's page as an `https://` link, with no `?` part. A task on several sites, such as a comparison or research, uses the site that gave the answer, or else the first site. fabrik refuses any other link. It refuses an address that starts `http://`, names a user before the host, or has a port other than 443. For such a site, give its name and the day in plain words instead, such as `example.com, 23 Nov 2026`. Plain words start with neither `/` nor `\`.
 - `source_date`: the day of the task, as YYYY-MM-DD.
+
+When fabrik refuses the `save_record` call, the record is still saved. The agent tells the person that the record was saved without its source, and why fabrik refused it.
 
 Every task skill ends with this record, with two exceptions. A catch-up that saved nothing ends without one. A page saved on its own, with `save-page`, is its own record.
