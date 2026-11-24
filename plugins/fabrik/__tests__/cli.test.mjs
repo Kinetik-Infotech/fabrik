@@ -421,7 +421,12 @@ test("the page's picture is taken with the browser kept off the macOS keychain",
     `sys.path.insert(0, ${JSON.stringify(check)})`,
     "import page_check",
     "page_check.browser = lambda: 'browser'",
-    "page_check.subprocess.run = lambda args, **kw: print(json.dumps(args))",
+    "class Started:",
+    "    returncode = 0",
+    "    def __init__(self, args, **kw): print(json.dumps(args))",
+    "    def wait(self, timeout=None): return 0",
+    "    def poll(self): return 0",
+    "page_check.subprocess.Popen = Started",
     `page_check.picture(${JSON.stringify(join(work, "board.html"))}, 800)`,
   ].join("\n");
   // python3 on Windows can be the Store's shortcut, which runs nothing; the fabrik tools try the same three.
@@ -432,6 +437,7 @@ test("the page's picture is taken with the browser kept off the macOS keychain",
   const args = JSON.parse(ran.stdout);
   assert.ok(args.includes("--use-mock-keychain"), args.join(" "));
   assert.ok(args.includes("--password-store=basic"), args.join(" "));
+  assert.ok(args.includes("--disable-features=MacAppCodeSignClone"), args.join(" "));
 });
 
 test("sign-in in a folder already signed in signs in again as that folder's person, in its project and folder, and an older actor file's upload folder is ignored", async () => {
