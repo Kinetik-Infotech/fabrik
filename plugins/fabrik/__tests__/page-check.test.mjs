@@ -247,9 +247,20 @@ if not found:
 clones = os.path.realpath(os.path.join(os.environ.get("TMPDIR", "/tmp"), "..", "X", "com.google.Chrome.code_sign_clone"))
 def listed():
     return set(os.listdir(clones)) if os.path.isdir(clones) else set()
-def browsers():
-    out = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True).stdout
-    return {line.split()[0] for line in out.splitlines() if "--headless" in line and "--type=" not in line}
+def browsers(started_within=None):
+    """The headless browsers running, or those started within the last seconds given. A browser makes its copy
+    a moment after it starts, later under load, so one started just before this run can make it during the run."""
+    out = subprocess.run(["ps", "-axo", "pid=,etime=,command="], capture_output=True, text=True).stdout
+    found = set()
+    for line in out.splitlines():
+        pid, etime = line.split()[:2]
+        if "--headless" not in line or "--type=" in line:
+            continue
+        parts = [int(x) for x in etime.replace("-", ":").split(":")]
+        seconds = sum(v * m for v, m in zip(reversed(parts), (1, 60, 3600, 86400)))
+        if started_within is None or seconds <= started_within:
+            found.add(pid)
+    return found
 started = []
 real_popen = subprocess.Popen
 def popen(command, *a, **k):
@@ -259,7 +270,8 @@ def popen(command, *a, **k):
     return process
 page_check.subprocess.Popen = popen
 for attempt in range(3):
-    started.clear(); before, others, others_started = listed(), browsers(), False
+    started.clear(); before, others = listed(), browsers()
+    others_started = bool(browsers(started_within=5))
     stop = threading.Event()
     def watch():
         global others_started
@@ -281,10 +293,11 @@ profile = next(a.split("=", 1)[1] for a in started[0].args if a.startswith("--us
 print(json.dumps({"timed_out": timed_out, "seconds": seconds, "profile_gone": not os.path.exists(profile),
                   "group_gone": group_gone(started[0].pid), "quiet": not others_started, "copies_left": sorted(listed() - before)}))`);
   if (out.skip) return;
-  assert.equal(out.timed_out, true);
-  assert.ok(out.seconds >= 5 && out.seconds < 11, `took ${out.seconds} s`);
-  assert.equal(out.profile_gone, true);
-  assert.equal(out.group_gone, true);
-  if (out.quiet) assert.deepEqual(out.copies_left, [], "Chrome left a copy of itself");
+  const seen = JSON.stringify(out);
+  assert.equal(out.timed_out, true, seen);
+  assert.ok(out.seconds >= 5 && out.seconds < 11, seen);
+  assert.equal(out.profile_gone, true, seen);
+  assert.equal(out.group_gone, true, seen);
+  if (out.quiet) assert.deepEqual(out.copies_left, [], `Chrome left a copy of itself: ${seen}`);
   else t.diagnostic("other browsers started in each try, so Chrome's copies were not checked");
 });

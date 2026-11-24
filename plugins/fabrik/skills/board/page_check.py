@@ -124,8 +124,10 @@ def stop(process, grace):
     try:
         process.wait(grace)
     except subprocess.TimeoutExpired:
-        signal_group(process.pid, signal.SIGKILL)
-        process.wait()
+        pass
+    # A sandboxed helper can refuse SIGTERM, and live on after the browser has quit.
+    signal_group(process.pid, signal.SIGKILL)
+    process.wait()
 
 
 def with_features_off(switches):
