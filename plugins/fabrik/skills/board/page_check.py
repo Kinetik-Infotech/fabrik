@@ -128,14 +128,35 @@ def stop(process, grace):
         process.wait()
 
 
+def with_features_off(switches):
+    """The switches with MacAppCodeSignClone added to the features turned off. Chrome reads only the last
+    --disable-features, so a caller's own list is joined to it rather than given beside it."""
+    features, rest = ["MacAppCodeSignClone"], []
+    for switch in switches:
+        if switch.startswith("--disable-features="):
+            features += [f for f in switch.split("=", 1)[1].split(",") if f and f not in features]
+        else:
+            rest.append(switch)
+    return [*rest, "--disable-features=" + ",".join(features)]
+
+
+def remove_profile(profile):
+    """Removes the profile folder. On Windows a helper of the browser can hold it open a moment after the
+    browser returns, so it is tried again for up to 5 seconds."""
+    end = time.monotonic() + (5 if sys.platform == "win32" else 0)
+    while True:
+        shutil.rmtree(profile, ignore_errors=True)
+        if not os.path.exists(profile) or time.monotonic() >= end:
+            return
+        time.sleep(0.25)
+
+
 def run_browser(found, switches, timeout, grace=5):
     """Runs the browser headless with the switches, in its own process group and with its own new profile
     folder, removed afterwards. Raises subprocess.TimeoutExpired once the browser has run `timeout` seconds,
     after stopping it. Waiting for a slot counts towards the time."""
     deadline = time.monotonic() + timeout
-    profile = tempfile.mkdtemp(prefix="okb-profile-")
-    slot = take_slot(deadline - 30)
-    process = None
+    profile = slot = process = None
 
     def stopped(*_):
         raise Stopped(128 + signal.SIGTERM)
@@ -145,11 +166,12 @@ def run_browser(found, switches, timeout, grace=5):
     except ValueError:  # not the main thread
         previous = None
     try:
+        slot = take_slot(deadline - 30)
+        profile = tempfile.mkdtemp(prefix="okb-profile-")
         # MacAppCodeSignClone is what makes Chrome on macOS copy itself into the temporary folder at each start.
         # Chrome removes the copy only when it quits on its own, never when it is stopped, so it is turned off.
         # Other browsers ignore a feature they do not know.
-        process = subprocess.Popen([found, "--headless", f"--user-data-dir={profile}",
-                                    "--disable-features=MacAppCodeSignClone", *switches],
+        process = subprocess.Popen([found, "--headless", f"--user-data-dir={profile}", *with_features_off(switches)],
                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                    start_new_session=sys.platform != "win32")
         left = max(1.0, deadline - time.monotonic())
@@ -167,7 +189,8 @@ def run_browser(found, switches, timeout, grace=5):
             signal.signal(signal.SIGTERM, previous)
         if slot is not None:
             os.close(slot)
-        shutil.rmtree(profile, ignore_errors=True)
+        if profile is not None:
+            remove_profile(profile)
     return process.returncode
 
 
@@ -214,9 +237,9 @@ def picture(page_path, height, fragment=""):
         # The two keychain switches keep the browser off the macOS keychain, whose dialog a home
         # folder without one raises, as the fabrik command's tests give it.
         run_browser(found, ["--disable-gpu", "--hide-scrollbars", "--no-first-run",
-                        "--no-default-browser-check", "--use-mock-keychain", "--password-store=basic",
-                        f"--window-size=1600,{height}",
-                        "--virtual-time-budget=8000", f"--screenshot={os.path.abspath(png)}", url], timeout=90)
+                            "--no-default-browser-check", "--use-mock-keychain", "--password-store=basic",
+                            f"--window-size=1600,{height}",
+                            "--virtual-time-budget=8000", f"--screenshot={os.path.abspath(png)}", url], timeout=90)
     except (OSError, subprocess.TimeoutExpired) as err:
         return f"no picture: the browser did not finish ({err})"
     if not written(png):

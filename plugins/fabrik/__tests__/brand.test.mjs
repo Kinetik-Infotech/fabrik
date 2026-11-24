@@ -2,8 +2,8 @@
 // background.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,8 +100,18 @@ function accentAfterCheck(background, accentText) {
     `<body><p id="out"></p><script>${fn}legibleAccent(document.documentElement, "--fk-accent-text", "var(--fg)");` +
     `var s = document.createElement("span"); s.style.color = "var(--fk-accent-text)"; document.body.appendChild(s);` +
     `document.getElementById("out").textContent = "[" + getComputedStyle(s).color + "]";</script></body></html>`);
-  const dom = execFileSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`, "--dump-dom", `file://${page}`], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
-  return dom.match(/<p id="out">\[([^\]]*)\]<\/p>/)[1];
+  try {
+    // No copy of Chrome left in the temporary folder: Chrome on macOS removes that copy only when it quits by itself.
+    // Past its time, spawnSync sends SIGTERM and waits for Chrome to end. Under load Chrome can end with status 2
+    // after writing the page, so the page is read whatever the status.
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", "--dump-dom", `file://${page}`], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1];
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
 }
 
 test("text in the brand's accent that reads on the chat's background keeps the accent", { skip: !BROWSER }, () => {
