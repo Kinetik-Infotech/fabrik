@@ -69,8 +69,9 @@ test("a font's fallbacks are each quoted, so a name starting with a digit keeps 
   assert.match(printStyle(brand), /--body-font: "Inter", "3Dumb", "Arial", serif;/);
 });
 
-test("a deck's title slide takes the logo whatever the order of its class's names", async () => {
+test("a deck's title slide takes the logo whatever the order of its class's names", async t => {
   const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-brand-")));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
   writeFileSync(join(work, "deck.html"), '<!doctype html><html><head><title>Deck</title></head><body><section class="title slide"><h1>Harbour</h1></section>' +
     '<section class="slide"><footer class="x band"><span>2026</span></footer></section><section class="subtitle slide"></section></body></html>');
   const tools = createTools({ agentFolder: work, readBrand: async () => brandOf(RECORD) });
