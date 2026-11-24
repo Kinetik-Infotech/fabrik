@@ -209,6 +209,32 @@ print(json.dumps({"codes": codes, "times": runs}))`);
   assert.ok(start1 < end1 && end1 <= start2 && start2 < end2, `the browsers overlapped: ${out.times}`);
 });
 
+test("a script stopped while it waits for a browser slot leaves no profile folder", { skip: UNIX }, () => {
+  const out = run("waiting", `${SHARED}
+import fcntl, tempfile
+own_tmp = tempfile.mkdtemp(); slots = os.path.join(own_tmp, "slots"); os.makedirs(slots, mode=0o700)
+held = os.open(os.path.join(slots, "0.lock"), os.O_RDWR | os.O_CREAT, 0o600); fcntl.flock(held, fcntl.LOCK_EX)
+script = "import sys; sys.path.insert(0, sys.argv[1]); import page_check; page_check.BROWSER_SLOTS = 1; page_check.SLOTS_FOLDER = sys.argv[3]; print('ready', flush=True); page_check.run_browser(sys.argv[2], [], timeout=60)"
+child = subprocess.Popen([sys.executable, "-c", script, sys.argv[1], ${JSON.stringify(fakeBrowser())}, slots],
+                         env={**os.environ, "TMPDIR": own_tmp, "FAKE_MODE": "quick", "FAKE_LOG": path + ".log"}, stdout=subprocess.PIPE, text=True)
+child.stdout.readline()
+time.sleep(1)
+child.terminate()
+code = child.wait(20)
+print(json.dumps({"code": code, "browser_started": os.path.exists(path + ".log"),
+                  "left": sorted(n for n in os.listdir(own_tmp) if n.startswith("okb-profile-"))}))`);
+  assert.notEqual(out.code, 0);
+  assert.equal(out.browser_started, false);
+  assert.deepEqual(out.left, []);
+});
+
+test("a caller's own features to turn off are joined to the browser's copy switch, which Chrome reads once", { skip: !PYTHON && "needs Python 3" }, () => {
+  const out = run("features", `
+print(json.dumps([page_check.with_features_off(["--a", "--disable-features=Translate,MacAppCodeSignClone", "--b"]),
+                  page_check.with_features_off(["--a"])]))`);
+  assert.deepEqual(out, [["--a", "--b", "--disable-features=MacAppCodeSignClone,Translate"], ["--a", "--disable-features=MacAppCodeSignClone"]]);
+});
+
 test("Chrome on a page that never finishes is stopped at its time, and leaves no process, profile folder or copy of itself", { skip: UNIX }, t => {
   const page = join(scratch, "never.html");
   writeFileSync(page, "<html><body>never<script>while (true) {}</script></body></html>");
