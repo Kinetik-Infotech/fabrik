@@ -252,3 +252,20 @@ test("the question card draw_widget draws, and the chat page, show the dark-mode
   assert.deepEqual(logosOnPages(pages, "light"), ["light", "light", "one", "one"]);
   assert.deepEqual(logosOnPages(pages, "dark"), ["dark", "dark", "one", "one"]);
 });
+
+test("a chat page hides a heading that is the business's own name beside its logo, and shows every other heading", t => {
+  const work = mkdtempSync(join(tmpdir(), "fabrik-chat-heading-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const agents = [{ slug: "joinery", name: "smith JOINERY", purpose: "" }, { slug: "help", name: "Help", purpose: "" }];
+  const headings = (brand, folder) => {
+    buildChatPage({ brand, address: "https://x.example/functions/v1/public-agent", folder, agents });
+    return ["index.html", "joinery/index.html", "help/index.html"].map(f => readFileSync(join(folder, f), "utf-8").match(/<h1[^>]*>[^<]*<\/h1>/)[0]);
+  };
+  assert.deepEqual(headings(brandOf(RECORD), join(work, "logo")),
+    ['<h1 class="in-logo">Smith Joinery</h1>', '<h1 class="in-logo">smith JOINERY</h1>', "<h1>Help</h1>"]);
+  const alt = { ...brandOf(RECORD), logo: { ...brandOf(RECORD).logo, alt: "Smith & Sons" } };
+  buildChatPage({ brand: alt, address: "https://x.example/functions/v1/public-agent", folder: join(work, "alt"), agents: [{ slug: "sons", name: "smith & sons", purpose: "" }] });
+  assert.equal(readFileSync(join(work, "alt", "sons", "index.html"), "utf-8").match(/<h1[^>]*>[^<]*<\/h1>/)[0], '<h1 class="in-logo">smith &amp; sons</h1>');
+  const plain = { ...brandOf(RECORD), logo: null };
+  assert.deepEqual(headings(plain, join(work, "plain")), ["<h1>Smith Joinery</h1>", "<h1>smith JOINERY</h1>", "<h1>Help</h1>"]);
+});
