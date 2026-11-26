@@ -7,7 +7,8 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { brandOf, printStyle, readBrand } from "../cli/lib/brand.mjs";
+import { brandOf, headLogoHtml, LOGO_CSS, LOGO_SWITCH, logoHtml, MAX_LOGO, printStyle, readBrand } from "../cli/lib/brand.mjs";
+import { buildChatPage, pageStyle } from "../cli/chat-page.mjs";
 import { createTools } from "../cli/lib/pages.mjs";
 
 const RECORD = JSON.parse(readFileSync(new URL("./widgets/brand-record.json", import.meta.url), "utf-8"));
@@ -83,6 +84,67 @@ test("a deck's title slide takes the logo whatever the order of its class's name
   assert.match(html, /<section class="subtitle slide"><\/section>/, "subtitle is not title");
 });
 
+// ---- The dark-mode logo ----
+
+const ATTRIBUTES = RECORD.payload.graph.nodes[0].attributes;
+const DARK = "data:image/png;base64,ZGFyaw==";
+/** The Brand record with its logo's attributes changed as given. */
+const withLogo = logo => ({ ...RECORD, payload: { ...RECORD.payload, graph: { ...RECORD.payload.graph, nodes: [{ ...RECORD.payload.graph.nodes[0], attributes: { ...ATTRIBUTES, logo } }] } } });
+const DARK_RECORD = withLogo({ ...ATTRIBUTES.logo, dark: { path: "brand/logo-dark.png", data_address: DARK } });
+
+test("brandOf takes a dark-mode logo by the logo's own rules, and only beside a logo", () => {
+  assert.equal(brandOf(DARK_RECORD).logo.dark, DARK);
+  assert.equal(brandOf(RECORD).logo.dark, undefined, "a brand with no dark-mode logo has none");
+  for (const data_address of ["data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", "javascript:alert(1)", `data:image/png;base64,${"A".repeat(MAX_LOGO)}`, 7]) {
+    const brand = brandOf(withLogo({ ...ATTRIBUTES.logo, dark: { path: "brand/logo-dark.png", data_address } }));
+    assert.equal(brand.logo.dark, undefined, `${String(data_address).slice(0, 30)} is no dark-mode logo`);
+    assert.ok(brand.logo.src, "the logo stays");
+  }
+  const alone = brandOf(withLogo({ dark: { path: "brand/logo-dark.png", data_address: DARK } }));
+  assert.equal(alone.logo, null, "with no logo, the dark-mode copy is left out");
+});
+
+test("a card's header takes both logos, the dark one hidden, while paper takes the light logo only", () => {
+  const brand = brandOf(DARK_RECORD);
+  const head = headLogoHtml(brand, "fk-logo");
+  assert.match(head, /^<img class="fk-logo" data-scheme="light" alt="[^"]*" src="data:image\/png;base64,[^"]+"><img class="fk-logo" data-scheme="dark" alt="[^"]*" src="data:image\/png;base64,ZGFyaw==" hidden>$/);
+  assert.equal(logoHtml(brand, "brand-logo"), `<img class="brand-logo" alt="${brand.logo.alt}" src="${brand.logo.src}">`);
+  assert.doesNotMatch(headLogoHtml(brandOf(RECORD), "fk-logo"), /data-scheme/, "with no dark-mode logo, one <img> as before");
+});
+
+test("a deck takes the light logo, even where the brand has a dark-mode one", async t => {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-brand-")));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  writeFileSync(join(work, "deck.html"), '<!doctype html><html><head><title>Deck</title></head><body><section class="slide title"><h1>Harbour</h1></section></body></html>');
+  const tools = createTools({ agentFolder: work, readBrand: async () => brandOf(DARK_RECORD) });
+  await tools.callTool("embed_pictures", { page_file: join(work, "deck.html"), new_file: join(work, "deck-print.html"), style: "deck" });
+  const html = readFileSync(join(work, "deck-print.html"), "utf-8");
+  assert.match(html, /<img class="brand-logo"/);
+  assert.doesNotMatch(html, /ZGFyaw==|data-scheme/);
+});
+
+test("a question card ends its code with the logo switch only where the brand has a dark-mode logo", async t => {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-brand-")));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  writeFileSync(join(work, "question.json"), readFileSync(new URL("./widgets/question-data.json", import.meta.url)));
+  const draw = async record => {
+    const tools = createTools({ agentFolder: work, readBrand: async () => brandOf(record) });
+    return JSON.parse((await tools.callTool("draw_widget", { kind: "question", data_file: join(work, "question.json") })).content[0].text).widget_code;
+  };
+  const dark = await draw(DARK_RECORD);
+  assert.match(dark, /<img class="wk-logo" data-scheme="light"[^>]*><img class="wk-logo" data-scheme="dark"[^>]*hidden>/);
+  assert.ok(dark.includes(LOGO_SWITCH.trim()), "the switch is in the card's code");
+  assert.equal(dark.match(/<\/script>/g).length, 2, "in the card's one script");
+  const plain = await draw(RECORD);
+  assert.ok(!plain.includes("img[data-scheme]"), "no switch without a dark-mode logo");
+});
+
+test("a chat page's style shows the dark-mode logo in dark mode only where the brand has one", () => {
+  assert.ok(pageStyle(brandOf(DARK_RECORD)).includes(LOGO_CSS.trim()));
+  assert.ok(!pageStyle(brandOf(RECORD)).includes("data-scheme"));
+  assert.ok(!pageStyle(null).includes("data-scheme"));
+});
+
 /** The Chromium browser the print skill finds, or null. */
 function chromium() {
   const check = fileURLToPath(new URL("../skills/board/", import.meta.url));
@@ -122,4 +184,71 @@ test("text in the brand's accent that reads on the chat's background keeps the a
 test("text in the brand's accent that does not read on the chat's background takes the chat's own text colour", { skip: !BROWSER }, () => {
   // The light accent_text, darkened for white paper, on a dark chat: 2.9 to 1.
   assert.equal(accentAfterCheck("#262624", "#1f6b41"), "rgb(1, 2, 3)");
+});
+
+/** Which logo LOGO_SWITCH shows, in the browser, on a card whose root first has the colour scheme given and is then set
+ * to the next one, as Claude sets a card's mode: "light" or "dark" for each. */
+function logosShown(first, next) {
+  const work = mkdtempSync(join(tmpdir(), "fabrik-brand-"));
+  const page = join(work, "page.html");
+  const shown = "Array.prototype.filter.call(document.querySelectorAll('img[data-scheme]'), function (i) { return !i.hidden; }).map(function (i) { return i.getAttribute('data-scheme'); }).join(',')";
+  writeFileSync(page, `<!doctype html><html style="color-scheme: ${first}"><head></head><body><div class="head">` +
+    `<img data-scheme="light" alt="x" src="${DARK}"><img data-scheme="dark" alt="x" src="${DARK}" hidden></div><p id="out"></p>` +
+    `<script>${LOGO_SWITCH}window.before = ${shown}; document.documentElement.style.colorScheme = ${JSON.stringify(next)};</script>` +
+    `<script>document.getElementById("out").textContent = "[" + window.before + "|" + ${shown} + "]";</script></body></html>`);
+  try {
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", "--dump-dom", `file://${page}`], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1];
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("a card shows its dark-mode logo in dark mode and its light logo in light mode, and swaps them when its mode changes", { skip: !BROWSER }, () => {
+  assert.equal(logosShown("light", "dark"), "light|dark");
+  assert.equal(logosShown("dark", "light"), "dark|light");
+});
+
+/** Which logos each page shows in the browser, with the computer in light or dark mode, in one run of Chrome: for each
+ * page, its <img>s of the class given, each as its data-scheme or "one" where it has none, only those the page shows. */
+function logosOnPages(pages, mode) {
+  const work = mkdtempSync(join(tmpdir(), "fabrik-brand-"));
+  const page = join(work, "page.html");
+  const frames = pages.map(({ html }, n) => `<iframe id="f${n}" srcdoc="${html.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe>`).join("");
+  const classes = JSON.stringify(pages.map(p => p.cls));
+  writeFileSync(page, `<!doctype html><html><body>${frames}<p id="out"></p><script>window.onload = function () {` +
+    `document.getElementById("out").textContent = "[" + ${classes}.map(function (cls, n) { var d = document.getElementById("f" + n).contentDocument;` +
+    `return Array.prototype.filter.call(d.querySelectorAll("img." + cls), function (i) { return d.defaultView.getComputedStyle(i).display !== "none"; })` +
+    `.map(function (i) { return i.getAttribute("data-scheme") || "one"; }).join(","); }).join("|") + "]"; };</script></body></html>`);
+  try {
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", `--blink-settings=preferredColorScheme=${mode === "dark" ? 0 : 1}`, "--virtual-time-budget=5000", "--dump-dom", `file://${page}`],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1].split("|");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("the question card draw_widget draws, and the chat page, show the dark-mode logo in dark mode only, and a brand without one shows its logo in both", { skip: !BROWSER }, async t => {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-brand-")));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  writeFileSync(join(work, "question.json"), readFileSync(new URL("./widgets/question-data.json", import.meta.url)));
+  const pages = [];
+  for (const record of [DARK_RECORD, RECORD]) {
+    const brand = brandOf(record), folder = join(work, `chat-${pages.length}`);
+    const tools = createTools({ agentFolder: work, readBrand: async () => brand });
+    const { widget_code } = JSON.parse((await tools.callTool("draw_widget", { kind: "question", data_file: join(work, "question.json") })).content[0].text);
+    buildChatPage({ brand, address: "https://x.example/functions/v1/public-agent", folder, agents: [{ slug: "help", name: "Help", purpose: "" }] });
+    pages.push({ html: `<!doctype html><html><head><meta charset="utf-8"></head><body>${widget_code}</body></html>`, cls: "wk-logo" },
+      { html: readFileSync(join(folder, "index.html"), "utf-8"), cls: "logo" });
+  }
+  // The card and the chat page with a dark-mode logo, then the two without.
+  assert.deepEqual(logosOnPages(pages, "light"), ["light", "light", "one", "one"]);
+  assert.deepEqual(logosOnPages(pages, "dark"), ["dark", "dark", "one", "one"]);
 });

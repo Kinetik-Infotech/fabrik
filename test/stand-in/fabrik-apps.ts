@@ -1781,8 +1781,8 @@ try {
   // one, the card takes its accent, in its light and dark values, its fonts and its logo, and keeps the host's text and
   // background. A person who cannot read General gets the page as it was. A new version changes the next card. ----
   const plainPage = await tool(ownerToken, "card_page", { card: "records", shell: 1 });
-  const { pageOf } = await import(new URL("../../setup/functions/fabrik-apps/cards.ts", import.meta.url).href);
-  const { FABRIK_MARK } = await import(new URL("../../setup/functions/fabrik-apps/brand-core.mjs", import.meta.url).href);
+  const { pageOf, brandedPage } = await import(new URL("../../setup/functions/fabrik-apps/cards.ts", import.meta.url).href);
+  const { FABRIK_MARK, LOGO_SWITCH } = await import(new URL("../../setup/functions/fabrik-apps/brand-core.mjs", import.meta.url).href);
   // The kit's page with fabrik's mark at the start of its first header, as a card with no brand logo is drawn.
   const marked = (card: string) => { const p = pageOf(card); return { ...p, body: p.body.replace('<div class="fk-head">', `<div class="fk-head"><img class="fk-logo" alt="fabrik" src="${FABRIK_MARK}">`) }; };
   const BRAND_ATTRIBUTES = JSON.parse(Deno.readTextFileSync(new URL("../../plugins/fabrik/__tests__/widgets/brand-record.json", import.meta.url))).payload.graph.nodes[0].attributes;
@@ -1810,6 +1810,13 @@ try {
     { saved: brandSaved, style: v(brandPage)?.style.slice(0, 300), body: v(brandPage)?.body.slice(0, 300) });
   check("the records card draws the brand's logo first in its header, and its style holds the accent",
     brandedCard.alt === "Smith Joinery" && brandedCard.first === "IMG" && brandedCard.style.includes("#3fa66b"), { ...brandedCard, style: brandedCard.style.slice(0, 200) });
+  // A brand with a dark-mode logo: both logos in the header, the dark one hidden, and the switch at the end of the code.
+  const darkLogo = { name: "HART", palette: { light: {}, dark: {} }, fonts: {}, logo: { src: "data:image/png;base64,bGlnaHQ=", alt: "HART", dark: "data:image/png;base64,ZGFyaw==" } };
+  const darkPage = brandedPage(pageOf("records"), darkLogo), lightOnly = brandedPage(pageOf("records"), { ...darkLogo, logo: { src: darkLogo.logo.src, alt: "HART" } });
+  check("a brand with a dark-mode logo gives the card both logos, the dark one hidden, and ends its code with the switch",
+    darkPage.body.includes('<div class="fk-head"><img class="fk-logo" data-scheme="light" alt="HART" src="data:image/png;base64,bGlnaHQ="><img class="fk-logo" data-scheme="dark" alt="HART" src="data:image/png;base64,ZGFyaw==" hidden>')
+      && darkPage.script.endsWith(LOGO_SWITCH) && !lightOnly.script.includes(LOGO_SWITCH) && !lightOnly.body.includes("data-scheme"),
+    { body: darkPage.body.slice(0, 300), tail: darkPage.script.slice(-120) });
   check("a card's address lets it load Google Fonts", JSON.stringify(brandedCard.csp?.resourceDomains) === JSON.stringify(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]), brandedCard.csp);
   check("a person who cannot read General gets the card as the kit draws it, with fabrik's mark", JSON.stringify(v(readerPage)) === JSON.stringify(marked("records")), v(readerPage)?.body.slice(0, 200));
   check("a new version of the brand with another accent changes the next card",
