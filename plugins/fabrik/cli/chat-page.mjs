@@ -17,7 +17,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { FABRIK_MARK, fontImport, headLogoHtml, pairOf, stack } from "./lib/brand.mjs";
+import { FABRIK_MARK, fontImport, headLogoHtml, LOGO_CSS, pairOf, stack } from "./lib/brand.mjs";
 import { publishPage, WRANGLER } from "./sign-in-page.mjs";
 import { DomainNotReady, ownDomain } from "./chat-domain.mjs";
 
@@ -59,7 +59,8 @@ export function onColour(hex) {
 /** The brand's value of a token in light and dark, or fabrik's own where the brand gives neither. */
 const token = (brand, name) => pairOf(brand, name) ?? FABRIK[name];
 
-/** The page's style: the fonts' @import, then its tokens in light and dark. */
+/** The page's style: the fonts' @import, then its tokens in light and dark, and the switch to a dark logo where the
+ * brand has one. */
 export function pageStyle(brand) {
   const fonts = { heading: brand?.fonts.heading ?? FABRIK_FONTS.heading, body: brand?.fonts.body ?? FABRIK_FONTS.body };
   const [ink, paper, muted, rule, accent] = ["ink", "paper", "muted", "rule", "accent"].map(n => token(brand, n));
@@ -70,7 +71,7 @@ export function pageStyle(brand) {
   --accent: ${pair(accent)}; --on-accent: ${pair(accent.map(onColour))};
   --card: color-mix(in srgb, var(--paper) 92%, var(--ink)); --refused: light-dark(#b3261e, #ff8a80);
   --heading-font: ${stack(fonts.heading)}; --body-font: ${stack(fonts.body)};
-}`;
+}${brand?.logo?.dark ? `\n${LOGO_CSS.trimEnd()}` : ""}`;
 }
 
 const SLUG = /^[a-z0-9-]{1,40}$/;
