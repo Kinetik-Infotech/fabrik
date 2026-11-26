@@ -1,4 +1,4 @@
--- fabrik_tests 1.15.0
+-- fabrik_tests 1.16.0
 -- fabrik: setup tests, installed as stored functions in their own schema, fabrik_tests.
 -- Install this file once, as the postgres login, then run the checks part by part, in order:
 --   select fabrik_tests.parts();
@@ -4958,7 +4958,7 @@ end $mailbox$;
 
 -- Upgrade 0020-own-records-set: own_records_of gives the records is_own_record gives, for every actor, and every
 -- seat reads the same records with readable_records as it did when each record was checked with is_own_record.
-create function fabrik_tests.suite_42_own_records_set() returns void language plpgsql set search_path = pg_catalog, public, extensions, fabrik, fabrik_private, fabrik_storage, storage, auth, file_search, fabrik_tests as $ownset$
+create function fabrik_tests.suite_43_own_records_set() returns void language plpgsql set search_path = pg_catalog, public, extensions, fabrik, fabrik_private, fabrik_storage, storage, auth, file_search, fabrik_tests as $ownset$
 declare h uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); ag uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); d uuid:=gen_random_uuid();
  s uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid(); who uuid; x record; want uuid[]; got uuid[]; f uuid[]:='{}'; seats int:=0;
  kinds text[]:=array['activity','evidence'];
@@ -5027,8 +5027,8 @@ begin
   if got is distinct from array(select y from unnest(array[f[1],f[2]]) y order by 1) then
    raise exception 'FAIL own records set: B reads % in the scope, not its own and its agent''s',got; end if;
   raise notice 'ok - each of % seats reads the records it read before, and B its own and its agent''s',seats;
-  raise exception using errcode='PHT42',message='Rollback own records set fixtures';
- exception when sqlstate 'PHT42' then null;
+  raise exception using errcode='PHT43',message='Rollback own records set fixtures';
+ exception when sqlstate 'PHT43' then null;
  end;
 end $ownset$;
 
@@ -5044,7 +5044,7 @@ create function fabrik_tests.part_list() returns table(part int, suites text[]) 
   (3,array['suite_23_task_functions','suite_35_refusal_log','suite_41_mailbox']),
   (4,array['suite_24_record_move','suite_25_scope_rename','suite_26_own_records','suite_27_scope_delete',
    'suite_28_advisors','suite_29_owners','suite_31_links_through_state','suite_33_permission_checks','suite_34_private_scopes','suite_36_access_templates',
-   'suite_37_administration_scope','suite_38_second_factor','suite_39_graph_reader','suite_40_private_sessions','suite_42_own_records_set'])
+   'suite_37_administration_scope','suite_38_second_factor','suite_39_graph_reader','suite_40_private_sessions','suite_43_own_records_set'])
 $parts$;
 
 -- The number of parts, and each part's suites.
@@ -5115,4 +5115,4 @@ end $run$;
 
 revoke execute on all functions in schema fabrik_tests from public, anon, authenticated, service_role;
 
-comment on function fabrik_tests.run() is 'fabrik_tests 1.15.0';
+comment on function fabrik_tests.run() is 'fabrik_tests 1.16.0';

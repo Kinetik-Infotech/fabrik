@@ -16,7 +16,7 @@ A `Text` child with its own colour inside a `Button` and a theme's `fill-primary
 
 ## Permission checks
 
-fabrik checks who may read what on sets, in `setup/setup.sql`. `fabrik_private.read_grants()` gives the person's live read grants, and `fabrik_private.readable_records` finds every record they may read from those grants in one query. For a grant limited to the person's own records, it reads them from `fabrik_private.own_records_of`, once for each read. `is_own_record` checks one record. Change who may read what only in a plan that says so. Stored check suite 42 checks that every seat reads the same records as before.
+fabrik checks who may read what on sets, in `setup/setup.sql`. `fabrik_private.read_grants()` gives the person's live read grants, and `fabrik_private.readable_records` finds every record they may read from those grants in one query. For a grant limited to the person's own records, it reads them from `fabrik_private.own_records_of`, once for each read. `is_own_record` checks one record. Change who may read what only in a plan that says so. Stored check suite 43 checks that every seat reads the same records as before.
 
 ## Tests
 
