@@ -7005,13 +7005,16 @@ grant execute on function fabrik_private.graph_reader_id() to fabrik_writer, fab
 grant execute on function fabrik_private.graph_batch_events(timestamptz,timestamptz) to fabrik_reader;
 
 -- Whether graph-reader is on, the scopes it reads, and, for an administrator, the month's cost and its cap. An agent
--- reads a part itself only where it is off, or the scope is not one it reads.
+-- reads a part itself only where it is off, or the scope is not one it reads. waiting_for_classes is true while the key
+-- is kept and the glossary has no class: graph_reader_dispatch then sends no new batch, so no part is read until a
+-- class is saved.
 create or replace function fabrik.fabrik_get_graph_reader() returns jsonb
 language plpgsql stable security definer set search_path=pg_catalog as $$
-declare a fabrik.actor; result jsonb; cost jsonb;
+declare a fabrik.actor; result jsonb; cost jsonb; is_on boolean:=fabrik_private.graph_reader_on();
 begin
  a:=fabrik_private.read_actor();
- result:=jsonb_build_object('on',fabrik_private.graph_reader_on(),
+ result:=jsonb_build_object('on',is_on,
+  'waiting_for_classes',is_on and not exists(select 1 from fabrik.glossary_term g where g.kind='class'),
   'scopes',(select coalesce(jsonb_agg(s.code order by s.code),'[]'::jsonb) from unnest(fabrik_private.graph_reader_buckets()) s(code)
    where s.code in (select fabrik_storage.usable_buckets('read'))));
  if a.authority_class='administrator' and to_regclass('file_search.graph_settings') is not null then
@@ -8328,7 +8331,7 @@ alter table fabrik_private.public_exchange enable row level security;
 revoke all on fabrik_private.public_exchange from public, anon, authenticated;
 reset role;
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges');
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope
