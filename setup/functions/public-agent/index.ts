@@ -16,8 +16,9 @@
 // It holds the most this answer could cost against the agent's daily cap. When that would pass the cap, it answers
 // RESTING and calls nothing. Else it sends Claude the agent's INSTRUCTIONS.md as the system prompt, then AGENTS.md, then
 // KNOWLEDGE.md, all three cached together. Then it sends the latest turns that fit the history's limits, at most 10,
-// and the question. fabrik adds no instruction of its own, and an empty file is left out. It answers { answer } in
-// plain text.
+// and the question. fabrik adds no instruction of its own, and an empty file is left out. It asks for low effort, so
+// little of the output cap goes on thinking. It answers { answer } in plain text. A reply that stops at the output cap
+// is cut back to its last full sentence or line, so a visitor never reads half a sentence.
 //
 // AGENTS.md lists every agent, one line each: its name, its page's address and its purpose. The function writes it to
 // the bucket after each agent_create, agent_change and agent_remove, and after a new page address. It is empty while
@@ -79,7 +80,8 @@ const SLUG = /^[a-z0-9-]{1,40}$/;
 /** A new agent's model and daily cap, as public_agent's column defaults hold them. */
 const DEFAULT_MODEL = "claude-haiku-5-5";
 const DEFAULT_CAP = 500_000;
-const MAX_TOKENS = 1000;
+/** The most output tokens an answer may use, thinking included. */
+const MAX_TOKENS = 4000;
 /** The most turns of history sent with a question. A turn is a question and its answer. */
 const TURNS = 10;
 const MAX_QUESTION = 2000;
@@ -326,7 +328,7 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     let reply;
     try {
       reply = await seam.client(key).messages.create({
-        model: s.model, max_tokens: MAX_TOKENS,
+        model: s.model, max_tokens: MAX_TOKENS, output_config: { effort: "low" },
         // The breakpoint on the last block caches the three files together.
         system: [
           ...(rules.trim() ? [{ type: "text" as const, text: rules }] : []),
@@ -344,12 +346,23 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     spent = (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + Math.ceil((u?.cache_read_input_tokens ?? 0) / 10);
     kept.input = (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
     kept.output = u?.output_tokens ?? 0;
-    kept.answer = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("").trim() || UNAVAILABLE;
+    const text = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
+    kept.answer = (reply.stop_reason === "max_tokens" ? wholeSentences(text) : text).trim() || UNAVAILABLE;
     return { answer: kept.answer };
   } finally {
     await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
     await keep(conversation, agent, question, kept.answer, kept.input, kept.output);
   }
+}
+
+/** A reply cut off at the output cap, up to the end of its last full sentence or line. A reply with neither ends at its
+ * last whole word, followed by an ellipsis. */
+export function wholeSentences(text: string): string {
+  let end = text.lastIndexOf("\n");
+  for (const m of text.matchAll(/[.!?…]["'”’)\]]*(?=\s|$)/g)) end = Math.max(end, m.index + m[0].length);
+  if (end > 0 && text.slice(0, end).trim()) return text.slice(0, end).trimEnd();
+  const words = text.trim();
+  return words ? `${words.replace(/\s+\S*$/, "")}…` : "";
 }
 
 /** Keeps one exchange, under a new conversation id when another agent already holds this one. A failure is logged. */
