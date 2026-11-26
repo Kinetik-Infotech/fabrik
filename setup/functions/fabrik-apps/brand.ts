@@ -10,7 +10,7 @@ export type Brand = {
   name: string;
   palette: { light: Record<string, string>; dark: Record<string, string> };
   fonts: { heading?: Font; body?: Font };
-  logo: { src: string; alt: string } | null;
+  logo: { src: string; alt: string; dark?: string } | null;
 };
 
 export const TOKENS: readonly string[] = core.TOKENS;
@@ -20,6 +20,8 @@ export const cardStyle = core.cardStyle as (brand: Brand) => { imports: string; 
 /** The brand's logo as the card's <img>, or nothing. */
 export const logoHtml = (brand: Brand) => core.logoHtml(brand, "fk-logo") as string;
 export const headLogoHtml = (brand: Brand | null) => core.headLogoHtml(brand, "fk-logo") as string;
+/** A card's code that shows the brand's dark logo in dark mode, and its light logo otherwise. */
+export const LOGO_SWITCH: string = core.LOGO_SWITCH;
 
 /** Each person's last read of the brand, by their account's id. Only the person's own reads go in their entry. */
 const CACHE = new Map<string, Record<string, unknown>>();

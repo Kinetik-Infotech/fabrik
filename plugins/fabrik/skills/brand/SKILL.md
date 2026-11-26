@@ -11,7 +11,7 @@ This skill runs only as fabrik's assistant, `fabrik:assistant`. Before anything 
 
 The brand is the business's logo, colours and fonts. fabrik keeps it as one `model` record in General, titled `Brand`, with `model_kind` `observed_current`. The connector's cards, the question and list cards, printed PDFs and decks read it each time they are drawn. A new version of the record changes all of them at once. With no `Brand` record, each keeps its plain look.
 
-A card keeps the host's text and background colours, so it reads in light and dark mode. It takes the brand's accent for its buttons, links and header rule, the brand's fonts, and the logo at the start of its header. A printed page or a deck takes the whole light palette, the fonts and the logo.
+A card keeps the host's text and background colours, so it reads in light and dark mode. It takes the brand's accent for its buttons, links and header rule, the brand's fonts, and the logo at the start of its header. In dark mode it shows the dark-mode logo, where the brand has one. A printed page or a deck takes the whole light palette, the fonts and the light logo.
 
 Every save follows the `fabrik:records` skill's section 3. The agent shows the person what it will save, and saves only what they approve. The agent asks each question as the card rules' "Asking a question" says.
 
@@ -48,6 +48,8 @@ In `dark`, `paper` is the dark surface and `ink` the light text. A card in dark 
 
 **`logo`** holds `bucket` `general`, `path`, the logo's file in General, `alt`, the business's name, and `data_address`, a copy at most 200 pixels across as `data:image/png;base64,...`. A card shows the copy, so it needs no second read. The full file stays in Storage. The logo is a PNG, JPEG, GIF or WebP picture. A card leaves out an SVG logo, so the agent saves an SVG as a PNG.
 
+**`logo.dark`** is the logo for dark mode, and is needed only when the logo's text is dark. Black text on a card in dark mode barely shows. It holds `path`, `brand/logo-dark.png` in General, and `data_address`, a copy at most 200 pixels across. It follows the same rules as the logo: a PNG, JPEG, GIF or WebP picture. A card in dark mode shows it in place of the logo. A card in light mode, a printed page and a deck show the logo. Without a logo, a card leaves `logo.dark` out.
+
 The record's other fields:
 
 - `source_version`: the website's address, or `files from <name>`.
@@ -72,13 +74,14 @@ The record's other fields:
   1. Reads the home page and its stylesheets with `WebFetch`. It takes the colours from the text, the surfaces, the borders and the logo, and the fonts from `font-family`, using no colour the site lacks.
   2. Finds the logo: the image in the site's header, or the one its `og:image` or `apple-touch-icon` names. It downloads the file into the agent folder. Before reading a picture, it checks its size, and never reads one over 2,000 pixels on a side.
   3. Makes the 200-pixel copy. On macOS it runs `sips -Z 200 -s format png <logo> --out logo-200.png`. It then reads the copy's bytes as base64 for `data_address`.
-  4. Works out `accent_text`, as section 3 says.
-  5. Takes the dark palette from the site's dark mode, where it has one. With none, it proposes one. Its `paper` is the light `ink`, and its `ink` the light `paper`. Its `muted` and `rule` are a step lighter than its `paper`. It keeps `accent` as it is, and works out `accent_text` on the dark `paper`.
+  4. Looks at the logo's text. When the text is black or another dark colour, the agent takes the site's own logo for dark backgrounds where the site has one. Otherwise it makes one: a copy with the dark text turned white and every other colour kept. It does this with code, as the `fabrik:code` skill says, and makes the 200-pixel copy of it the same way. When it cannot make a clean copy, it asks the owner for one.
+  5. Works out `accent_text`, as section 3 says.
+  6. Takes the dark palette from the site's dark mode, where it has one. With none, it proposes one. Its `paper` is the light `ink`, and its `ink` the light `paper`. Its `muted` and `rule` are a step lighter than its `paper`. It keeps `accent` as it is, and works out `accent_text` on the dark `paper`.
 
 **From files.**
 
 - **Person:** gives a logo file and names the colours.
-- **Agent:** asks for the logo file to be put in the agent folder, and for the accent colour, one question per reply. It takes `ink`, `paper`, `muted` and `rule` from the logo where it can. Otherwise it proposes plain ones, `#1f1f1f`, `#ffffff`, `#5f5e5a` and `#d9d6cc`. It asks which fonts the business uses, with the system's own fonts as the other answer.
+- **Agent:** asks for the logo file to be put in the agent folder, and for the accent colour, one question per reply. It takes `ink`, `paper`, `muted` and `rule` from the logo where it can. When the logo's text is dark, it makes the dark-mode logo as From the website's step 4 says, or asks the owner for one. Otherwise it proposes plain ones, `#1f1f1f`, `#ffffff`, `#5f5e5a` and `#d9d6cc`. It asks which fonts the business uses, with the system's own fonts as the other answer.
 
 **AI guided:** the agent gives the person what it found and waits for their approval before section 3.
 
@@ -95,13 +98,13 @@ The agent works this out with code, as the `fabrik:code` skill says. When `ink` 
 ## 4. Show the brand
 
 - **Person:** reads the brand and approves it, or names what to change.
-- **Agent:** draws a question card, `draw_widget` `kind=question`. Its rows are each palette token, with its light and dark values as fields, each font with its source, and the logo's file. The question is "Save this brand?". The agent asks it in the next-step box.
+- **Agent:** draws a question card, `draw_widget` `kind=question`. Its rows are each palette token, with its light and dark values as fields, each font with its source, the logo's file, and the dark-mode logo's file where there is one. The question is "Save this brand?". The agent asks it in the next-step box.
 
 ## 5. Save the brand
 
-- **Person:** approves the brand. Without the agent, uploads the logo with `upload_file`, `scope` `general`, `path` `brand/logo.png`, and saves the record with `save_record`, `scope` `general`, `kind` `model`, `title` `Brand`, with `fields` as above.
+- **Person:** approves the brand. Without the agent, uploads the logo with `upload_file`, `scope` `general`, `path` `brand/logo.png`, and any dark-mode logo with `path` `brand/logo-dark.png`, and saves the record with `save_record`, `scope` `general`, `kind` `model`, `title` `Brand`, with `fields` as above.
 - **Agent:**
-  1. Uploads the logo with `upload_file`, `scope` `general`, `path` `brand/logo.<extension>`, the file's bytes as `content` with `encoding` `base64`. For a new logo in place of an old one, it passes `overwrite` true once the owner approves.
+  1. Uploads the logo with `upload_file`, `scope` `general`, `path` `brand/logo.<extension>`, the file's bytes as `content` with `encoding` `base64`. It uploads a dark-mode logo the same way, with `path` `brand/logo-dark.png`. For a new logo in place of an old one, it passes `overwrite` true once the owner approves.
   2. Calls `save_record` with `preview` true, then saves it once the owner approves. With a `Brand` record already there, it saves a new version of that record, with `record` its `record_id`.
   3. Reads the saved version back with `get_record`, and checks its palette, fonts and logo are as the owner approved them.
 - **Evidence:** the logo's path, and the brand's `record_id` and `version_id`.
@@ -111,4 +114,5 @@ The agent works this out with code, as the `fabrik:code` skill says. When `ink` 
 - **The website refuses the read:** the agent asks for the logo file and the colours, as section 2's From files says.
 - **No grant to save in General:** fabrik's refusal names the missing action. An administrator can grant it.
 - **"stale":** someone saved a newer version. The agent reads the brand again and shows the newer version before saving.
+- **The logo barely shows in dark mode:** its text is dark, and the brand has no dark-mode logo. The agent makes one as section 2 says, and saves a new version of the brand with `logo.dark`.
 - **A card still looks plain:** the card reads the record titled `Brand` in General as the person viewing it. A person with no grant to read General sees the plain look.

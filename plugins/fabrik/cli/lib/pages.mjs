@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { check as humanizerCheck } from "./humanizer-checks.mjs";
-import { headLogoHtml, logoHtml, markHtml, printStyle, widgetStyle } from "./brand.mjs";
+import { headLogoHtml, LOGO_SWITCH, logoHtml, markHtml, printStyle, widgetStyle } from "./brand.mjs";
 
 const SKILLS = fileURLToPath(new URL("../../skills/", import.meta.url));
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -702,7 +702,9 @@ export function createTools({ agentFolder = null, readBrand = null }) {
     // Each < in the data is written \u003c, so no value can close the data block.
     const block = part.match(/<script type="application\/json" id="widget-data">__WIDGET_DATA__<\/script>/)[0]
       .replace("__WIDGET_DATA__", () => JSON.stringify(data).replace(/</g, "\\u003c"));
-    const widget_code = `${kit.replace(code, "").trimEnd()}\n${block}\n<script>\n"use strict";\n${cardsShared()}${kit.match(code)[1]}${part.match(code)[1]}</script>\n`;
+    // Where the brand has a dark-mode logo, the code ends with the switch that shows it in dark mode.
+    const logoSwitch = dressed?.logo?.dark ? LOGO_SWITCH : "";
+    const widget_code = `${kit.replace(code, "").trimEnd()}\n${block}\n<script>\n"use strict";\n${cardsShared()}${kit.match(code)[1]}${part.match(code)[1]}${logoSwitch}</script>\n`;
     return { ok: true, kind, count: data.rows.length, question: kind === "list" ? null : data.question, look: dressed ? "brand" : "plain", widget_code };
   }
 
