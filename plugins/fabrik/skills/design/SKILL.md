@@ -93,7 +93,7 @@ Each other application in the current state carries the person's answer, from th
 ### 6. Assign each step
 
 - **Person:** names who does each step and who confirms it.
-- **Agent:** assigns each step to a person, code, a connector or Claude, as `references/execution-and-authority.md` in this skill's folder says. Each step's assignment goes in its node's `attributes`, and the coverage summary in the design's `description`.
+- **Agent:** assigns each step to a person, code, a connector or Claude, as `references/execution-and-authority.md` in this skill's folder says. Each step's assignment goes in its node's `attributes`, and the coverage summary in the design's `description`. `confirmed_by` names who confirms the step, and `auto_for` whose requests it runs for without asking. `cases` names the cases it covers, and `settings` each value it reads. The agent asks the person for each value a step reads and puts it in `settings`, never in the step's text.
 
 **AI guided:** the agent gives the person the coverage summary, and waits for their approval.
 
@@ -132,6 +132,7 @@ The design is the shape that carries the routine, not a diagram of the telling. 
 - Separate paths whose rules, deadlines or promises differ. Each path ends in its own outcome.
 - Hold each step against the purpose statement. Show the person each step that serves none of it.
 - Check that the simpler shape still carries every requirement, exception and deadline.
+- Find each value a step reads, such as who is asked, which customers it covers or how many days it looks back. Ask the person for each one the step's attributes lack, and put it in `confirmed_by`, `auto_for`, `cases` or `settings`, not in the step's text.
 
 A design for a large business can outgrow 4,000 characters of description. It then splits into routines, each saved as its own design.
 

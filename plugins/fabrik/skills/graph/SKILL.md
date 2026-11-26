@@ -80,7 +80,7 @@ A plan is drawn as section 4 says, from its activities. A model record that copi
   3. Checks the page, as the `fabrik:board` skill's "Check the page before giving it" says.
   4. Gives the person the page's full path, to open in a browser, and the Checked list.
 
-  The outline lists each routine with its states, then the drawn objects, the transitions, the dependencies and the routes. Its findings are:
+  The outline lists each routine with its states and each step's attributes, then the drawn objects, the transitions, the dependencies and the routes. Its findings are:
 
   - a state with no transition and in no route;
   - a state in no routine;
@@ -171,6 +171,8 @@ Its edges are:
 - `performed_by`, `occurs_in`, `reads_from` and `writes_to`, from a state to what it links to;
 - `in_route`, from each state to each route it is in, in the route's order;
 - `listed_in`, from a state to an application in the page's applications list.
+
+A step's node keeps its own attributes, as the `fabrik:design` skill's section 6 sets them: `done_by`, `tool`, `has_tool`, `tool_source`, `confirmed_by`, `auto_for`, `cases`, `settings` and `if_it_fails`. A page and its record keep each one unchanged. The step's card on the page names each one it holds, and so does the outline, under the step. `cases` gives one line for each case list, and an empty list reads "every case".
 
 ## Problems
 
