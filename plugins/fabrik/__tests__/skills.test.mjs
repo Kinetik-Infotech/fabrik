@@ -258,8 +258,15 @@ test("the records skill follows each step's attributes, and offers a gap as a ne
   assert.match(section, /Hands a step over to the person where its `settings` lack a value/);
   assert.match(section, /whatever `auto_for` says/);
   assert.match(section, /offers the change as a new version of the routine before the work goes on/);
+  // Only `nobody` runs a step without asking: a routine saved without `confirmed_by` still asks.
+  assert.match(section, /`confirmed_by` is `nobody`, or its `auto_for`/);
+  assert.match(section, /`confirmed_by` is missing or empty asks the person who asked/);
+  assert.doesNotMatch(section, /`confirmed_by` is empty|At a gap/);
+  assert.match(section, /not a `gap` node, which is part of the routine/);
   const agent = read(PLUGIN, "agents", "assistant.md");
   assert.match(agent, /Offer the change as a new version of the routine before you go on/);
+  assert.match(agent, /`confirmed_by` is missing or empty waits until the person confirms it/);
+  assert.match(agent, /A `gap` node is part of the routine, and needs no change/);
   assert.doesNotMatch(agent, /When the person asks to work differently from the routine, do as they ask\. Then offer/);
 });
 
