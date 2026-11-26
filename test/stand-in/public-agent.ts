@@ -12,7 +12,8 @@
 // INSTRUCTIONS.md stays empty. A post with no Turnstile token is refused before a database connection opens, and a
 // failed check gets 403 and calls nothing.
 //
-// chat.js, run in a page, gets an answer to every question of a long conversation. A GET gives the Turnstile site key
+// chat.js, run in a page, gets an answer to every question of a long conversation, and draws it again from the tab's
+// session storage when the visitor comes back to the agent's page. A GET gives the Turnstile site key
 // once one is saved. fabrik chat-page builds a page for each agent and a list of them from a Brand record, in its colours
 // and with its logo. On a domain whose DNS Cloudflare runs, it puts them up as a Worker whose custom domain is the
 // address, and never replaces a DNS record in the way; on another domain it prints the CNAME record. widget.js, run in a page on another website, opens the page of the agent data-agent names in a
@@ -548,7 +549,56 @@ try {
   check("chat.js makes one conversation id when the box is drawn and sends it with every question, the function keeps all 12 under it, and with no data-business the line under the box names no business",
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pageConversation) && posted.every((p) => p.conversation === pageConversation)
       && pageKept.n === 12 && keptLine === "This conversation is kept to improve its answers.", { pageConversation, pageKept, keptLine, sentIds: posted.map((p) => p.conversation) });
+  // The same tab, back on this agent's page after another page of the chat: its session storage, copied into a new page,
+  // draws the 24 messages again with their times, and the next question carries on the conversation with its history.
+  // Another agent's page in the same tab starts a conversation of its own.
+  const tabStorage = Object.fromEntries(Object.keys(page.sessionStorage).map((k) => [k, page.sessionStorage.getItem(k)]));
   await page.happyDOM.close();
+  const backAgain = async (slug: string | null, storage: Record<string, unknown> = tabStorage) => {
+    const w = new Window({ url: "https://bakery.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+    for (const [k, v] of Object.entries(storage)) w.sessionStorage.setItem(k, String(v));
+    const t = w.document.createElement("script");
+    t.setAttribute("data-address", "https://project.example/functions/v1/public-agent");
+    t.setAttribute("data-sitekey", "1x00000000000000000000AA");
+    if (slug) t.setAttribute("data-agent", slug);
+    w.document.body.appendChild(t);
+    Object.defineProperty(w.document, "currentScript", { get: () => t, configurable: true });
+    const bodies: any[] = [];
+    (w as any).turnstile = { render: () => 0, getResponse: () => GOOD_TOKEN, reset() {} };
+    new Function("window", "document", "fetch", await Deno.readTextFile(new URL("../../plugins/fabrik/public-agent/chat.js", import.meta.url)))(w, w.document,
+      (url: string, init: RequestInit) => { bodies.push(JSON.parse(String(init.body))); return handler!(new Request(url, init)); });
+    (w as any).fabrikChatTurnstile();
+    const drawn = [...w.document.querySelectorAll("#fabrik-chat li")].map((li: any) => [li.className, li.querySelector("time")?.dateTime ?? ""]);
+    const box = w.document.querySelector("#fabrik-chat input") as any, button = w.document.querySelector("#fabrik-chat button") as any;
+    box.value = "And one more question";
+    w.document.querySelector("#fabrik-chat form")!.dispatchEvent(new w.Event("submit", { cancelable: true }));
+    while (button.disabled) await new Promise((r) => setTimeout(r));
+    await w.happyDOM.close();
+    return { drawn, body: bodies[0] };
+  };
+  const back = await backAgain(null), cakesTab = await backAgain("cakes");
+  check("back on an agent's page in the same tab, chat.js draws the conversation again from the tab's session storage and carries it on, and another agent's page starts its own",
+    back.drawn.length === 24 && back.drawn.every(([c, at], i) => c === (i % 2 ? "a" : "q") && !Number.isNaN(Date.parse(at)))
+      && back.body?.conversation === pageConversation && back.body.history.length === 18 && back.body.history.at(-2).content.startsWith("Question 12:")
+      && cakesTab.drawn.length === 0 && cakesTab.body?.history.length === 0 && cakesTab.body.conversation !== pageConversation,
+    { drawn: back.drawn.length, conversation: back.body?.conversation, history: back.body?.history?.length, cakesTab });
+  // A stored conversation the function would refuse is never sent: a bad time is drawn as now, an id that isn't a UUID or
+  // turns out of order start afresh, and a conversation stored with no id, by a browser with no crypto, carries on with none.
+  {
+  const pair = [{ role: "user", content: "Do you bake bread?" }, { role: "assistant", content: "Every morning." }];
+  const drawnBefore = [{ text: "Do you bake bread?", kind: "q", at: "yesterday" }, { text: "Every morning.", kind: "a", at: "not a time" }];
+  const tab = (value: unknown) => ({ "fabrik-chat:chat": JSON.stringify(value) });
+  const badTime = await backAgain(null, tab({ conversation: pageConversation, turns: pair, shown: drawnBefore }));
+  const badId = await backAgain(null, tab({ conversation: "not-a-uuid", turns: pair, shown: drawnBefore }));
+  const outOfOrder = await backAgain(null, tab({ conversation: pageConversation, turns: [pair[1], pair[0]], shown: drawnBefore }));
+  const noId = await backAgain(null, tab({ conversation: null, turns: pair, shown: drawnBefore }));
+  check("chat.js sends no stored conversation the function would refuse: a bad time is drawn as now, a bad id or turns out of order start afresh, and a conversation with no id carries on with none",
+    badTime.drawn.length === 2 && badTime.drawn.every(([, at]) => !Number.isNaN(Date.parse(at))) && badTime.body?.conversation === pageConversation && badTime.body.history.length === 2
+      && badId.drawn.length === 0 && badId.body?.conversation !== "not-a-uuid" && badId.body.history.length === 0
+      && outOfOrder.drawn.length === 0 && outOfOrder.body?.history.length === 0
+      && noId.drawn.length === 2 && noId.body && !("conversation" in noId.body) && noId.body.history.length === 2,
+    { badTime, badId, outOfOrder, noId });
+  }
 
   // A browser without crypto.randomUUID, such as Safari before 15.4 or a page on http, and one with no crypto at all.
   const oldBrowser = async (crypto: unknown) => {
