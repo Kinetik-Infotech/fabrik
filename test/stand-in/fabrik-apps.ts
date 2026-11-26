@@ -8,7 +8,8 @@
 //
 // It checks that a request with no token, and one with a token another key signed, get 401 with WWW-Authenticate
 // naming the protected-resource metadata; that the metadata answers, naming the function and the project's Auth; that
-// initialize names fabrik-apps and carries fabrik's instructions; that guide answers a topic, a question, and an unknown
+// initialize names fabrik-apps and carries fabrik's instructions, opening with the project, or with the business once a
+// business profile names it, which each tool's description and result also name; that guide answers a topic, a question, and an unknown
 // question with the list of topics, and that its words meet across singular and plural; that tools/list holds each tool with its description and input; and that list_scopes
 // gives a person the one scope their grant is in, and a person with no grant none. build.mjs sign-in makes the sign-in page's folder, whose consent page runs in happy-dom against a stub of supabase-js. Then each record tool, called as a signed-in person: a record saved,
 // previewed, changed, linked and unlinked is read back by get_record, list_records and search; a file uploaded is
@@ -224,7 +225,38 @@ async function mcp(token: string | null, method: string, params: Record<string, 
   // deno-lint-ignore no-explicit-any
   let body: any = null;
   try { body = JSON.parse(json); } catch { body = text; }
-  return { status: res.status, headers: res.headers, body };
+  // Every tool result names the business and project as fabrik, which unstamp takes off and keeps in stamps, so the
+  // checks below read each tool's own answer, and the checks on stamps read what was added.
+  const raw = structuredClone(body);
+  if (method === "tools/call" && body?.result) stamps.push({ name: String(params.name), error: body.result.isError === true, said: body.result.content?.[0]?.text, ...unstamp(body.result) });
+  return { status: res.status, headers: res.headers, body, raw };
+}
+/** What each tools/call result carried about the business: fabrik in its data and in its JSON text, and a refusal's line. */
+// deno-lint-ignore no-explicit-any
+const stamps: { name: string; error: boolean; said?: string; data?: any; text?: any; line?: string }[] = [];
+// deno-lint-ignore no-explicit-any
+function unstamp(result: any) {
+  const out: { data?: unknown; text?: unknown; line?: string } = {};
+  if (result.structuredContent && "fabrik" in result.structuredContent) {
+    out.data = result.structuredContent.fabrik;
+    delete result.structuredContent.fabrik;
+    if (result.isError && Object.keys(result.structuredContent).length === 0) delete result.structuredContent;
+  }
+  const content = result.content ?? [];
+  if (result.isError && content.length > 1 && /^This is .*fabrik,? in project /.test(content.at(-1)?.text ?? "")) out.line = content.pop().text;
+  const last = content.at(-1)?.text;
+  if (!result.isError && content.length > 1 && typeof last === "string" && /^\{"fabrik":/.test(last)) out.text = JSON.parse(content.pop().text).fabrik;
+  else if (!result.isError && content.length === 1) {
+    try {
+      const parsed = JSON.parse(content[0].text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "fabrik" in parsed) {
+        out.text = parsed.fabrik;
+        delete parsed.fabrik;
+        content[0].text = JSON.stringify(parsed);
+      }
+    } catch { /* not JSON */ }
+  }
+  return out;
 }
 const INIT = { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "stand-in", version: "1" } };
 
@@ -337,9 +369,21 @@ try {
       && atob(svgIcon.replace("data:image/svg+xml;base64,", "")) === Deno.readTextFileSync(new URL("../../setup/sign-in/icon.svg", import.meta.url))
       && icons.some(i => i.mimeType === "image/png" && /^data:image\/png;base64,iVBOR/.test(i.src)), init.body?.result?.serverInfo);
   const instructions = init.body?.result?.instructions;
-  check("initialize carries fabrik's instructions, under 1,500 characters, saying its tools act as the person, nothing runs unattended, and to call guide",
-    typeof instructions === "string" && instructions === connector.INSTRUCTIONS && instructions.length < 1500
-      && /act as the signed-in person/.test(instructions) && /runs unattended/.test(instructions) && /call guide/.test(instructions), instructions);
+  const PROJECT = new URL(Deno.env.get("SUPABASE_URL")!).host;
+  check("initialize carries fabrik's instructions, under 1,500 characters, saying its tools act as the person, fabrik schedules nothing, and to call guide",
+    typeof instructions === "string" && instructions.endsWith(connector.INSTRUCTIONS) && instructions.length < 1500
+      && /act as the signed-in person/.test(instructions) && /fabrik schedules nothing/.test(instructions) && /call guide/.test(instructions), instructions);
+  check("with no business profile to read, initialize's instructions open by naming the project the connector is in",
+    String(instructions).startsWith(`This connector is the fabrik in project ${PROJECT}. Save here only this fabrik's work, and another business's through its own fabrik connector. fabrik is`),
+    instructions);
+  check("the project is the reference in a Supabase address, and the host in any other",
+    connector.projectRef("https://abcdefghijklmnopqrst.supabase.co") === "abcdefghijklmnopqrst" && connector.projectRef("http://127.0.0.1:54321") === "127.0.0.1:54321",
+    [connector.projectRef("https://abcdefghijklmnopqrst.supabase.co"), connector.projectRef("http://127.0.0.1:54321")]);
+  check("the business is the name in the business profile's title; with two, the one in General",
+    connector.businessIn([{ scope_id: "a", title: "Business profile: Kinetik" }]) === "Kinetik"
+      && connector.businessIn([{ scope_id: "a", title: "Business profile: Other" }, { scope_id: "g", title: "business profile:  HART Group " }], "g") === "HART Group"
+      && connector.businessIn([{ scope_id: "a", title: "Quayside model" }]) === null,
+    connector.businessIn([{ scope_id: "a", title: "Business profile: Other" }, { scope_id: "g", title: "business profile:  HART Group " }], "g"));
   check("initialize's instructions say to call profile_get before the first reply, and to use agentName as the agent's own name",
     /call profile_get before the first reply/.test(instructions ?? "") && /agentName, that is your name/.test(instructions ?? ""), instructions);
   check("initialize's instructions say to do work a routine covers by its version in force, with the connector or plugin each step names",
@@ -2030,6 +2074,43 @@ try {
     ok(x.tideTwice) && v(x.tideTwice)?.tagged?.length === 1 && tideVersions === 2 && v(x.tideTwice)?.skipped?.length === 1
       && v(x.tideTwice)?.skipped?.[0]?.reason === `"${tideId}" is the same record as "Tide log", which is tagged once.`,
     { tideTwice: x.tideTwice, tideVersions });
+
+  // ---- Which business: a connector names the business its profile gives, in its instructions, its tools' descriptions
+  // and every result ----
+  const callStamps = stamps.slice();
+  const cardOnly = new Set(listed.filter((t) => JSON.stringify(t._meta?.ui?.visibility ?? null) === '["app"]').map((t) => t.name));
+  const withCard = new Set(listed.filter((t) => t._meta?.ui?.resourceUri).map((t) => t.name));
+  // The SDK refuses arguments a tool's input does not allow before the tool runs, so that refusal names nothing.
+  const notNamed = callStamps.filter((c) => !cardOnly.has(c.name) && !/^Input validation error: /.test(c.said ?? "") && !(c.data?.project === PROJECT && c.data?.business === null
+    && (c.error ? (withCard.has(c.name) ? !c.line : c.line === `This is the fabrik in project ${PROJECT}.`) : JSON.stringify(c.text) === JSON.stringify(c.data))));
+  check("with no business profile, every result of a tool the model calls names the project as fabrik, in its data and its JSON text, or a refusal's line where no card draws it; a card's own tool's result names nothing",
+    callStamps.length > 100 && notNamed.length === 0 && callStamps.filter((c) => cardOnly.has(c.name)).every((c) => !c.data && !c.text && !c.line),
+    { calls: callStamps.length, notNamed: notNamed.slice(0, 8) });
+  x.profile = await tool(ownerToken, "save_record", { scope: "Connector granted", kind: "model", title: "Business profile: Stand-in Joinery", reason: "Connector test",
+    fields: { model_kind: "observed_current", description: "The business.", graph: { format_version: 1, nodes: [{ id: "b", type: "business", label: "Stand-in Joinery", attributes: {} }], edges: [] } } });
+  const named = await mcp(ownerToken, "initialize", INIT);
+  const namedList = await mcp(ownerToken, "tools/list");
+  const namedRead = await mcp(ownerToken, "tools/call", { name: "get_record", arguments: { record: "Business profile: Stand-in Joinery" } });
+  const namedRefusal = await mcp(ownerToken, "tools/call", { name: "get_record", arguments: { record: "No such record anywhere" } });
+  const unnamedInit = await mcp(outsiderToken, "initialize", INIT);
+  const namedInstructions = String(named.body?.result?.instructions);
+  check("once a business profile is saved, initialize's instructions open by naming the business and the project, and stay under 1,500 characters",
+    ok(x.profile) && namedInstructions.startsWith(`This connector is Stand-in Joinery's fabrik, in project ${PROJECT}. Save here only Stand-in Joinery's work, and another business's through its own fabrik connector. fabrik is`)
+      && namedInstructions.length < 1500, { profile: x.profile, namedInstructions });
+  // deno-lint-ignore no-explicit-any
+  const namedTools = (namedList.body?.result?.tools ?? []) as any[];
+  const own = new Map(connector.TOOLS.map((t: { name: string; description: string }) => [t.name, t.description]));
+  check("once a business profile is saved, each tool the model calls has a description that starts Stand-in Joinery fabrik:, and a card's own tool keeps its own",
+    namedTools.length === listed.length && namedTools.every((t) => t.description === (cardOnly.has(t.name) ? own.get(t.name) : `Stand-in Joinery fabrik: ${own.get(t.name)}`)),
+    namedTools.filter((t) => !t.description.startsWith("Stand-in Joinery fabrik: ")).map((t) => t.name));
+  const fabrikOf = (r: typeof namedRead) => JSON.parse(r.raw?.result?.content?.[0]?.text ?? "{}").fabrik;
+  check("once a business profile is saved, a result names the business and project as fabrik in its data and its JSON text, and a refusal says whose fabrik refused",
+    JSON.stringify(namedRead.raw?.result?.structuredContent?.fabrik) === JSON.stringify({ business: "Stand-in Joinery", project: PROJECT })
+      && JSON.stringify(fabrikOf(namedRead)) === JSON.stringify({ business: "Stand-in Joinery", project: PROJECT })
+      && namedRefusal.raw?.result?.isError === true && namedRefusal.raw.result.content.at(-1)?.text === `This is Stand-in Joinery's fabrik, in project ${PROJECT}.`,
+    { read: namedRead.raw?.result?.structuredContent?.fabrik, text: fabrikOf(namedRead), refusal: namedRefusal.raw?.result });
+  check("a person who cannot read the business profile gets the project alone",
+    String(unnamedInit.body?.result?.instructions).startsWith(`This connector is the fabrik in project ${PROJECT}.`), unnamedInit.body?.result?.instructions);
 } finally {
   for (const dir of tempDirs) { try { Deno.removeSync(dir, { recursive: true }); } catch { /* already gone */ } }
   await sql.end();

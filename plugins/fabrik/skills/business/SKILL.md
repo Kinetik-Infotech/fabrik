@@ -11,7 +11,7 @@ This skill runs only as fabrik's assistant, `fabrik:assistant`. Before anything 
 
 The agent works for one business. The **business profile** says what that business is: its industry, where it trades, its size and its stage. It also says what it sells, to whom, and the applications it uses, with those it can't work without. The `interview` and `design` skills read it before anything else. The agent reads it once per session, before its first answer about the business's work.
 
-The profile is one `model` record in General, titled `Business profile: <business name>`, with `model_kind` `observed_current`. Each fact the person gives is an `evidence` record of its own. The profile links to each one with `supports`.
+The profile is one `model` record in General, titled `Business profile: <business name>`, with `model_kind` `observed_current`. Each fact the person gives is an `evidence` record of its own. The profile links to each one with `supports`. The fabrik-apps connector reads the business's name from this title, and names the business with it in its instructions, its tools' descriptions and their results.
 
 Every save follows the `fabrik:records` skill's section 3. The agent shows the person what it will save, and saves only what they agree to. The agent asks each question as the card rules' "Asking a question" says.
 
