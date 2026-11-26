@@ -56,7 +56,7 @@ export const FUNCTIONS = [
   { name: "fabrik-upgrade", verify_jwt: true, files: ["index.ts", "upgrade-key.ts"] },
   { name: "graph-reader", verify_jwt: false, files: ["index.ts", "prompt.ts"] },
   { name: "public-agent", verify_jwt: false, files: ["index.ts"] },
-  { name: "fabrik-apps", verify_jwt: false, files: ["index.ts", "tool.ts", "cards.ts", "card.ts", "brand.ts", "brand-core.mjs", "ported.ts", "memory.ts", "work.ts", "workflows.ts", "contacts.ts", "voice.ts", "mail.ts", "mail-send.ts", "guides.ts", "annotations.ts", "connections.ts", "public-agent.ts"] },
+  { name: "fabrik-apps", verify_jwt: false, files: ["index.ts", "tool.ts", "cards.ts", "card.ts", "brand.ts", "brand-core.mjs", "ported.ts", "memory.ts", "work.ts", "workflows.ts", "contacts.ts", "voice.ts", "mail.ts", "mail-send.ts", "guides.ts", "annotations.ts", "connections.ts", "public-agent.ts", "logins.ts"] },
 ];
 
 export const USAGE = `Usage: node build.mjs approve --ref <project reference> --folder <setup folder> [--reset]
