@@ -17,7 +17,7 @@
 // RESTING and calls nothing. Else it sends Claude the agent's INSTRUCTIONS.md as the system prompt, then AGENTS.md, then
 // KNOWLEDGE.md, all three cached together. Then it sends the latest turns that fit the history's limits, at most 10,
 // and the question. fabrik adds no instruction of its own, and an empty file is left out. It asks for low effort, so
-// little of the output cap goes on thinking. It answers { answer } in plain text. A reply that stops at the output cap
+// little of the output cap goes on thinking. A model that refuses the effort setting is asked again without it. It answers { answer } in plain text. A reply that stops at the output cap
 // is cut back to its last full sentence or line, so a visitor never reads half a sentence.
 //
 // AGENTS.md lists every agent, one line each: its name, its page's address and its purpose. The function writes it to
@@ -82,6 +82,8 @@ const DEFAULT_MODEL = "claude-haiku-5-5";
 const DEFAULT_CAP = 500_000;
 /** The most output tokens an answer may use, thinking included. */
 const MAX_TOKENS = 4000;
+/** The lowest daily cap, so one answer's output cap and its framing fit under it. */
+const MIN_CAP = 5000;
 /** The most turns of history sent with a question. A turn is a question and its answer. */
 const TURNS = 10;
 const MAX_QUESTION = 2000;
@@ -327,15 +329,20 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
   try {
     let reply;
     try {
-      reply = await seam.client(key).messages.create({
-        model: s.model, max_tokens: MAX_TOKENS, output_config: { effort: "low" },
+      const request = {
+        model: s.model, max_tokens: MAX_TOKENS,
         // The breakpoint on the last block caches the three files together.
         system: [
           ...(rules.trim() ? [{ type: "text" as const, text: rules }] : []),
           ...(list.trim() ? [{ type: "text" as const, text: `<agents>\n${list.replaceAll("</agents>", "</ agents>")}\n</agents>` }] : []),
-          { type: "text", text: `<knowledge>\n${file.replaceAll("</knowledge>", "</ knowledge>")}\n</knowledge>`, cache_control: { type: "ephemeral" } },
+          { type: "text" as const, text: `<knowledge>\n${file.replaceAll("</knowledge>", "</ knowledge>")}\n</knowledge>`, cache_control: { type: "ephemeral" as const } },
         ],
-        messages: [...history, { role: "user", content: question }],
+        messages: [...history, { role: "user" as const, content: question }],
+      };
+      // An older model, such as Claude Haiku 4.5, answers 400 to the effort setting, and Anthropic charges nothing for that.
+      reply = await seam.client(key).messages.create({ ...request, output_config: { effort: "low" } }).catch((err) => {
+        if (err instanceof Anthropic.BadRequestError && /effort/i.test(err.message)) return seam.client(key).messages.create(request);
+        throw err;
       });
     } catch (err) {
       console.error("public-agent: Claude did not answer:", err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : "no reply");
@@ -355,11 +362,15 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
   }
 }
 
+/** A sentence's end: Chinese and Japanese full stops need no space after them, and a full stop after a title such as Dr.
+ * or an abbreviation such as e.g. ends no sentence. */
+const SENTENCE_END = /[。！？][」』）"'”’)\]]*|(?<!\b(?:Mr|Mrs|Ms|Dr|Prof|St|Mt|vs|e\.g|i\.e))[.!?…]["'”’)\]]*(?=\s|$)/g;
+
 /** A reply cut off at the output cap, up to the end of its last full sentence or line. A reply with neither ends at its
  * last whole word, followed by an ellipsis. */
 export function wholeSentences(text: string): string {
   let end = text.lastIndexOf("\n");
-  for (const m of text.matchAll(/[.!?…]["'”’)\]]*(?=\s|$)/g)) end = Math.max(end, m.index + m[0].length);
+  for (const m of text.matchAll(SENTENCE_END)) end = Math.max(end, m.index + m[0].length);
   if (end > 0 && text.slice(0, end).trim()) return text.slice(0, end).trimEnd();
   const words = text.trim();
   return words ? `${words.replace(/\s+\S*$/, "")}…` : "";
@@ -488,8 +499,8 @@ async function agentFields(args: Record<string, unknown>) {
     throw refuse(400, "purpose says what the agent is for, at most 500 characters.");
   if (model !== undefined && (typeof model !== "string" || !/^claude-[a-z0-9.-]{1,60}$/.test(model)))
     throw refuse(400, `model is a Claude model's id, such as ${DEFAULT_MODEL}.`);
-  if (cap !== undefined && (!Number.isInteger(cap) || (cap as number) < 1000 || (cap as number) > 100_000_000))
-    throw refuse(400, "daily_cap_tokens is a whole number from 1,000 to 100,000,000.");
+  if (cap !== undefined && (!Number.isInteger(cap) || (cap as number) < MIN_CAP || (cap as number) > 100_000_000))
+    throw refuse(400, "daily_cap_tokens is a whole number from 5,000 to 100,000,000, since one answer can use up to 4,000 tokens.");
   if (typeof model === "string") {
     const key = await vault(KEY_NAME);
     if (key) await seam.client(key).models.retrieve(model).catch((err) => {

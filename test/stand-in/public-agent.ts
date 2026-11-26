@@ -66,6 +66,9 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   if (req.method === "POST" && url.pathname === "/v1/messages") {
     const body = await req.json();
     sent.push(body);
+    // An older model refuses the effort setting.
+    if (body.output_config && body.model === "claude-haiku-4-5") return Response.json({ type: "error",
+      error: { type: "invalid_request_error", message: "output_config.effort: This model does not support the effort parameter." } }, { status: 400 });
     const file = String(body.system?.at(-1)?.text ?? "");
     const words = String(body.messages.at(-1).content).toLowerCase().match(/[a-z]{4,}/g) ?? [];
     const line = file.split("\n").find((l) => words.some((w) => l.toLowerCase().includes(w)));
@@ -383,18 +386,20 @@ try {
 
   // The daily cap. The most an answer can cost is held before Claude is called. Four answers of 1,030 tokens make 4,120,
   // with each one's 6,000 tokens of cache read counted at 600. Under a cap of 5,000 there's less room than one answer's
-  // 1,000 tokens of output, so the answer is the resting message.
+  // 4,000 tokens of output, so the answer is the resting message.
   res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 5000 }, admin);
   const held = sent.length;
   const short = await ask("What services do you offer?");
   const afterHold = await post({ action: "settings", agent: "chat" }, admin);
   check("an answer whose most would pass the cap gets the resting message, Claude isn't called, and nothing stays held",
     short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 4120, { short, afterHold });
-  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 4000 }, admin);
-  check("settings counts today's tokens from Claude's usage, a cache read at a tenth, and sets the cap", res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 4000, res);
+  const tooLow = await post({ action: "settings", agent: "chat", daily_cap_tokens: 4999 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 6000 }, admin);
+  check("settings counts today's tokens from Claude's usage, a cache read at a tenth, sets the cap, and refuses one under 5,000",
+    res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 6000 && tooLow.status === 400 && tooLow.body.problem.includes("5,000"), { res, tooLow });
   const before = sent.length;
   res = await ask("What services do you offer?");
-  check("once today's tokens reach the cap, the answer is the resting message and Claude isn't called",
+  check("while the cap leaves less room than one answer's most, the answer is the resting message and Claude isn't called",
     res.status === 200 && res.body.answer === RESTING && sent.length === before, res);
   res = await post({ action: "settings", agent: "chat", model: "gpt-4" }, admin);
   check("a model that isn't Claude's is refused", res.status === 400, res);
@@ -471,7 +476,7 @@ try {
   // Each agent's cap counts its own tokens.
   const tokensOf = async () => Object.fromEntries((await post({ action: "agents_list" }, admin)).body.agents.map((a: any) => [a.slug, a.today_tokens]));
   const counted = await tokensOf();
-  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 2000 }, admin);
+  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 5000 }, admin);
   const restingBookings = await ask("How do I book tables?", { agent: "bookings" });
   const stillCakes = await ask("Can I order celebration cakes?", { agent: "cakes" });
   check("each agent's cap counts its own tokens: Bookings rests at its cap, and Cakes still answers",
@@ -968,6 +973,20 @@ try {
   const words = wholeSentences("The kitchen stops serving at four");
   check("a cut reply with no sentence end keeps its whole lines, and one with no line either ends at its last whole word and an ellipsis",
     lines === "Sources:\n- Opening hours" && words === "The kitchen stops serving at…", { lines, words });
+  const chineseCut = wholeSentences("我们早上八点开门。下午四点关门。厨房在");
+  const title = wholeSentences("We open at 8am. Ask Dr. Smith about the cake ord");
+  check("a cut reply ends after a Chinese full stop with no space after it, and not after a title such as Dr.",
+    chineseCut === "我们早上八点开门。下午四点关门。" && title === "We open at 8am.", { chineseCut, title });
+
+  // A model that refuses the effort setting is asked again without it.
+  await post({ action: "settings", agent: "chat", model: "claude-haiku-4-5" }, admin);
+  const sentBefore = sent.length;
+  const older = await ask("What are your opening hours?");
+  const [withEffort, without] = sent.slice(sentBefore);
+  check("an agent on a model that refuses the effort setting still answers, asked again without it",
+    older.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && withEffort?.output_config?.effort === "low" && without && !without.output_config,
+    { older, withEffort: withEffort?.output_config, without: without?.output_config });
+  await post({ action: "settings", agent: "chat", model: "claude-haiku-5-5" }, admin);
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
