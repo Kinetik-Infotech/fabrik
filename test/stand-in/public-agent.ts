@@ -52,6 +52,7 @@ const sql = postgres(DB, { max: 1, prepare: false, onnotice() {} });
 // A question holding "long answer" gets 830 characters. Every answer reads 6,000 tokens from the cache, which count 600,
 // so it costs 1,030 tokens.
 const sent: any[] = [];
+const CUT = "We open at 8am. The café closes at 4pm, \"or later in summer!\"\nThe kitchen stops serving at";
 const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const url = new URL(req.url);
   if (req.headers.get("x-api-key") !== KEY) return Response.json({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, { status: 401 });
@@ -73,6 +74,10 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     // A reply with no content list, which the function can't read after Claude has charged for it.
     if (String(body.messages.at(-1).content).includes("broken reply")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
       model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
+    // A reply that stops at the output cap, part way through its third sentence.
+    if (String(body.messages.at(-1).content).includes("cut answer")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
+      model: body.model, stop_reason: "max_tokens", stop_sequence: null, content: [{ type: "text", text: CUT }],
+      usage: { input_tokens: 400, output_tokens: 4000, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
     return Response.json({
       id: "msg_standin", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null,
       content: [{ type: "text", text }],
@@ -201,7 +206,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 let handler: ((req: Request) => Promise<Response>) | undefined;
 const serve = Deno.serve;
 (Deno as unknown as { serve: unknown }).serve = (h: typeof handler) => { handler = h; return { finished: Promise.resolve(), shutdown() {} }; };
-const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED } = await import(FUNCTION.href);
+const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences } = await import(FUNCTION.href);
 (Deno as unknown as { serve: unknown }).serve = serve;
 seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
@@ -348,8 +353,9 @@ try {
   res = await ask("What are your opening hours?");
   check("a question the file answers gets the file's answer", res.status === 200 && res.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && res.cors === "*", res);
   const first = sent.at(-1);
-  check("the agent chat's first question saves the starting text as its INSTRUCTIONS.md, and with one agent Claude gets it, then KNOWLEDGE.md with cache_control, the default model and at most 1,000 tokens",
-    files.get("agents/chat/instructions.md") === STARTING && first.model === "claude-haiku-5-5" && first.max_tokens === 1000 && first.system.length === 2
+  check("the agent chat's first question saves the starting text as its INSTRUCTIONS.md, and with one agent Claude gets it, then KNOWLEDGE.md with cache_control, the default model, low effort and at most 4,000 tokens",
+    files.get("agents/chat/instructions.md") === STARTING && first.model === "claude-haiku-5-5" && first.max_tokens === 4000
+      && first.output_config?.effort === "low" && first.system.length === 2
       && first.system[0].text === STARTING && !first.system[0].cache_control
       && first.system[1].text === `<knowledge>\n${KNOWLEDGE}\n</knowledge>` && first.system[1].cache_control?.type === "ephemeral" && !first.tools, first);
   const history = Array.from({ length: 12 }, (_, i) => [{ role: "user", content: `Earlier question ${i}` }, { role: "assistant", content: `Earlier answer ${i}` }]).flat();
@@ -951,6 +957,17 @@ try {
   const bookingsLeft = (await post({ action: "conversations_list", agent: "bookings" }, admin)).body.conversations.length;
   check("conversations_delete with an agent and a date deletes every conversation of that agent last asked before it, and leaves the other agents'",
     byAgent.status === 200 && byAgent.body.conversations > 2 && chatLeft === 0 && bookingsBefore > 0 && bookingsLeft === bookingsBefore, { byAgent: byAgent.body, chatLeft, bookingsBefore, bookingsLeft });
+
+  // A reply that stops at the output cap reaches the visitor, and is kept, up to its last full sentence.
+  const cut = await ask("Give me the cut answer.");
+  const [cutKept] = await sql`select answer from fabrik_private.public_exchange where question = 'Give me the cut answer.'`;
+  const cutWhole = "We open at 8am. The café closes at 4pm, \"or later in summer!\"";
+  check("a reply that stops at the output cap ends at its last full sentence, for the visitor and in the kept exchange",
+    cut.status === 200 && cut.body.answer === cutWhole && cutKept?.answer === cutWhole, { cut, cutKept });
+  const lines = wholeSentences("Sources:\n- Opening hours\n- Cake ord");
+  const words = wholeSentences("The kitchen stops serving at four");
+  check("a cut reply with no sentence end keeps its whole lines, and one with no line either ends at its last whole word and an ellipsis",
+    lines === "Sources:\n- Opening hours" && words === "The kitchen stops serving at…", { lines, words });
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
