@@ -29,6 +29,10 @@
 // The guide tool answers how to do anything in fabrik from guides.ts, which setup/build.mjs guides writes from the
 // Markdown guides in docs/guides/. INSTRUCTIONS is what Claude reads about fabrik when it connects, and points to it.
 //
+// A person can connect two fabrik connectors, one for each business, whose tools have the same names. So each request
+// reads the business's name from the business profile, as the person, and the server names it with the project's
+// reference: first in the instructions, at the start of each tool's description, and as fabrik in each tool's result.
+//
 // The cards, the records card, the board card, the graph card and the mail setup card, are in cards.ts: show_records,
 // show_board and show_graph, each card's address, which serves a fixed shell, card_page and card_call, and the app-only
 // tools the cards read fabrik through. Their pages are card.ts, which plugins/fabrik/cards/make-card.ts writes.
@@ -41,7 +45,7 @@ import { pipeline } from "npm:@supabase/middleware@1.0.0";
 import { withOAuthProtectedResource, withSupabase } from "npm:@supabase/server@1.9.2";
 import { z } from "npm:zod@4.3.6";
 import { annotationsOf } from "./annotations.ts";
-import { answer, call, type Ctx, type Fabrik, type Project, refused, scopeOf, type Tool, tool, VERSION } from "./tool.ts";
+import { allScopes, answer, call, type Ctx, type Fabrik, type Project, refused, type Result, scopeOf, type Tool, tool, VERSION } from "./tool.ts";
 import { CARD_TOOLS, registerCards } from "./cards.ts";
 import { UPLOAD_LIMIT, uploadFile } from "./ported.ts";
 import { MEMORY_TOOLS } from "./memory.ts";
@@ -405,21 +409,113 @@ const guide = tool({
 });
 
 /**
- * What Claude reads about fabrik when it connects, in every Claude app. It stays under 1,500 characters.
+ * What Claude reads about fabrik when it connects, in every Claude app, after the line instructionsFor puts first, which
+ * names the business. Both together stay under 1,500 characters.
  */
-export const INSTRUCTIONS = "fabrik is the person's own knowledge base, kept in their Supabase project. Its tools act as the signed-in person, " +
-  "within their own grants, and save every change as a new version. It holds records (notes, decisions, evidence, plans, tasks and models), " +
-  "files with search across both, projects and tasks, contacts and groups, routines and their designs, the glossary, a mailbox it reads and, on the person's approval, drafts in and sends from, " +
-  "and the person's writing voice. It draws records, boards and graphs as cards. " +
+export const INSTRUCTIONS = "fabrik is the person's knowledge base in their Supabase project. Its tools act as the signed-in person, " +
+  "within their own grants, and save every change as a new version. It holds records, files, projects, tasks, contacts, routines, " +
+  "the glossary, a mailbox and the person's writing voice, and draws cards. " +
   "At the start of a conversation, call profile_get before the first reply. When it gives agentName, that is your name: use it when you speak of yourself. " +
-  "fabrik holds the routines the person does their work by. Before work a routine covers, find that routine's version in force, " +
-  "name it, and do each step with the connector or plugin it names; a step assigned to the person stays theirs. " +
-  "fabrik itself schedules nothing: act on what the person asks in this conversation, or in a scheduled task they set up in Claude, whose prompt is " +
-  "their request. Before a save, a send, a link or a deletion, show them what will change and wait for their approval. In a scheduled run, where " +
-  "no one can approve, do only the reads, drafts and saves its prompt names, and leave anything that sends, pays, books or deletes for the person. Never ask for a password: the person types one only on fabrik's own sign-in page or card. " +
+  "Before work a routine covers, find that routine's version in force, name it, and do each step with the connector or plugin it names; " +
+  "a step assigned to the person stays theirs. " +
+  "fabrik schedules nothing: act on what the person asks here, or in a scheduled task they set up in Claude. Before a save, a send, a link or a deletion, show them what will change and wait for their approval. In a scheduled run, where " +
+  "no one can approve, do only the reads, drafts and saves its prompt names, and leave anything that sends, pays, books or deletes for the person. " +
+  "Never ask for a password: the person types one only on fabrik's own sign-in page or card. " +
   "Answer a question about their records only from what fabrik's tools return. " +
-  "For how to do anything in fabrik, or in Claude with fabrik, such as adding another connector, call guide with the person's question, " +
-  "and answer from the guide it gives.";
+  "For how to do anything in fabrik, call guide with the person's question, and answer from the guide it gives.";
+
+// ---- Which business ----
+
+/** Which business's fabrik this connector is: the name its business profile gives, or null where the person can read
+ * none, and the reference of the Supabase project it is in. Claude can have two fabrik connectors at once, one for each
+ * business, whose tools have the same names, so each says which it is. */
+export type Identity = { business: string | null; project: string };
+
+/** The project's reference, from its address: abcdefghijklmnopqrst for https://abcdefghijklmnopqrst.supabase.co, and the
+ * address's host for any other address. */
+export function projectRef(url: string | undefined): string {
+  let host = "";
+  try { host = new URL(url ?? "").host; } catch { return url ?? ""; }
+  return host.endsWith(".supabase.co") ? host.split(".")[0] : host;
+}
+
+/** The business's name, from the business profile's title, Business profile: <business name>. Where the person may
+ * read more than one profile, the one in the General scope, then the one saved last. */
+// deno-lint-ignore no-explicit-any
+export function businessIn(items: any[], general?: string): string | null {
+  const named = (items ?? []).map((r) => ({ scope_id: r.scope_id, name: /^business profile:\s*(.+)$/i.exec(String(r.title ?? "").trim())?.[1]?.trim() }))
+    .filter((r): r is { scope_id: string; name: string } => !!r.name);
+  return (named.find((r) => r.scope_id === general) ?? named[0])?.name ?? null;
+}
+
+/** How long a business's name is kept for a person before it is read again. A person with no profile to read has it
+ * read on each request, so a profile saved now names the connector at once. */
+const IDENTITY_KEPT_MS = 10 * 60 * 1000;
+/** Each person's business name, by their account's id. Only the person's own reads go in their entry. */
+const identities = new Map<string, { business: string; at: number }>();
+const MAX_PEOPLE = 200;
+
+/** Which business's fabrik this is, as the person may read it: the business profile's name, kept for IDENTITY_KEPT_MS. */
+export async function identityOf(ctx: Ctx, project = projectRef(Deno.env.get("SUPABASE_URL"))): Promise<Identity> {
+  const kept = ctx.person ? identities.get(ctx.person) : undefined;
+  if (kept && Date.now() - kept.at < IDENTITY_KEPT_MS) return { business: kept.business, project };
+  let business: string | null = null;
+  try {
+    const { data, error } = await ctx.fabrik.rpc("fabrik_find_records", {
+      p_kind: "model", p_scope_id: null, p_title: "Business profile", p_cutoff: null, p_cursor: null, p_limit: 20,
+    });
+    // deno-lint-ignore no-explicit-any
+    const items: any[] = error ? [] : data?.items ?? [];
+    let general: string | undefined;
+    if (new Set(items.map((r) => r.title)).size > 1) {
+      const all = await allScopes(ctx);
+      general = typeof all === "string" ? undefined : all.find((x) => x.code === "general")?.scope_id;
+    }
+    business = businessIn(items, general);
+  } catch {
+    business = null;
+  }
+  if (business && ctx.person) {
+    if (!identities.has(ctx.person) && identities.size >= MAX_PEOPLE) identities.delete(identities.keys().next().value!);
+    identities.set(ctx.person, { business, at: Date.now() });
+  }
+  return { business, project };
+}
+
+/** The business as a name, Kinetik, or where no profile names it, the project. */
+const nameOf = (id: Identity) => id.business ?? `project ${id.project}`;
+/** What each tool's description starts with. */
+export const descriptionStart = (id: Identity) => `${nameOf(id)} fabrik: `;
+/** Which fabrik this is, as a sentence: Kinetik's fabrik, project abcdefghijklmnopqrst. */
+const whose = (id: Identity) => id.business
+  ? `${id.business}${/s$/i.test(id.business) ? "'" : "'s"} fabrik, in project ${id.project}`
+  : `the fabrik in project ${id.project}`;
+/** The instructions Claude reads, starting with which business's fabrik this is. */
+export function instructionsFor(id: Identity) {
+  return `This connector is ${whose(id)}. Save here only ${id.business ? `${id.business}'s` : "this fabrik's"} work, ` +
+    "and another business's through its own fabrik connector. " + INSTRUCTIONS;
+}
+
+/** A tool's result with the business and project added, as fabrik: {business, project}, to its data and to the JSON
+ * text the model reads. A refusal gets a line naming them after its own words, unless a card draws the refusal, since
+ * the card shows every line of it. */
+export function stamped(r: Result, id: Identity, card = false): Result {
+  const fabrik = { business: id.business, project: id.project };
+  if (r.isError) {
+    return { ...r, ...(card ? {} : { content: [...r.content, { type: "text" as const, text: `This is ${whose(id)}.` }] }), structuredContent: { fabrik } };
+  }
+  const content = [...r.content];
+  // deno-lint-ignore no-explicit-any
+  let parsed: any = null;
+  try { parsed = content.length === 1 ? JSON.parse(content[0].text) : null; } catch { parsed = null; }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) content[0] = { type: "text", text: JSON.stringify({ ...parsed, fabrik }) };
+  else content.push({ type: "text", text: JSON.stringify({ fabrik }) });
+  return { ...r, content, structuredContent: { ...(r.structuredContent ?? {}), fabrik } };
+}
+
+/** Whether only a card calls the tool, so Claude keeps it from the model, and its result goes to the card as it is. */
+// deno-lint-ignore no-explicit-any
+const forCardOnly = (t: Tool) => { const v = (t.meta as any)?.ui?.visibility; return Array.isArray(v) && !v.includes("model"); };
 
 /** Every tool, in the order Claude lists them. */
 export const TOOLS: Tool[] = [
@@ -466,15 +562,25 @@ export function strictInput(t: Tool) {
 /** Adds each tool to the server, each run with the request's context. The SDK types its callback by the inputSchema
  * of each call to registerTool, which a loop over tools of different inputs cannot give, so the callback is cast.
  * The SDK still validates the arguments against the tool's strict input before calling it. */
-export function register(server: McpServer, ctx: Ctx, tools: Tool[] = TOOLS) {
+export function register(server: McpServer, ctx: Ctx, tools: Tool[] = TOOLS, id?: Identity) {
   for (const t of tools) {
     const hints = annotationsOf(t.name);
     if (!hints) {
       console.error(`${t.name} has no entry in annotations.ts, so it is left out: give it a title and an effect.`);
       continue;
     }
-    server.registerTool(t.name, { ...hints, description: t.description, inputSchema: strictInput(t), ...(t.meta ? { _meta: t.meta } : {}) },
-      ((args: unknown) => t.run(ctx, args as never)) as never);
+    // A tool the model reads names the business at the start of its description and in each result. A card's own tool
+    // gives its card the result as it is. Arguments a tool's input does not allow are refused by the SDK before run, so
+    // that refusal names nothing.
+    const named = id && !forCardOnly(t) ? id : undefined;
+    server.registerTool(t.name, {
+      ...hints, description: named ? descriptionStart(named) + t.description : t.description, inputSchema: strictInput(t),
+      ...(t.meta ? { _meta: t.meta } : {}),
+    }, (async (args: unknown) => {
+      const r = await t.run(ctx, args as never);
+      // deno-lint-ignore no-explicit-any
+      return named ? stamped(r, named, !!(t.meta as any)?.ui?.resourceUri) : r;
+    }) as never);
   }
 }
 
@@ -502,9 +608,10 @@ Deno.serve(
         return fetch(`${Deno.env.get("SUPABASE_URL")}${path}`, { ...init, headers });
       };
       const ctx: Ctx = { fabrik: supabase.schema("fabrik") as unknown as Fabrik, project, person: personOf(req.headers.get("Authorization")) };
+      const id = await identityOf(ctx);
       const handler = createMcpHandler(() => {
-        const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS });
-        register(server, ctx);
+        const server = new McpServer(SERVER_INFO, { instructions: instructionsFor(id) });
+        register(server, ctx, TOOLS, id);
         registerCards(server);
         return server;
       }, { maxRequestBodySize: REQUEST_LIMIT });

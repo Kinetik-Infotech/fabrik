@@ -15,7 +15,15 @@ The connector is how every Claude client reaches fabrik. Its tools are `search`,
 `save_record`, `link_records`, `unlink_records`, `list_scopes`, `get_reference`, `save_term`, `save_relation_type`,
 `upload_file`, `read_file`, `show_records`, `show_board` and `show_graph`, and the tools for notes, documents, the profile,
 projects, tasks, workflows, contacts, groups, the person's writing voice and an administrator's mail, which `show_mail_setup` sets up on a card: reading, drafts, sending and moving to Trash. The `fabrik:records` skill lists them and
-names the one for each task. The plugin's tools below reach what the connector has no tool for: a database function
+names the one for each task.
+
+Each connector serves one business's fabrik, and takes the business's name from the business profile's title. It puts
+the name at the start of its instructions and of each tool's description, such as `Kinetik fabrik: `. Each result gives
+it as `fabrik`, with the project's reference. Where no profile is readable, the connector names the project alone. A person can have two
+fabrik connectors in Claude, one for each business, whose tools have the same names. The agent calls the one that names
+the business the work is for, and reads `fabrik` in the result to check.
+
+The plugin's tools below reach what the connector has no tool for: a database function
 through `rpc`, files in the agent folder, and pages.
 
 Changes go through the assistant, `@fabrik:assistant`, which asks before each change. A session that is
