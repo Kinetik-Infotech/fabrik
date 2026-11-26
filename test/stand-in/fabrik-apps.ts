@@ -1884,8 +1884,8 @@ try {
   const paVoice = "You are Rosie, the joinery's helper. Speak plainly and warmly.\n";
   const paInstructionsSave = await tool(ownerToken, "public_instructions_save", { agent: "chat", text: paVoice });
   const paInstructionsGet = await tool(ownerToken, "public_instructions_get", { agent: "chat" });
-  const paSecond = await tool(ownerToken, "public_agent_create", { agent: "orders", name: "Orders", purpose: "Takes orders for fitted kitchens." });
-  const paChange = await tool(ownerToken, "public_agent_change", { agent: "orders", purpose: "Takes orders for fitted kitchens and wardrobes." });
+  const paSecond = await tool(ownerToken, "public_agent_create", { agent: "orders", name: "Orders", purpose: "Takes orders for fitted kitchens.", topic: "Kitchens" });
+  const paChange = await tool(ownerToken, "public_agent_change", { agent: "orders", purpose: "Takes orders for fitted kitchens and wardrobes.", topic: "Fitted furniture" });
   const paPage = await tool(ownerToken, "public_agent_settings_change", { page: "https://fabrik-chat-standin.pages.dev" });
   const paList = await tool(ownerToken, "public_agents_list", {});
   const paAgentsMd = agentFiles.get("agents.md");
@@ -1938,8 +1938,9 @@ try {
       && paAgents.again === "Chat (chat): KNOWLEDGE.md is saved, and INSTRUCTIONS.md is the owner's own."
       && /The agent chat, Chat: KNOWLEDGE\.md is saved, and INSTRUCTIONS\.md is the owner's own\./.test(String(paAgents.said)),
     { paCreate, paStarting, paInstructionsSave, paInstructionsGet, paAgents });
-  check("public_agent_change, public_agents_list and the page's address keep AGENTS.md, and public_agent_remove takes an agent and its files away",
-    v(paSecond)?.slug === "orders" && v(paChange)?.purpose === "Takes orders for fitted kitchens and wardrobes." && v(paPage)?.page === "https://fabrik-chat-standin.pages.dev"
+  check("public_agent_create and public_agent_change save a topic, public_agent_change, public_agents_list and the page's address keep AGENTS.md, and public_agent_remove takes an agent and its files away",
+    v(paSecond)?.slug === "orders" && v(paSecond)?.topic === "Kitchens" && v(paChange)?.purpose === "Takes orders for fitted kitchens and wardrobes."
+      && v(paChange)?.topic === "Fitted furniture" && JSON.stringify(v(paList)?.agents?.map((a: any) => a.topic)) === '["","Fitted furniture"]' && v(paPage)?.page === "https://fabrik-chat-standin.pages.dev"
       && JSON.stringify(v(paList)?.agents?.map((a: any) => a.slug)) === '["chat","orders"]'
       && paAgentsMd === "- Chat, https://fabrik-chat-standin.pages.dev/chat/: Answers questions about the joinery.\n- Orders, https://fabrik-chat-standin.pages.dev/orders/: Takes orders for fitted kitchens and wardrobes.\n"
       && v(paRemove)?.removed === true && !agentFiles.has("agents/orders/instructions.md") && agentFiles.get("agents.md") === "",

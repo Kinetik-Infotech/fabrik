@@ -75,9 +75,28 @@ export function pageStyle(brand) {
 }
 
 const SLUG = /^[a-z0-9-]{1,40}$/;
+/** The most agents an agent's page links to by name. Past it, the page links to the list of agents alone. */
+export const MOST_LINKED = 12;
+
+const byText = (a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }) || (a < b ? -1 : a > b ? 1 : 0);
+const topicOf = a => String(a?.topic ?? "").replace(/\s+/g, " ").trim();
+
+/** The agents in groups by topic: [{ topic, agents }], the topics in alphabetical order and each one's agents by name,
+ * then the agents with no topic, whose group's topic is empty. */
+export function topicGroups(agents) {
+  const groups = new Map();
+  for (const a of agents) {
+    const topic = topicOf(a), key = topic.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { topic, agents: [] });
+    groups.get(key).agents.push(a);
+  }
+  for (const g of groups.values()) g.agents.sort((x, y) => byText(x.name, y.name) || byText(x.slug, y.slug));
+  return [...groups.values()].sort((x, y) => (!x.topic) - (!y.topic) || byText(x.topic, y.topic));
+}
 
 /** Writes the chat pages into folder: a page in the brand for each agent at <slug>/index.html, index.html listing the
- * agents, chat.js, and widget.js with the brand's accent. agents is [{ slug, name, purpose }], at least one. */
+ * agents under a heading for each topic, chat.js, and widget.js with the brand's accent. agents is
+ * [{ slug, name, purpose, topic }], at least one, and topic may be left out. */
 export function buildChatPage({ brand, address, folder, agents }) {
   if (!/^https?:\/\/[^\s"'<>]+$/.test(String(address))) throw new Error(`${address} is not the public-agent function's address.`);
   if (!Array.isArray(agents) || !agents.length) throw new Error("fabrik has no public agent yet, so there's no chat page to put up. Add an agent first.");
@@ -92,8 +111,12 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const heading = name => `<h1${brand?.logo && shown.has(name.trim().toLowerCase()) ? ' class="in-logo"' : ""}>${esc(name)}</h1>`;
   // The tab's icon: the brand's logo where it has one, and fabrik's mark otherwise.
   const icon = esc(brand?.logo?.src || FABRIK_MARK);
-  const list = `<ul class="agents">${agents.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
+  const groups = topicGroups(agents), topical = groups.some(g => g.topic);
+  const items = list => `<ul class="agents">${list.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
+  // With topics, each topic has a heading over its agents, and the agents with none come last, under Other agents.
+  const list = !topical ? items(groups[0].agents) : `<div class="topics">${groups.map(g =>
+    `<section><h2>${esc(g.topic || "Other agents")}</h2>${items(g.agents)}</section>`).join("")}</div>`;
   const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, NAV: "", MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
@@ -102,9 +125,19 @@ export function buildChatPage({ brand, address, folder, agents }) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
   writeFileSync(join(folder, "index.html"), root);
-  // An agent's page links to the list of agents, and to each other agent by name, with its purpose as the link's title.
-  const nav = slug => agents.length < 2 ? "" : `<nav aria-label="Other agents"><a href="../">All agents</a>${agents.filter(o => o.slug !== slug)
-    .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
+  // An agent's page links to the list of agents, and by name to each other agent of its own topic, or with no topics
+  // to each other agent, with its purpose as the link's title. Where those are more than MOST_LINKED, it links to the
+  // list alone.
+  const groupOf = new Map(groups.flatMap(g => g.agents.map(a => [a.slug, g])));
+  const nav = slug => {
+    if (agents.length < 2) return "";
+    const g = groupOf.get(slug), others = g.agents.filter(o => o.slug !== slug);
+    const shown = others.length <= MOST_LINKED ? others : [];
+    const label = g.topic ? `${esc(g.topic)}: other agents` : "Other agents";
+    return `<nav aria-label="${label}"><a href="../">All agents</a>` +
+      `${g.topic && shown.length ? `<span class="topic">${esc(g.topic)}</span>` : ""}${shown
+        .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
+  };
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
