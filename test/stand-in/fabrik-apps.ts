@@ -32,7 +32,9 @@
 // The connections card's Save sends the typed key to the real graph-reader's set_key with the person's sign-in, against
 // a stand-in for Anthropic's Models API. A key Anthropic refuses is not kept, and a person who isn't an administrator is
 // refused. With no class in the glossary, the card, show_connections_setup and a search say connections wait for one.
-// Turn off removes the key, and no answer holds it. run.sh runs it.
+// Turn off removes the key, and no answer holds it. The Login card adds a login with a generated password, opens it,
+// changes its password and removes it, a reader of its scope opens it, and the model's calls without the card's pass are
+// refused, as are opening and saving through the Data API with the person's own token. Only login_open's answers, to the card, hold a password. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from "npm:jose@6.2.17";
 import { Window } from "npm:happy-dom@20.0.10";
@@ -418,7 +420,7 @@ try {
   check("every tool's input in tools/list refuses an argument it does not name",
     listed.length > 0 && listed.every((t) => t.inputSchema?.additionalProperties === false), listed.filter((t) => t.inputSchema?.additionalProperties !== false).map((t) => t.name));
   const DESTRUCTIVE = ["unlink_records", "delete_record", "workflow_delete", "contact_delete", "group_manage", "mail_setup_save", "connections_setup_save", "connections_off",
-    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_instructions_save", "public_agent_change", "public_agent_remove", "public_conversations_delete", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set"].sort();
+    "public_agent_setup_save", "public_agent_off", "public_knowledge_save", "public_instructions_save", "public_agent_change", "public_agent_remove", "public_conversations_delete", "public_agent_settings_change", "mail_draft_edit", "mail_draft_send", "mail_send", "mail_reply", "mail_delete", "mail_signature_set", "login_save", "login_remove"].sort();
   const OUTSIDE = ["mail_read", "mail_search", "mail_fetch_body", "mail_fetch_attachment", "mail_save_attachment", "mail_check", "mail_setup_save", "card_call", "show_connections_setup", "connections_setup_save",
     "show_public_agent_setup", "public_agent_setup_save", "public_agent_settings_change", "mail_draft", "mail_draft_edit", "mail_draft_list", "mail_draft_send", "mail_send", "mail_reply", "mail_delete"].sort();
   check("tools/list gives every tool a title and a hint: read-only tools, the show cards among them, readOnlyHint true; deleting, removing, replacing and sending tools destructiveHint true",
@@ -1725,6 +1727,130 @@ try {
   check("the connections card's page and its tools' descriptions say connections, and never graph",
     ok(connPage) && !/graph/i.test(v(connPage)?.body ?? "graph") && connListed.every((t: any) => !/graph/i.test(t.description)),
     { body: v(connPage)?.body?.slice(0, 300), descriptions: connListed.map((t: any) => t.description) });
+
+  // ---- The Login card, opened as Claude opens it: the owner adds a login in General with a generated password, opens
+  // it, and changes the password, so the one before is its previous password. The second person, who reads General,
+  // opens it on their own card and has no Add login. An agent with a grant elsewhere lists none. The model's calls to the
+  // card's tools without the card's pass are refused before fabrik is called. Removing the login takes both passwords out
+  // of Vault, and only login_open's answers, which go to the card, ever hold a password. ----
+  const logins = await import(new URL("../../setup/functions/fabrik-apps/logins.ts", import.meta.url).href);
+  const loginSecrets = async () => (await sql`select secret from vault.secrets where description = 'A shared login''s password in fabrik'`).map((r) => r.secret as string).sort();
+  const lg: Record<string, unknown> = {};
+  /** What the card shows, without its script. */
+  const shownOn = (c: { doc: any }) => String(c.doc.getElementById("fk-body")?.textContent ?? "").replace(/\s+/g, " ");
+  const lgCard = await openCard(ownerToken, "show_logins", {});
+  await until(() => shownOn(lgCard).includes("There is no login you may open."), "the empty Login card", { text: () => shownOn(lgCard) });
+  const lgPass = lgCard.result?._meta?.pass;
+  lg.empty = { uri: lgCard.uri, add: !!lgCard.doc.querySelector("[data-add]"), result: { content: lgCard.result?.content, data: lgCard.result?.structuredContent } };
+  lgCard.press(lgCard.doc.querySelector("[data-add]"));
+  await until(() => !!lgCard.doc.getElementById("lg-add-service"), "the add form", lgCard);
+  const generalId = (await sql`select scope_id::text as id from fabrik.scope where code = 'general'`)[0].id;
+  lg.scopes = [...lgCard.doc.querySelectorAll("#lg-add-scope option")].map((o: { textContent: string }) => o.textContent);
+  lgCard.doc.getElementById("lg-add-scope").value = generalId;
+  lgCard.doc.getElementById("lg-add-service").value = "Stand-in portal";
+  lgCard.doc.getElementById("lg-add-address").value = "https://portal.example.com/";
+  lgCard.doc.getElementById("lg-add-username").value = "ops@example.com";
+  lgCard.press(lgCard.doc.querySelector('[data-generate="add"]'));
+  const firstPassword = lgCard.doc.getElementById("lg-add-password").value as string;
+  lgCard.press(lgCard.doc.querySelector('[data-save="add"]'));
+  await until(() => shownOn(lgCard).includes("The login for Stand-in portal is saved."), "the login saved", lgCard);
+  await until(() => !!lgCard.doc.querySelector("[data-open]"), "the login listed", lgCard);
+  lg.added = { secrets: await loginSecrets(), length: firstPassword.length, called: [...lgCard.called] };
+  const loginId = lgCard.doc.querySelector("[data-open]").getAttribute("data-open");
+  lgCard.press(lgCard.doc.querySelector("[data-open]"));
+  await until(() => !!lgCard.doc.querySelector("[data-show]"), "the login opened", lgCard);
+  lg.hidden = !shownOn(lgCard).includes(firstPassword);
+  lgCard.press(lgCard.doc.querySelector("[data-show]"));
+  await until(() => shownOn(lgCard).includes(firstPassword), "the password shown", lgCard);
+  lgCard.press(lgCard.doc.querySelector("[data-change]"));
+  await until(() => !!lgCard.doc.getElementById("lg-change-password"), "the change form", lgCard);
+  const secondPassword = "Stand-in second password 7Q";
+  lgCard.doc.getElementById("lg-change-password").value = secondPassword;
+  lgCard.press(lgCard.doc.querySelector('[data-save="change"]'));
+  await until(() => shownOn(lgCard).includes("The new password for Stand-in portal is saved."), "the password changed", lgCard);
+  lg.changed = await loginSecrets();
+
+  // The Data API refuses opening and saving to the person's own token, as an agent holding it would call them, and
+  // gives no password. Removing goes through, for the administrator alone, and is called here with no login.
+  lg.direct = {
+    readerOpen: await rpc(secondToken, "fabrik_open_login", { p_login: loginId }),
+    ownerOpen: await rpc(ownerToken, "fabrik_open_login", { p_login: loginId }),
+    ownerSave: await rpc(ownerToken, "fabrik_save_login", { p_login: loginId, p_password: "Stand-in direct password" }),
+  };
+  lg.afterDirect = await loginSecrets();
+  // The second person reads General, and opens the login on their own card, with its previous password.
+  const lgReader = await openCard(secondToken, "show_logins", {});
+  await until(() => !!lgReader.doc.querySelector("[data-open]"), "the reader's list", lgReader);
+  lg.readerAdd = !!lgReader.doc.querySelector("[data-add]");
+  lgReader.press(lgReader.doc.querySelector("[data-open]"));
+  await until(() => lgReader.doc.querySelectorAll("[data-show]").length === 2, "the reader's login opened", lgReader);
+  // Each press draws the card again, so each button is found afresh.
+  lgReader.press(lgReader.doc.querySelector("[data-show]:not([data-show$=':previous'])"));
+  lgReader.press(lgReader.doc.querySelector("[data-show$=':previous']"));
+  await until(() => shownOn(lgReader).includes(secondPassword) && shownOn(lgReader).includes(firstPassword), "the reader's passwords shown", lgReader);
+  lg.readerChange = !!lgReader.doc.querySelector("[data-change]");
+  await lgReader.close();
+  // The agent, whose grant is in another scope, lists none.
+  const lgAgent = await openCard(readerToken, "show_logins", {});
+  await until(() => shownOn(lgAgent).includes("There is no login you may open."), "the agent's empty card", lgAgent);
+  await lgAgent.close();
+
+  // The model calls the card's tools as the owner, as card_call lets it: with no pass, another card's pass, a pass out of
+  // time, and from another card. Each is refused before fabrik is called, so no opening reaches the audit log.
+  const openings = async () => (await sql`select count(*)::int as n from fabrik_private.shared_login_event where event = 'login_opened'`)[0].n;
+  const openedBefore = await openings();
+  const lgBad = [];
+  for (const pass of [undefined, ownerPass, await connections.issuePass(owner, Date.now() - connections.PASS_LIFE_MS - 1000, "login")]) {
+    for (const [name, args] of [["login_open", { login_id: loginId }], ["logins_list", {}], ["login_save", { login_id: loginId, password: "Stand-in model password" }], ["login_remove", { login_id: loginId }]] as const) {
+      lgBad.push(await tool(ownerToken, "card_call", { card: "login", name, arguments: { ...args, ...(pass ? { pass } : {}) } }));
+    }
+  }
+  const lgCross = await tool(ownerToken, "card_call", { card: "records", name: "login_open", arguments: { login_id: loginId, pass: lgPass } });
+  lg.badOpenings = (await openings()) - openedBefore;
+  lg.afterBad = await loginSecrets();
+
+  // The owner removes it on the card.
+  lgCard.press(lgCard.doc.querySelector("[data-open]"));
+  await until(() => !!lgCard.doc.querySelector("[data-ask-remove]"), "the login opened again", lgCard);
+  lgCard.press(lgCard.doc.querySelector("[data-ask-remove]"));
+  lgCard.press(lgCard.doc.querySelector("[data-remove]"));
+  await until(() => shownOn(lgCard).includes("The login for Stand-in portal is removed."), "the login removed", lgCard);
+  lg.removed = { secrets: await loginSecrets(), text: shownOn(lgCard), events: (await sql`select event from fabrik_private.shared_login_event where login_id = ${loginId}::uuid order by event_id`).map((r) => r.event) };
+  await lgCard.close();
+  // deno-lint-ignore no-explicit-any
+  const lgListed = ((await mcp(ownerToken, "tools/list")).body?.result?.tools ?? []).filter((t: any) => ["show_logins", "logins_list", "login_open", "login_save", "login_remove"].includes(t.name));
+  // Every answer that holds a password is login_open's, to a card.
+  const holding = answersSeen.filter((t) => [firstPassword, secondPassword].some((p) => t.includes(p)));
+  if (OBSERVE) console.log("== logins", JSON.stringify({ lg, lgBad: lgBad.map(said), lgCross, holding: holding.map((t) => t.slice(0, 200)) }, null, 1));
+  check("show_logins, opened as Claude opens it, draws the Login card at its own address, with Add login for an administrator and no login yet",
+    (lg.empty as any).uri === "ui://fabrik-apps/login.html" && (lg.empty as any).add === true, lg.empty);
+  check("the card offers General among the scopes a login may be kept in, and the owner's Save keeps the generated password, 24 characters, in Vault alone",
+    (lg.scopes as string[]).includes("General") && (lg.added as any).length === 24 && JSON.stringify((lg.added as any).secrets) === JSON.stringify([firstPassword])
+      && (lg.added as any).called.includes("card_call login/login_save"), lg.added);
+  check("an opened login's password stays hidden until Show is pressed",
+    lg.hidden === true, lg.hidden);
+  check("Change password keeps the one before it as the previous password",
+    JSON.stringify(lg.changed) === JSON.stringify([firstPassword, secondPassword].sort()), lg.changed);
+  check("the Data API refuses opening and saving a login to the person's own token, the administrator's included, gives no password and changes nothing",
+    Object.values(lg.direct as Record<string, any>).every((r) => r?.code === "42501") && !JSON.stringify(lg.direct).includes(firstPassword)
+      && !JSON.stringify(lg.direct).includes(secondPassword) && JSON.stringify(lg.afterDirect) === JSON.stringify(lg.changed), { direct: lg.direct, secrets: lg.afterDirect });
+  check("the second person, who reads General, opens the login with its previous password, and has no Add login or Change password",
+    lg.readerAdd === false && lg.readerChange === false, { add: lg.readerAdd, change: lg.readerChange });
+  check("show_logins gives the card its pass in the result's _meta alone, never in the text or data the model reads",
+    typeof lgPass === "string" && lgPass.length > 40 && !JSON.stringify((lg.empty as any).result).includes(lgPass), lg.empty);
+  check("the card's four tools called without the Login card's pass, with another card's or with one out of time are refused before fabrik is called, and card_call keeps them to the Login card",
+    lgBad.length === 12 && lgBad.every((r) => said(r) === logins.CARD_ONLY) && lg.badOpenings === 0
+      && JSON.stringify(lg.afterBad) === JSON.stringify(lg.changed) && said(lgCross) === "login_open is not a tool the records card calls.",
+    { bad: lgBad.map(said), openings: lg.badOpenings, cross: said(lgCross) });
+  check("Remove takes the login and both its passwords out of Vault, and the audit log keeps each add, change, opening and removal",
+    (lg.removed as any).secrets.length === 0 && (lg.removed as any).text.includes("There is no login you may open.")
+      && JSON.stringify((lg.removed as any).events) === JSON.stringify(["login_added", "login_opened", "login_changed", "login_opened", "login_opened", "login_removed"]),
+    lg.removed);
+  check("logins_list, login_open, login_save and login_remove are app-only, and show_logins names the card",
+    lgListed.length === 5 && lgListed.every((t: any) => t.name === "show_logins" ? t._meta?.ui?.resourceUri === "ui://fabrik-apps/login.html"
+      : JSON.stringify(t._meta?.ui?.visibility) === JSON.stringify(["app"])), lgListed.map((t: any) => [t.name, t._meta]));
+  check("a password is in no answer the connector gave but login_open's, to the card",
+    holding.length > 0 && holding.every((t) => t.includes('"login_id"') && t.includes('"previous_password"')), holding.map((t) => t.slice(0, 200)));
 
   // ---- The public agent card, opened as Claude opens it: it shows no key, no Turnstile secret key and no KNOWLEDGE.md.
   // Its Save sends both keys to the real public-agent function as the owner, which keeps each in the Vault, apart from

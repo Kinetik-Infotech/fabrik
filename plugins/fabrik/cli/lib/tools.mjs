@@ -22,6 +22,12 @@ const RELEASES = new URL("../releases.mjs", import.meta.url);
 const SIGN_IN = fileURLToPath(new URL("../sign-in.mjs", import.meta.url));
 // The agent folder with links and a trailing slash resolved, so two plugins' settings can be compared.
 const folderPath = folder => { if (!folder) return null; try { return realpathSync.native(folder); } catch { return null; } };
+// The functions that open or save a shared login's password. In a Claude Code session, where CLAUDECODE is set, rpc
+// refuses them: a person opens, types and generates a password on the Login card alone, and runs them in Terminal
+// or PowerShell outside Claude.
+export const LOGIN_FUNCTIONS = ["fabrik_open_login", "fabrik_save_login"];
+export const LOGIN_IN_CLAUDE = "A shared login's password is opened, typed and generated on the Login card alone. Show the Login card with the fabrik connector's show_logins.";
+export const loginFunction = fn => LOGIN_FUNCTIONS.includes(String(fn ?? "").trim().toLowerCase().replaceAll('"', "").replace(/^[a-z_][a-z0-9_]*\./, ""));
 // The largest file copy_to_agent_folder copies.
 const MAX_COPY_BYTES = 50 * 1024 * 1024;
 
@@ -295,6 +301,7 @@ export function createTools({ ref, email, agentFolder = null, defaultSchema = nu
   }
 
   async function rpc(args) {
+    if (process.env.CLAUDECODE && loginFunction(args.function)) return { ok: false, problem: LOGIN_IN_CLAUDE };
     let callArgs = args.args ?? {};
     // Files are read, and placed, before anything is sent, so a bad file sends nothing.
     for (const [pointer, file] of Object.entries(args.file_args ?? {})) {
