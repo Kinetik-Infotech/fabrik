@@ -37,7 +37,7 @@ fabrik schedules nothing. The person may run a routine on a schedule with one of
 | `tool` | the application or connector, or `none` |
 | `has_tool` | `yes` or `no` |
 | `tool_source` | from the stock-take |
-| `confirmed_by` | who says yes before it takes effect, or empty when it runs without asking |
+| `confirmed_by` | who says yes before it takes effect, or `nobody` when it runs without asking; missing or empty, the person who asked |
 | `auto_for` | the email addresses of requesters whose cases the step runs for without asking |
 | `cases` | the step's case lists, each named, such as `customers` or `sources`; an empty list covers every case |
 | `settings` | each value the step reads, by name, such as a look-back in days or a channel |
