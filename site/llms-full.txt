@@ -38,6 +38,8 @@ The Login card keeps the logins your staff share for outside portals. An adminis
 
 Say "Let's get started" and Claude asks whether fabrik is for a business, your own life, or both. For a business, it reads the website for its profile and brand. It asks what you want from each routine, such as triaging your email or creating invoices. For one of them, it writes down how it runs today, and which applications must stay. Then it designs a better way with the connectors and plugins you have or could add. Once you approve the design, Claude follows it whenever it does that work for you.
 
+Everything a step runs by belongs to the routine. That covers who confirms it and whose requests it runs for without asking. It also covers the cases it takes and the values it reads. When a step is missing or wrong, Claude offers a new version of the routine before it goes on.
+
 ## What comes with it
 
 fabrik ships three plugins for Claude, on top of Claude's own connectors and plugins.
@@ -444,7 +446,11 @@ Say "Design a better way". Claude questions each step against your business and 
 
 Once you choose a design, it becomes the version in force. Whenever Claude does that work for you, it finds the version in force, names it, and follows its steps. A step assigned to you stays yours: Claude prepares it and leaves it for you.
 
-A design never makes anything run on its own. Each step that sends, pays, books or deletes waits for your approval in the session.
+Each step holds everything it runs by: who confirms it and whose requests it runs for without asking. It also holds the cases it covers, such as which customers, and each value it reads, such as how many days back it looks. Claude asks you for these while it designs. When a step lacks a value it reads, Claude hands that step to you, naming the value, and never picks one itself.
+
+When a step is missing or wrong for the work at hand, Claude offers to change the routine first, as a new version. It saves the version once you say yes. A new design takes effect once you choose it.
+
+A design never makes anything run on its own. Each step that sends, pays, books, buys, accepts terms or deletes waits for your approval in the session, whoever asked.
 
 ## A printed guide to a routine
 

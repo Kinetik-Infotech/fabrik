@@ -36,7 +36,11 @@ Say "Design a better way". Claude questions each step against your business and 
 
 Once you choose a design, it becomes the version in force. Whenever Claude does that work for you, it finds the version in force, names it, and follows its steps. A step assigned to you stays yours: Claude prepares it and leaves it for you.
 
-A design never makes anything run on its own. Each step that sends, pays, books or deletes waits for your approval in the session.
+Each step holds everything it runs by: who confirms it and whose requests it runs for without asking. It also holds the cases it covers, such as which customers, and each value it reads, such as how many days back it looks. Claude asks you for these while it designs. When a step lacks a value it reads, Claude hands that step to you, naming the value, and never picks one itself.
+
+When a step is missing or wrong for the work at hand, Claude offers to change the routine first, as a new version. It saves the version once you say yes. A new design takes effect once you choose it.
+
+A design never makes anything run on its own. Each step that sends, pays, books, buys, accepts terms or deletes waits for your approval in the session, whoever asked.
 
 ## A printed guide to a routine
 

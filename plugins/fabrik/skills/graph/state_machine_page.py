@@ -121,9 +121,19 @@ def read_blocks(page):
     return blocks["graph-data"], blocks["state-machine-data"]
 
 
+def sorted_keys(value):
+    """A value with the keys of each object inside it in name order, as fabrik loses their order on a save."""
+    if isinstance(value, dict):
+        return {k: sorted_keys(value[k]) for k in sorted(value)}
+    if isinstance(value, list):
+        return [sorted_keys(v) for v in value]
+    return value
+
+
 def ordered_properties(properties):
     known = [k for k in PROPERTY_ORDER if k in properties]
-    return {k: properties[k] for k in known + sorted(k for k in properties if k not in PROPERTY_ORDER)}
+    # A step's `settings` and `cases` are objects; their keys go in name order so a page comes back unchanged.
+    return {k: sorted_keys(properties[k]) for k in known + sorted(k for k in properties if k not in PROPERTY_ORDER)}
 
 
 # Building the two blocks from a payload.

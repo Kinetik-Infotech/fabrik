@@ -384,6 +384,38 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
      record holds — its reference and its name, each written once. The node
      type and the stored status are drawing chrome nobody wrote into the
      record, so the hover text leaves them out. */
+  /* A routine step's attributes, in the order the outline gives them: who does it, its tool, who
+     confirms it, for whom it runs without asking, the cases it covers, the values it reads, and
+     what happens when it fails. The board skill's page_check.py step_lines gives the same lines. */
+  var STEP_ATTRIBUTES = [['done_by', 'Done by'], ['tool', 'Tool'], ['has_tool', 'Has the tool'],
+    ['tool_source', 'Tool source'], ['confirmed_by', 'Confirmed by'], ['auto_for', 'Runs without asking for'],
+    ['cases', null], ['settings', 'Settings'], ['if_it_fails', 'If it fails']];
+  var DONE_BY = { person: 'a person', code: 'code', claude_bounded: 'Claude, bounded', claude_open: 'Claude, open-ended' };
+  function stepText(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'boolean') return value ? 'yes' : 'no';
+    if (Array.isArray(value)) return value.map(stepText).filter(Boolean).join(', ');
+    if (typeof value === 'object') return Object.keys(value).map(function (k) { return k + ': ' + stepText(value[k]); }).join(', ');
+    return String(value);
+  }
+  function stepLines(properties) {
+    var lines = [];
+    STEP_ATTRIBUTES.forEach(function (pair) {
+      var key = pair[0];
+      if (!(key in properties)) return;
+      var value = properties[key];
+      if (key === 'cases' && value && typeof value === 'object' && !Array.isArray(value)) {
+        Object.keys(value).forEach(function (name) {
+          var label = name.replace(/_/g, ' ');
+          lines.push({ label: label.charAt(0).toUpperCase() + label.slice(1), text: stepText(value[name]) || 'every case' });
+        });
+        return;
+      }
+      var text = key === 'done_by' && DONE_BY.hasOwnProperty(value) ? DONE_BY[value] : stepText(value);
+      if (text) lines.push({ label: pair[1], text: text });
+    });
+    return lines;
+  }
   /* One reading of a node, for the hover text and the details panel alike. */
   function describe(node) {
     var reference = String(node.reference || '').trim();
@@ -406,6 +438,7 @@ function hl(){return hl=Object.assign||function(g){for(var A=1;A<arguments.lengt
       if (properties.actors) links.push({ label: 'Performed by', text: properties.actors });
       if (properties.applications) links.push({ label: 'Applications', text: properties.applications });
       if (properties.data_records) links.push({ label: 'Data', text: properties.data_records });
+      links = links.concat(stepLines(properties));
     }
     if (links.length) parts.push({ lines: links });
     if (properties.handoff_text && properties.handoff_text !== description) parts.push({ text: properties.handoff_text });

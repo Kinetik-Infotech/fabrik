@@ -249,6 +249,35 @@ test("the records skill's routine in force passes the humanizer's checks", () =>
   for (const name of ["list_records", "get_record", "search"]) assert.match(section, new RegExp("`" + name + "`"));
 });
 
+test("the records skill follows each step's attributes, and offers a gap as a new version before going on", () => {
+  const records = read(SKILLS, "records", "SKILL.md");
+  const at = records.indexOf("## The routine in force");
+  const section = records.slice(at, records.indexOf("\n## ", at + 1));
+  for (const name of ["confirmed_by", "auto_for", "cases", "settings"]) assert.match(section, new RegExp("`" + name + "`"), name);
+  assert.match(section, /never given a default/);
+  assert.match(section, /Hands a step over to the person where its `settings` lack a value/);
+  assert.match(section, /whatever `auto_for` says/);
+  assert.match(section, /offers the change as a new version of the routine before the work goes on/);
+  // Only `nobody` runs a step without asking: a routine saved without `confirmed_by` still asks.
+  assert.match(section, /`confirmed_by` is `nobody`, or its `auto_for`/);
+  assert.match(section, /`confirmed_by` is missing or empty asks the person who asked/);
+  assert.doesNotMatch(section, /`confirmed_by` is empty|At a gap/);
+  assert.match(section, /not a `gap` node, which is part of the routine/);
+  const agent = read(PLUGIN, "agents", "assistant.md");
+  assert.match(agent, /Offer the change as a new version of the routine before you go on/);
+  assert.match(agent, /`confirmed_by` is missing or empty waits until the person confirms it/);
+  assert.match(agent, /A `gap` node is part of the routine, and needs no change/);
+  assert.doesNotMatch(agent, /When the person asks to work differently from the routine, do as they ask\. Then offer/);
+});
+
+test("no skill or the agent gives a step attribute a value, such as a person, a customer or an amount", () => {
+  const files = [...SKILL_NAMES.flatMap(skillFiles), join(PLUGIN, "agents", "assistant.md")];
+  const step = /`(confirmed_by|auto_for|cases|settings)`/;
+  const value = /[\w.%+-]+@[\w-]+\.[\w.]+|[£$€]\s?\d|"(auto_for|customers|sources|cases|settings)"\s*:\s*[[{]\s*["\d{[]/;
+  const found = files.flatMap((file) => read(file).split("\n").filter((line) => step.test(line) && value.test(line)).map((line) => `${file}: ${line}`));
+  assert.deepEqual(found, []);
+});
+
 test("an SOP is printed from the version in force, not an approved version", () => {
   for (const file of [join(SKILLS, "print", "SKILL.md"), join(SKILLS, "print", "sop_page.py"), join(PLUGIN, "cli", "lib", "pages.mjs")]) {
     const text = read(file);
