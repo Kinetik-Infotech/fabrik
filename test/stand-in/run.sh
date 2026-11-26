@@ -23,7 +23,7 @@ SEARCH=$SETUP
 # The fabrik plugin's skills, whose graph and board scripts draw what the database returns.
 DRAWING=${DRAWING:-$HERE/../../plugins/fabrik/skills}
 
-STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times drawings file-search upgrades setup-flow maxy-import fabrik-apps relay routines mail public-agent"
+STEPS="versions claim-once stored-checks saves-side-by-side work-requests permission-times own-records-times drawings file-search upgrades setup-flow maxy-import fabrik-apps relay routines mail public-agent"
 if [ "${1:-}" = --list ]; then printf '%s\n' $STEPS; exit 0; fi
 for name in "$@"; do
   case " $STEPS " in *" $name "*) ;; *) echo "FAIL $name is not a step. sh run.sh --list names them."; exit 2 ;; esac
@@ -284,6 +284,17 @@ echo "== permission-times.sql"
 psql -U postgres -f "$HERE/permission-times.sql" >"$WORK/out" 2>&1
 grep -E "ERROR|FAIL|PASS" "$WORK/out" | tail -1
 grep -q "ERROR:  PASS: permission times" "$WORK/out" || exit 1
+}
+
+# fabrik_find_records timed for a person whose grant is limited to their own records, before and after upgrade
+# 0020-own-records-set, with readable_records before it as own-records-old.sql holds it. The person reads the same
+# records both times, and each read is faster after.
+step_own_records_times() {
+echo "== own-records-times.sql"
+psql -U postgres -v olddefs="$HERE/own-records-old.sql" -v upgrade="$SETUP/upgrades/0020-own-records-set.sql" \
+  -f "$HERE/own-records-times.sql" >"$WORK/out" 2>&1
+grep -E "ERROR|FAIL|PASS" "$WORK/out" | tail -1
+grep -q "ERROR:  PASS: own records times" "$WORK/out" || exit 1
 }
 
 # The graph, board and print skills draw what the real functions return: a state machine page round trip, a

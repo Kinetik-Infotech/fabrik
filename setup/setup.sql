@@ -4295,13 +4295,24 @@ language sql stable security definer set search_path=pg_catalog as $$
  select exists(select 1 from fabrik_private.read_grants() g where g.scope_id=p_scope)
 $$;
 
+-- Every record is_own_record(p_actor, record) is true for, found as a set: each record whose creator
+-- answers to the same person as the actor.
+create or replace function fabrik_private.own_records_of(p_actor uuid) returns setof uuid
+language sql stable security definer set search_path=pg_catalog rows 200 as $$
+ select r.record_id from fabrik.actor x join fabrik.actor c on c.accountable_human_id=x.accountable_human_id
+  join fabrik.record r on r.created_by=c.actor_id
+ where x.actor_id=p_actor
+$$;
+
 -- The records the current actor may read, as can_read_record checks each, found as a set. Each
 -- argument that is not null narrows them: the scope, the kind, words that all appear in one of the
--- record's titles, in any case, and a version saved from p_from until p_to.
+-- record's titles, in any case, and a version saved from p_from until p_to. A grant limited to the
+-- actor's own records reads them from own_records_of, once for each read.
 create or replace function fabrik_private.readable_records(p_scope uuid, p_kind text, p_title text, p_from timestamptz, p_to timestamptz)
 returns setof uuid
 language sql stable security definer set search_path=pg_catalog as $$
  with g as materialized (select * from fabrik_private.read_grants()),
+ o as materialized (select fabrik_private.own_records_of(a.actor_id) record_id from (select distinct g.actor_id from g where g.own_records) a),
  w as materialized (select replace(replace(replace(x,'\','\\'),'%','\%'),'_','\_') w from regexp_split_to_table(btrim(coalesce(p_title,'')),'\s+') x where x<>'')
  select r.record_id from fabrik.record r
  where (p_scope is null or r.scope_id=p_scope) and (p_kind is null or r.kind=p_kind)
@@ -4310,7 +4321,7 @@ language sql stable security definer set search_path=pg_catalog as $$
   and (p_from is null or exists(select 1 from fabrik.record_version v where v.record_id=r.record_id and v.recorded_at>=p_from and v.recorded_at<p_to))
   and exists(select 1 from g where g.scope_id=r.scope_id and (g.record_kinds is null or r.kind=any(g.record_kinds))
    and (g.record_id is null or g.record_id=r.record_id)
-   and case when g.own_records then fabrik_private.is_own_record(g.actor_id,r.record_id) else true end)
+   and case when g.own_records then r.record_id in (select o.record_id from o) else true end)
 $$;
 
 -- The records the current actor may read.
@@ -4352,6 +4363,8 @@ revoke all on function fabrik_private.read_grants(uuid), fabrik_private.read_gra
  fabrik_private.readable_records(uuid,text,text,timestamptz,timestamptz), fabrik_private.link_targets(jsonb) from public, anon, authenticated;
 grant execute on function fabrik_private.read_grants(uuid), fabrik_private.read_grants() to fabrik_owner, fabrik_writer, fabrik_reader;
 grant execute on function fabrik_private.readable_records(uuid,text,text,timestamptz,timestamptz) to fabrik_owner, fabrik_reader;
+revoke all on function fabrik_private.own_records_of(uuid) from public, anon, authenticated;
+grant execute on function fabrik_private.own_records_of(uuid) to fabrik_owner, fabrik_writer, fabrik_reader;
 grant execute on function fabrik_private.link_targets(jsonb) to fabrik_writer;
 
 reset role;
@@ -8756,7 +8769,7 @@ grant execute on function fabrik.fabrik_add_extraction(uuid,jsonb,jsonb), fabrik
  fabrik.fabrik_get_tagged_files(text,text,integer,integer) to authenticated;
 notify pgrst, 'reload schema';
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms');
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms'), ('0020-own-records-set');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

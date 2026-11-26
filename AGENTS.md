@@ -14,6 +14,10 @@ A plugin that draws buttons above the prompt draws each one as the desktop app's
 
 A `Text` child with its own colour inside a `Button` and a theme's `fill-primary` and `on-primary` don't work: the desktop app ignores both.
 
+## Permission checks
+
+fabrik checks who may read what on sets, in `setup/setup.sql`. `fabrik_private.read_grants()` gives the person's live read grants, and `fabrik_private.readable_records` finds every record they may read from those grants in one query. For a grant limited to the person's own records, it reads them from `fabrik_private.own_records_of`, once for each read. `is_own_record` checks one record. Change who may read what only in a plan that says so. Stored check suite 42 checks that every seat reads the same records as before.
+
 ## Tests
 
 One run of a test proves it. Never repeat a full run to show a fix holds: write a check that fails without the fix and passes with it. A full stand-in run takes at most 2 minutes, and when it takes longer, the slow check is the thing to fix.
