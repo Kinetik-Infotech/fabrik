@@ -14,7 +14,9 @@ fabrik writes a third file, AGENTS.md, with every agent's name, page and purpose
 
 An agent never reads a record, a file or a search in fabrik. fabrik's `public-agent` hosted function answers each question with Claude, through the business's own Anthropic API key, which every agent shares. Cloudflare Turnstile checks each visitor is a person before Claude is called.
 
-fabrik stores every question an agent answered, with the answer shown, in the owner's own Supabase project. It also stores each agent's count of tokens for each day. Each conversation is known only by a random id the chat page makes when it opens, so a reload starts a new one. fabrik keeps nothing that identifies a visitor: no IP address, no cookie and no browser details. The chat page says under the box that the business keeps the conversation.
+fabrik stores every question an agent answered, with the answer shown, in the owner's own Supabase project. It also stores each agent's count of tokens for each day. Each conversation is known only by a random id the chat page makes.
+
+The page keeps each agent's conversation in the browser tab's session storage. A visitor who moves between the agents' pages and comes back finds it as they left it. That storage belongs to the one tab, and the browser clears it when the tab closes. fabrik keeps nothing that identifies a visitor: no IP address, no cookie and no browser details. The chat page says under the box that the business keeps the conversation.
 
 Only an administrator sets the agents up. When `fabrik_get_actor` gives another `authority_class`, tell the person an administrator sets up the public agents, and stop.
 
@@ -59,7 +61,7 @@ The file is at most 100,000 characters. Every question sends the agent's three f
 
 ## 4. The chat pages
 
-fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
+fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. Beside a logo, a page heading that is the business's own name is hidden, since the logo shows it. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
