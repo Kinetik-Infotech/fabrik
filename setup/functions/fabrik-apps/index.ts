@@ -24,7 +24,8 @@
 // TOOLS takes after index.ts's own tools; ported.ts holds what those areas share. mail.ts holds the mail tools that
 // read, taken after them, which reach a mailbox's own server over IMAP with the password kept in Vault. It also holds
 // show_mail_setup, which shows the mail setup card, and mail_setup_save, the app-only tool that card's Save calls.
-// mail-send.ts holds the mail tools that draft, send over SMTP and move to Trash, taken after mail.ts's.
+// mail-send.ts holds the mail tools that draft, send over SMTP and move to Trash, taken after mail.ts's. logins.ts holds
+// show_logins, which shows the Login card, and the four app-only tools that card calls for shared logins.
 //
 // The guide tool answers how to do anything in fabrik from guides.ts, which setup/build.mjs guides writes from the
 // Markdown guides in docs/guides/. INSTRUCTIONS is what Claude reads about fabrik when it connects, and points to it.
@@ -57,6 +58,7 @@ import { MAIL_TOOLS } from "./mail.ts";
 import { MAIL_SEND_TOOLS } from "./mail-send.ts";
 import { CONNECTIONS_TOOLS } from "./connections.ts";
 import { PUBLIC_AGENT_TOOLS } from "./public-agent.ts";
+import { LOGIN_TOOLS } from "./logins.ts";
 import { GUIDES } from "./guides.ts";
 
 export * from "./tool.ts";
@@ -574,6 +576,7 @@ export const TOOLS: Tool[] = [
   ...MAIL_SEND_TOOLS,
   ...CONNECTIONS_TOOLS,
   ...PUBLIC_AGENT_TOOLS,
+  ...LOGIN_TOOLS,
   ...CARD_TOOLS,
 ];
 

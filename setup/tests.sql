@@ -1,4 +1,4 @@
--- fabrik_tests 1.14.0
+-- fabrik_tests 1.15.0
 -- fabrik: setup tests, installed as stored functions in their own schema, fabrik_tests.
 -- Install this file once, as the postgres login, then run the checks part by part, in order:
 --   select fabrik_tests.parts();
@@ -4955,6 +4955,122 @@ begin
  end;
 end $mailbox$;
 
+-- -------------------------------------------------------------------
+-- Suite: shared logins. A reader opens a login, and a person without a grant, one whose grant is limited to their own
+-- records and an agent with a full grant do not. A change keeps the previous password, a removal deletes its Vault
+-- secrets, a scope that holds a login is not deleted, and the audit log gives each add, change, removal and opening
+-- without a password.
+-- -------------------------------------------------------------------
+create function fabrik_tests.suite_42_logins() returns void language plpgsql set search_path = pg_catalog, public, extensions, fabrik, fabrik_private, fabrik_storage, storage, auth, file_search, fabrik_tests as $logins$
+declare h uuid:=gen_random_uuid(); r uuid:=gen_random_uuid(); o uuid:=gen_random_uuid(); w uuid:=gen_random_uuid(); ag uuid:=gen_random_uuid(); sc uuid:=gen_random_uuid();
+ res jsonb; lid uuid; s1 uuid; s2 uuid; other uuid; who uuid; n int; msg text; started timestamptz:=clock_timestamp();
+ first_pw text:='Stored-check first '||md5(random()::text); second_pw text:='Stored-check second '||md5(random()::text); third_pw text:='Stored-check third '||md5(random()::text);
+begin
+ begin
+  insert into auth.users(id) values(h),(r),(o),(w),(ag);
+  perform fabrik_tests.approve_fixture(null);
+  insert into fabrik.actor(actor_id,auth_user_id,display_name,actor_kind,accountable_human_id,authority_class,enabled)
+   values(h,h,'Logins test administrator','human',h,'administrator',true);
+  perform fabrik_tests.approve_fixture(h);
+  insert into fabrik.actor(actor_id,auth_user_id,display_name,actor_kind,accountable_human_id,authority_class,enabled)
+   values(r,r,'Logins test reader','human',r,'restricted',true),(o,o,'Logins test outsider','human',o,'restricted',true),
+    (w,w,'Logins test own records','human',w,'restricted',true),(ag,ag,'Logins test agent','agent',r,'restricted',true);
+  perform set_config('fabrik.provisioning_actor','',true);
+  insert into fabrik.scope(scope_id,code,display_name,description,created_by) values(sc,'auth_test_logins','Logins test scope','Rolled-back fixture',h);
+  other:=vault.create_secret('Stored-check other secret',null,'Another secret');
+
+  -- No client role reaches the tables or the Vault functions, and the two functions that take a password take it in a
+  -- POST alone.
+  if has_table_privilege('authenticated','fabrik_private.shared_login','select') or has_table_privilege('authenticated','fabrik_private.shared_login_event','select')
+   or has_function_privilege('authenticated','fabrik_private.login_secret_read(uuid)','execute')
+   or has_function_privilege('service_role','fabrik_private.login_secret_read(uuid)','execute')
+   or has_function_privilege('authenticated','fabrik_private.login_secret_new(text)','execute')
+   or has_function_privilege('authenticated','fabrik_private.open_login(text)','execute')
+   or has_function_privilege('anon','fabrik.fabrik_open_login(text)','execute') then
+   raise exception 'FAIL logins: a client role reaches a login''s table or Vault function'; end if;
+  if exists(select 1 from pg_proc where oid in ('fabrik.fabrik_save_login(uuid,text,text,text,text,text,text)'::regprocedure,'fabrik.fabrik_open_login(text)'::regprocedure) and provolatile<>'v') then
+   raise exception 'FAIL logins: fabrik_save_login or fabrik_open_login is not volatile, so the Data API takes it in a URL'; end if;
+
+  -- The administrator grants the reader and the agent read, and the own-records holder read on their own records alone.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',h,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),r,sc,array['evidence'],null,array['read'],null,'Logins test'));
+  perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),ag,sc,array['evidence'],null,array['read'],null,'Logins test'));
+  perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),w,sc,array['evidence'],null,array['read','create'],null,'Logins test',true));
+  -- The administrator adds a login, and changes its password twice.
+  res:=pg_temp.raised(fabrik.fabrik_save_login(null,'auth_test_logins','Logins test portal','https://portal.example.com/','ops@example.com','Test notes',first_pw));
+  lid:=(res->'login'->>'login_id')::uuid;
+  if res->>'saved'<>'added' or lid is null or res::text like '%'||first_pw||'%' then raise exception 'FAIL logins: the add gave %',res; end if;
+  res:=pg_temp.raised(fabrik.fabrik_save_login(lid,null,null,null,null,null,second_pw));
+  if res->>'saved'<>'changed' or res->'fields'<>'["password"]'::jsonb or res->'login'->>'has_previous'<>'true' then raise exception 'FAIL logins: the change gave %',res; end if;
+  execute 'reset role';
+  select secret_id,previous_secret_id into s1,s2 from fabrik_private.shared_login where login_id=lid;
+  execute 'set local role authenticated';
+  perform pg_temp.raised(fabrik.fabrik_save_login(lid,null,null,null,null,null,third_pw));
+  -- A scope that holds a login is not deleted, and the refusal names it.
+  msg:=null;
+  begin perform pg_temp.raised(fabrik.fabrik_delete_scope('auth_test_logins','Logins test')); exception when foreign_key_violation then msg:=sqlerrm; end;
+  if msg is null or msg not like '%Logins test portal (ops@example.com)%' then raise exception 'FAIL logins: deleting the login''s scope gave %',coalesce(msg,'no refusal'); end if;
+  execute 'reset role';
+  -- The password before the change is the previous one, and the one before it is gone from Vault.
+  if (select previous_secret_id from fabrik_private.shared_login where login_id=lid) is distinct from s1 or exists(select 1 from vault.secrets where id=s2) then
+   raise exception 'FAIL logins: a change did not keep the previous password and delete the one before it'; end if;
+  -- A Vault secret that is not a login's is not read through the login functions.
+  if fabrik_private.login_secret_read(other) is not null then raise exception 'FAIL logins: login_secret_read reads another secret'; end if;
+
+  -- The reader lists and opens it, by its service in any case.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',r,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  res:=fabrik.fabrik_find_logins();
+  if jsonb_array_length(res->'logins')<>1 or res::text like '%Stored-check%' or res->>'administrator'<>'false' then raise exception 'FAIL logins: the reader''s list is %',res; end if;
+  res:=pg_temp.raised(fabrik.fabrik_open_login('LOGINS TEST PORTAL'));
+  if res->>'password'<>third_pw or res->>'previous_password'<>second_pw or res->>'username'<>'ops@example.com' then
+   raise exception 'FAIL logins: the reader opened %, %',res->>'username',res->>'service'; end if;
+  -- The reader is refused a change and a removal.
+  res:=fabrik.fabrik_save_login(lid,null,null,null,null,null,'Stored-check refused');
+  if res->>'refused' is distinct from 'true' then raise exception 'FAIL logins: the reader changed a login'; end if;
+  res:=fabrik.fabrik_remove_login(lid);
+  execute 'reset role';
+  if res->>'refused' is distinct from 'true' then raise exception 'FAIL logins: the reader removed a login'; end if;
+
+  -- A person without a grant, one whose grant is limited to their own records, and an agent with a full grant neither
+  -- list nor open it.
+  foreach who in array array[o,w,ag] loop
+   perform set_config('request.jwt.claims',jsonb_build_object('sub',who,'role','authenticated')::text,true);
+   execute 'set local role authenticated';
+   if jsonb_array_length(fabrik.fabrik_find_logins()->'logins')<>0 then raise exception 'FAIL logins: an actor who opens none lists the login'; end if;
+   res:=fabrik.fabrik_open_login(lid::text);
+   execute 'reset role';
+   if res->>'refused' is distinct from 'true' or res ? 'password' then raise exception 'FAIL logins: an actor who opens none opened the login: %',res->>'problem'; end if;
+  end loop;
+  if (select count(*) from fabrik.refusal_event where function_name='fabrik_open_login' and actor_id in (o,w,ag))<>3 then
+   raise exception 'FAIL logins: the refused openings are not logged'; end if;
+
+  -- The administrator removes it, and its Vault secrets go with it.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',h,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  res:=pg_temp.raised(fabrik.fabrik_remove_login(lid));
+  execute 'reset role';
+  if res->>'removed'<>'true' or exists(select 1 from fabrik_private.shared_login where login_id=lid)
+   or exists(select 1 from vault.secrets where description='A shared login''s password in fabrik' and id in (s1,s2)) then
+   raise exception 'FAIL logins: the removal left the login or its secrets'; end if;
+
+  -- The audit log gives the add, the two changes, the opening and the removal, and holds no password.
+  execute 'set local role authenticated';
+  res:=fabrik.fabrik_get_audit(started,clock_timestamp()+interval '1 minute');
+  execute 'reset role';
+  select count(*) into n from jsonb_array_elements(res->'items') x where x->>'login_id'=lid::text;
+  if n<>5 or (select array_agg(x->>'event' order by x->>'at') from jsonb_array_elements(res->'items') x where x->>'login_id'=lid::text)
+   <>array['login_added','login_changed','login_changed','login_opened','login_removed'] then
+   raise exception 'FAIL logins: the audit log gives % rows for the login',n; end if;
+  if res::text like '%Stored-check%' or exists(select 1 from fabrik.refusal_event where problem like '%Stored-check%') then
+   raise exception 'FAIL logins: a password is in the audit log'; end if;
+  perform set_config('request.jwt.claims','{}',true);
+  raise exception using errcode='PHT42',message='Rollback logins fixtures';
+ exception when sqlstate 'PHT42' then null;
+ end;
+end $logins$;
+
 -- The parts the checks run in, in order. Each part's suites finish in under 45 seconds: inside the
 -- business analyst agent's statement_timeout, and inside the Supabase SQL Editor's limit, which is
 -- over 70 seconds. Suite 23 runs in a part with only suite 35: its saves take longer as fabrik grows.
@@ -4964,7 +5080,7 @@ create function fabrik_tests.part_list() returns table(part int, suites text[]) 
   (2,array['suite_06_history','suite_07_plan_boundary','suite_08_scoped_grants','suite_09_grant_expiry','suite_10_actor_history',
    'suite_11_provisioning','suite_12_grants','suite_13_files','suite_14_search','suite_15_record_deletion','suite_16_applications',
    'suite_17_own_record_and_paging','suite_18_audit','suite_19_reference','suite_21_find_records','suite_22_sign_ins']),
-  (3,array['suite_23_task_functions','suite_35_refusal_log','suite_41_mailbox']),
+  (3,array['suite_23_task_functions','suite_35_refusal_log','suite_41_mailbox','suite_42_logins']),
   (4,array['suite_24_record_move','suite_25_scope_rename','suite_26_own_records','suite_27_scope_delete',
    'suite_28_advisors','suite_29_owners','suite_31_links_through_state','suite_33_permission_checks','suite_34_private_scopes','suite_36_access_templates',
    'suite_37_administration_scope','suite_38_second_factor','suite_39_graph_reader','suite_40_private_sessions'])
@@ -5038,4 +5154,4 @@ end $run$;
 
 revoke execute on all functions in schema fabrik_tests from public, anon, authenticated, service_role;
 
-comment on function fabrik_tests.run() is 'fabrik_tests 1.14.0';
+comment on function fabrik_tests.run() is 'fabrik_tests 1.15.0';
