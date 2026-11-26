@@ -1,5 +1,6 @@
 // Connections, on the connections card: an administrator turns them on by typing the business's Anthropic API key, and
-// turns them off. show_connections_setup shows the card with whether connections are on, from graph-reader's check.
+// turns them off. show_connections_setup shows the card with whether connections are on, from graph-reader's check, and
+// whether they wait for the glossary's first class, from fabrik_get_graph_reader: with no class, fabrik reads no part.
 // The card's Save calls connections_setup_save, and its Turn off calls connections_off, both through card_call, so the
 // key goes from the card to graph-reader's set_key and never through the model. Each call reaches graph-reader with the
 // person's own sign-in, so graph-reader's own check of an administrator decides it. graph-reader keeps the key in the
@@ -30,6 +31,8 @@ export const ANTHROPIC_REFUSED = "Anthropic refused the new key. Nothing was kep
 export const ANTHROPIC_SILENT = "Anthropic didn't answer. Try again in a minute.";
 /** What a person reads for any other answer from graph-reader. */
 export const FAILED = "fabrik couldn't finish that. Try again, and if it happens again, ask for support.";
+/** What a person reads when fabrik_get_graph_reader refused or failed, so the card can't say whether the glossary has a class. */
+export const NO_CLASS_CHECK = "fabrik couldn't check whether the glossary has a class.";
 /** What Save and Turn off answer a call without the card's pass, or with one out of time. */
 export const CARD_ONLY = "Only the connections card turns connections on or off, and this one has expired. Show the connections card again.";
 
@@ -97,22 +100,35 @@ export async function passHolds(pass: unknown, person: string | undefined, now =
   }
 }
 
-type State = "on" | "off" | "refused" | "unknown";
+type State = "on" | "waiting" | "off" | "refused" | "unknown";
 
-/** Whether connections are on: on with a key Anthropic takes, off with none, refused with one it no longer takes, and
- * unknown when Anthropic or fabrik didn't answer, with the reason. Only a refused sign-in keeps the card closed, so an
- * administrator can still turn connections off or type a new key while Anthropic is down. */
+/** "waiting" when fabrik_get_graph_reader gives waiting_for_classes, "on" otherwise, or the reason it couldn't say. */
+async function onOrWaiting(ctx: Ctx): Promise<{ state: "on" | "waiting"; problem?: string }> {
+  const { data, error } = await ctx.fabrik.rpc("fabrik_get_graph_reader");
+  if (error || !data || typeof data !== "object") {
+    console.error(`connections: fabrik_get_graph_reader failed: ${error?.message ?? "no answer"}`);
+    return { state: "on", problem: NO_CLASS_CHECK };
+  }
+  return { state: data.waiting_for_classes === true ? "waiting" : "on" };
+}
+
+/** Whether connections are on: on with a key Anthropic takes, waiting with that key and no class in the glossary, off
+ * with none, refused with one it no longer takes, and unknown when Anthropic or fabrik didn't answer, with the reason.
+ * Only a refused sign-in keeps the card closed, so an administrator can still turn connections off or type a new key
+ * while Anthropic is down. */
 async function state(ctx: Ctx): Promise<{ state: State; problem?: string } | Result> {
   const got = await reader(ctx, { action: "check" });
   if (got.status === 401 || got.status === 403) return refused(reason(got));
   if (got.status !== 200 || got.body?.ok !== true) return { state: "unknown", problem: reason(got) };
   const key = got.body.key;
-  return { state: key === "available" ? "on" : key === "refused" ? "refused" : "off" };
+  if (key === "available") return await onOrWaiting(ctx);
+  return { state: key === "refused" ? "refused" : "off" };
 }
 
 /** What the card and Claude say for each state. The card takes these from show_connections_setup's result. */
 export const SAID: Record<State, string> = {
   on: "Connections are on.",
+  waiting: "Connections are on, but fabrik reads no part until the glossary has a class, a kind of thing to connect such as customer or order. Ask Claude to propose the glossary's classes.",
   off: "Connections are off.",
   refused: "Anthropic no longer takes the business's key, so fabrik reads no parts. Type a new key.",
   unknown: "fabrik couldn't ask Anthropic whether the key works.",
@@ -130,9 +146,12 @@ const showConnectionsSetup = tool({
     if ("content" in now) return now;
     const said = now.problem ? `${SAID[now.state]} ${now.problem}` : SAID[now.state];
     const pass = await issuePass(ctx.person);
+    const next = now.state === "waiting"
+      ? "The glossary has no class, so fabrik reads no part. Propose classes as the fabrik:connections skill's section 3 says."
+      : "The person types the key on the card. End the turn here; once they say the card shows connected, check the glossary's classes as the " +
+        "fabrik:connections skill's section 3 says. fabrik then reads the waiting parts usually within an hour, and at most a day.";
     return {
-      content: [{ type: "text", text: `The connections card is shown. ${said} The person types the key on the card. ` +
-        "End the turn here; once they say the card shows connected, fabrik reads the waiting parts usually within an hour, and at most a day." }],
+      content: [{ type: "text", text: `The connections card is shown. ${said} ${next}` }],
       structuredContent: { card: "connections-setup", state: now.state, ...(now.problem ? { problem: now.problem } : {}), said: SAID },
       ...(pass ? { _meta: { pass } } : {}),
     };
@@ -142,12 +161,15 @@ const showConnectionsSetup = tool({
 const connectionsSetupSave = appTool(["connections-setup"], {
   name: "connections_setup_save",
   description: "Keep the Anthropic API key typed on the connections card, once Anthropic takes it, which turns connections on. " +
-    "Answers connected, or the reason nothing was kept. Never the key.",
+    "Answers connected, with state on, or waiting while the glossary has no class, or the reason nothing was kept. Never the key.",
   input: z.object({ key: z.string(), pass: z.string().optional() }),
   run: async (ctx, { key, pass }) => {
     if (!await passHolds(pass, ctx.person)) return refused(CARD_ONLY);
     const got = await reader(ctx, { action: "set_key", key });
-    if (got.status === 200 && got.body?.ok === true) return { content: [{ type: "text", text: "connected" }] };
+    if (got.status === 200 && got.body?.ok === true) {
+      const now = await onOrWaiting(ctx);
+      return { content: [{ type: "text", text: "connected" }], structuredContent: { state: now.state, ...(now.problem ? { problem: now.problem } : {}) } };
+    }
     return refused(reason(got, key.trim()));
   },
 });

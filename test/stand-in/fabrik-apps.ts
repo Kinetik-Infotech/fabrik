@@ -31,7 +31,8 @@
 // old shell, and card.ts is what make-card.ts makes. A Brand record in General gives the cards its accent, fonts and logo.
 // The connections card's Save sends the typed key to the real graph-reader's set_key with the person's sign-in, against
 // a stand-in for Anthropic's Models API. A key Anthropic refuses is not kept, and a person who isn't an administrator is
-// refused. Turn off removes the key, and no answer holds it. run.sh runs it.
+// refused. With no class in the glossary, the card, show_connections_setup and a search say connections wait for one.
+// Turn off removes the key, and no answer holds it. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from "npm:jose@6.2.17";
 import { Window } from "npm:happy-dom@20.0.10";
@@ -1548,6 +1549,9 @@ try {
   await until(() => connCard.doc.getElementById("cs-state")?.textContent === "Connections are off.", "connections shown as off", connCard);
   conn.offShown = { text: connCard.text(), offHidden: connCard.doc.getElementById("cs-off")?.hidden, uri: connCard.uri, result: connCard.result };
   const ownerPass = connCard.result?._meta?.pass;
+  // The glossary's classes are made plain terms while the key is saved, as a project whose glossary setup left empty: the card
+  // then says connections wait for a class, and so do show_connections_setup and a search. They are made classes again after.
+  const classes = (await sql`update fabrik.glossary_term set kind = 'term' where kind = 'class' returning term`).map((r) => r.term as string);
   connCard.doc.getElementById("cs-key").value = ANTHROPIC_KEY;
   const callsBefore = readerCalls.length;
   connCard.doc.getElementById("cs-form").dispatchEvent(new connCard.w.Event("submit", { bubbles: true, cancelable: true }) as never);
@@ -1555,6 +1559,11 @@ try {
   conn.saved = { said: connCard.doc.getElementById("cs-said")?.textContent, state: connCard.doc.getElementById("cs-state")?.textContent,
     keyField: connCard.doc.getElementById("cs-key")?.value, offHidden: connCard.doc.getElementById("cs-off")?.hidden,
     calls: readerCalls.slice(callsBefore), called: [...connCard.called], vault: await vaultKey(), anthropic: anthropicKeys.at(-1) === ANTHROPIC_KEY };
+  const waitingShow = await tool(ownerToken, "show_connections_setup", {});
+  const waitingSearch = await tool(ownerToken, "search", { query: "quayside" });
+  await sql`update fabrik.glossary_term set kind = 'class' where term = any(${classes}::text[])`;
+  const classSearch = await tool(ownerToken, "search", { query: "quayside" });
+  const savedWithClass = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: ANTHROPIC_KEY, pass: ownerPass } });
   const onAgain = await tool(ownerToken, "show_connections_setup", {});
   // Anthropic down while a key is kept: the card still opens, says why, and offers both Save and Turn off.
   anthropicDown = true;
@@ -1615,11 +1624,20 @@ try {
   check("show_connections_setup, opened as Claude opens it, draws the connections card at its own address, saying connections are off, with no Turn off",
     conn.offShown && (conn.offShown as any).uri === "ui://fabrik-apps/connections-setup.html" && (conn.offShown as any).offHidden === true
       && (conn.offShown as any).result?.structuredContent?.state === "off", conn.offShown);
-  check("the card's Save sends the typed key to graph-reader's set_key as the owner, through card_call, and graph-reader keeps it in the Vault once Anthropic takes it",
-    (conn.saved as any).said === "Connected. Tell Claude connections are on." && (conn.saved as any).state === "Connections are on." && (conn.saved as any).keyField === ""
+  check("the card's Save sends the typed key to graph-reader's set_key as the owner, through card_call, and graph-reader keeps it in the Vault once Anthropic takes it; with no class in the glossary, the card says connections wait for one",
+    (conn.saved as any).said === "Connected, but fabrik reads no part until the glossary has a class. Tell Claude connections are on, and ask it to propose the glossary's classes."
+      && (conn.saved as any).state === connections.SAID.waiting && (conn.saved as any).keyField === ""
       && (conn.saved as any).offHidden === false && JSON.stringify((conn.saved as any).calls) === JSON.stringify([{ action: "set_key", user: owner }])
       && (conn.saved as any).called.includes("card_call connections-setup/connections_setup_save") && (conn.saved as any).vault === ANTHROPIC_KEY && (conn.saved as any).anthropic === true,
     conn.saved);
+  check("with the key kept and no class in the glossary, show_connections_setup gives the waiting state, and tells Claude to propose classes",
+    v(waitingShow)?.state === "waiting" && waitingShow?.content?.[0]?.text.includes(connections.SAID.waiting) === true
+      && waitingShow?.content?.[0]?.text.includes("fabrik:connections skill's section 3") === true, waitingShow);
+  check("with parts waiting for connections and no class, a search's stages give waiting_for_classes true, and false once a class is back",
+    v(waitingSearch)?.stages?.awaiting_extraction > 0 && v(waitingSearch)?.stages?.waiting_for_classes === true
+      && v(classSearch)?.stages?.waiting_for_classes === false, { waiting: v(waitingSearch)?.stages, withClass: v(classSearch)?.stages });
+  check("with a class in the glossary, Save answers connected with state on",
+    ok(savedWithClass) && savedWithClass?.content?.[0]?.text === "connected" && v(savedWithClass)?.state === "on", savedWithClass);
   check("show_connections_setup then says connections are on, from graph-reader's check",
     v(onAgain)?.state === "on" && onAgain?.content?.[0]?.text.includes("Connections are on.") === true, onAgain);
   check("with Anthropic down, the connections card still opens, says fabrik couldn't ask Anthropic and why, and offers Save a new key and Turn off",

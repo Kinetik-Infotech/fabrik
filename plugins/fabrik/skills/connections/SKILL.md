@@ -1,6 +1,6 @@
 ---
 name: connections
-description: Use when a search shows parts waiting to be read for connections while connections are off. Also use when a person asks about connections or the business's Anthropic API key. Covers when to offer connections and how to explain them. Covers proposing the glossary's classes from the business profile. Covers the card where an administrator types the key to turn connections on, or turns them off.
+description: Use when a search shows parts waiting for connections while connections are off or wait for a class. Also use when a person asks about connections or the business's Anthropic API key. Covers when to offer connections and how to explain them. Covers proposing the glossary's classes and relationships from the files the business holds and its business profile. Covers the card where an administrator types the key to turn connections on, or turns them off.
 ---
 
 # Connections between files
@@ -23,6 +23,14 @@ Say it in one sentence, such as "Your files have 140 parts that fabrik could rea
 
 When the person asks about connections themselves, explain them as section 2 says, whatever the count.
 
+### Connections on, with no class
+
+fabrik reads no part while the glossary has no class, even with the key kept. `fabrik_get_graph_reader` then gives `waiting_for_classes` true, a search's `stages.waiting_for_classes` is true, and the connections card says so. This happens when the key was saved on the card before the glossary had a class.
+
+Whenever one of these shows it, tell the person in one sentence, such as "Connections are on, but fabrik reads none of the 15,146 waiting parts until the glossary has a class." Then propose classes as section 3 says, whatever the session has offered before. For a person who isn't an administrator, the same holds: any person may propose a class, as the `fabrik:reference` skill's section 2 says.
+
+Call `fabrik_get_graph_reader` once in a session before offering, explaining or setting up connections, and again after the person says the card shows connected.
+
 ## 2. The explanation
 
 Explain connections in this order, in plain words, in a few sentences:
@@ -39,14 +47,19 @@ Then say that without connections, search still finds files by their words and t
 
 Connections need at least one class in the glossary. Call `get_reference` with `part` `glossary`. When it has a class, go on to section 4.
 
-Otherwise, propose classes from the business profile:
+Otherwise, propose classes and relationships drawn from what the business already holds:
 
 1. Read the business profile, as the `fabrik:business` skill's section 1 says.
-2. Take the kinds of things from the profile: what the business sells, its customers, its suppliers and its applications. Examples are customer, product, supplier and order. Name only kinds the profile gives. A kind that's usual for this line of work but missing from the profile is left out.
-3. Propose each class as the `fabrik:reference` skill's section 2 says: its name and its definition in plain words. Save each one only once the person approves it.
-4. Tell the person that connections keep only things of these kinds, so a file's other things are left out. They can add a class later, and fabrik reads new parts by the new list.
+2. Read the files the business holds. Call `list_scopes`, then the plugin's `list_files` on each scope's bucket, named by the scope's code, and read the file names and folders. Read the titles of up to 50 files across the scopes. Then call `search` with no scope for three to five kinds of thing the names and the profile suggest, such as "customer" or "invoice". Read the snippets each search gives.
+3. Take the kinds of things the files name most often. Name only kinds that the files or the profile show. A kind that's usual for this line of work but missing from both is left out. Propose 5 to 12 classes, most common first.
+4. Take the relationships between those classes that the snippets state, such as an author writes an article, or a customer places an order. Propose only relationships between the classes proposed.
+5. Show each class with its name, its definition in plain words, and where it was seen, such as "named in 214 file titles in the General scope". Show each relationship with its from and to classes in the same way.
+6. Save each one as the `fabrik:reference` skill's section 2 says, only once the person approves it. Save the classes first, then the relationships.
+7. Tell the person that connections keep only things of these kinds, so a file's other things are left out. They can add a class later, and fabrik reads new parts by the new list.
 
-With no business profile, ask the person what kinds of things their files are mostly about, and propose those.
+With no files and no business profile, ask the person what kinds of things their files are mostly about, and propose those.
+
+Once a class is saved with connections on, call `fabrik_get_graph_reader` again. `waiting_for_classes` is then false, and fabrik reads the waiting parts usually within an hour, and at most a day.
 
 ## 4. The key, on the card
 
@@ -66,7 +79,7 @@ Never ask for the key in the chat, and never accept one that's offered. When the
 2. Call `show_connections_setup`. It shows the connections card, which says whether connections are on.
 3. End the turn. The card checks the key with Anthropic before it keeps it, and shows connected, or the reason Anthropic gave.
 
-Once the person says the card shows connected, tell them fabrik reads the waiting parts usually within an hour, and at most a day. A search after that finds a file through a connection, and `graph` is then among a hit's `found`. Name the link in plain words, as the `fabrik:records` skill's section 6 says.
+Once the person says the card shows connected, call `fabrik_get_graph_reader`. When it gives `waiting_for_classes` true, the card says fabrik reads no part yet: propose classes as section 3 says. Otherwise, tell them fabrik reads the waiting parts usually within an hour, and at most a day. A search after that finds a file through a connection, and `graph` is then among a hit's `found`. Name the link in plain words, as the `fabrik:records` skill's section 6 says.
 
 ## 5. Turning connections off
 
