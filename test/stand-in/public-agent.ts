@@ -53,6 +53,7 @@ const sql = postgres(DB, { max: 1, prepare: false, onnotice() {} });
 // A question holding "long answer" gets 830 characters. Every answer reads 6,000 tokens from the cache, which count 600,
 // so it costs 1,030 tokens.
 const sent: any[] = [];
+const CUT = "We open at 8am. The café closes at 4pm, \"or later in summer!\"\nThe kitchen stops serving at";
 const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const url = new URL(req.url);
   if (req.headers.get("x-api-key") !== KEY) return Response.json({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, { status: 401 });
@@ -66,6 +67,9 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   if (req.method === "POST" && url.pathname === "/v1/messages") {
     const body = await req.json();
     sent.push(body);
+    // An older model refuses the effort setting.
+    if (body.output_config && body.model === "claude-haiku-4-5") return Response.json({ type: "error",
+      error: { type: "invalid_request_error", message: "output_config.effort: This model does not support the effort parameter." } }, { status: 400 });
     const file = String(body.system?.at(-1)?.text ?? "");
     const words = String(body.messages.at(-1).content).toLowerCase().match(/[a-z]{4,}/g) ?? [];
     const line = file.split("\n").find((l) => words.some((w) => l.toLowerCase().includes(w)));
@@ -74,6 +78,10 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     // A reply with no content list, which the function can't read after Claude has charged for it.
     if (String(body.messages.at(-1).content).includes("broken reply")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
       model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
+    // A reply that stops at the output cap, part way through its third sentence.
+    if (String(body.messages.at(-1).content).includes("cut answer")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
+      model: body.model, stop_reason: "max_tokens", stop_sequence: null, content: [{ type: "text", text: CUT }],
+      usage: { input_tokens: 400, output_tokens: 4000, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
     return Response.json({
       id: "msg_standin", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null,
       content: [{ type: "text", text }],
@@ -202,7 +210,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 let handler: ((req: Request) => Promise<Response>) | undefined;
 const serve = Deno.serve;
 (Deno as unknown as { serve: unknown }).serve = (h: typeof handler) => { handler = h; return { finished: Promise.resolve(), shutdown() {} }; };
-const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED } = await import(FUNCTION.href);
+const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences } = await import(FUNCTION.href);
 (Deno as unknown as { serve: unknown }).serve = serve;
 seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
@@ -349,8 +357,9 @@ try {
   res = await ask("What are your opening hours?");
   check("a question the file answers gets the file's answer", res.status === 200 && res.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && res.cors === "*", res);
   const first = sent.at(-1);
-  check("the agent chat's first question saves the starting text as its INSTRUCTIONS.md, and with one agent Claude gets it, then KNOWLEDGE.md with cache_control, the default model and at most 1,000 tokens",
-    files.get("agents/chat/instructions.md") === STARTING && first.model === "claude-haiku-5-5" && first.max_tokens === 1000 && first.system.length === 2
+  check("the agent chat's first question saves the starting text as its INSTRUCTIONS.md, and with one agent Claude gets it, then KNOWLEDGE.md with cache_control, the default model, low effort and at most 4,000 tokens",
+    files.get("agents/chat/instructions.md") === STARTING && first.model === "claude-haiku-5-5" && first.max_tokens === 4000
+      && first.output_config?.effort === "low" && first.system.length === 2
       && first.system[0].text === STARTING && !first.system[0].cache_control
       && first.system[1].text === `<knowledge>\n${KNOWLEDGE}\n</knowledge>` && first.system[1].cache_control?.type === "ephemeral" && !first.tools, first);
   const history = Array.from({ length: 12 }, (_, i) => [{ role: "user", content: `Earlier question ${i}` }, { role: "assistant", content: `Earlier answer ${i}` }]).flat();
@@ -378,18 +387,20 @@ try {
 
   // The daily cap. The most an answer can cost is held before Claude is called. Four answers of 1,030 tokens make 4,120,
   // with each one's 6,000 tokens of cache read counted at 600. Under a cap of 5,000 there's less room than one answer's
-  // 1,000 tokens of output, so the answer is the resting message.
+  // 4,000 tokens of output, so the answer is the resting message.
   res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 5000 }, admin);
   const held = sent.length;
   const short = await ask("What services do you offer?");
   const afterHold = await post({ action: "settings", agent: "chat" }, admin);
   check("an answer whose most would pass the cap gets the resting message, Claude isn't called, and nothing stays held",
     short.body.answer === RESTING && sent.length === held && afterHold.body.today_tokens === 4120, { short, afterHold });
-  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 4000 }, admin);
-  check("settings counts today's tokens from Claude's usage, a cache read at a tenth, and sets the cap", res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 4000, res);
+  const tooLow = await post({ action: "settings", agent: "chat", daily_cap_tokens: 4999 }, admin);
+  res = await post({ action: "settings", agent: "chat", daily_cap_tokens: 6000 }, admin);
+  check("settings counts today's tokens from Claude's usage, a cache read at a tenth, sets the cap, and refuses one under 5,000",
+    res.body.today_tokens === 4120 && res.body.daily_cap_tokens === 6000 && tooLow.status === 400 && tooLow.body.problem.includes("5,000"), { res, tooLow });
   const before = sent.length;
   res = await ask("What services do you offer?");
-  check("once today's tokens reach the cap, the answer is the resting message and Claude isn't called",
+  check("while the cap leaves less room than one answer's most, the answer is the resting message and Claude isn't called",
     res.status === 200 && res.body.answer === RESTING && sent.length === before, res);
   res = await post({ action: "settings", agent: "chat", model: "gpt-4" }, admin);
   check("a model that isn't Claude's is refused", res.status === 400, res);
@@ -466,7 +477,7 @@ try {
   // Each agent's cap counts its own tokens.
   const tokensOf = async () => Object.fromEntries((await post({ action: "agents_list" }, admin)).body.agents.map((a: any) => [a.slug, a.today_tokens]));
   const counted = await tokensOf();
-  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 2000 }, admin);
+  await post({ action: "settings", agent: "bookings", daily_cap_tokens: 5000 }, admin);
   const restingBookings = await ask("How do I book tables?", { agent: "bookings" });
   const stillCakes = await ask("Can I order celebration cakes?", { agent: "cakes" });
   check("each agent's cap counts its own tokens: Bookings rests at its cap, and Cakes still answers",
@@ -1001,6 +1012,31 @@ try {
   const bookingsLeft = (await post({ action: "conversations_list", agent: "bookings" }, admin)).body.conversations.length;
   check("conversations_delete with an agent and a date deletes every conversation of that agent last asked before it, and leaves the other agents'",
     byAgent.status === 200 && byAgent.body.conversations > 2 && chatLeft === 0 && bookingsBefore > 0 && bookingsLeft === bookingsBefore, { byAgent: byAgent.body, chatLeft, bookingsBefore, bookingsLeft });
+
+  // A reply that stops at the output cap reaches the visitor, and is kept, up to its last full sentence.
+  const cut = await ask("Give me the cut answer.");
+  const [cutKept] = await sql`select answer from fabrik_private.public_exchange where question = 'Give me the cut answer.'`;
+  const cutWhole = "We open at 8am. The café closes at 4pm, \"or later in summer!\"";
+  check("a reply that stops at the output cap ends at its last full sentence, for the visitor and in the kept exchange",
+    cut.status === 200 && cut.body.answer === cutWhole && cutKept?.answer === cutWhole, { cut, cutKept });
+  const lines = wholeSentences("Sources:\n- Opening hours\n- Cake ord");
+  const words = wholeSentences("The kitchen stops serving at four");
+  check("a cut reply with no sentence end keeps its whole lines, and one with no line either ends at its last whole word and an ellipsis",
+    lines === "Sources:\n- Opening hours" && words === "The kitchen stops serving at…", { lines, words });
+  const chineseCut = wholeSentences("我们早上八点开门。下午四点关门。厨房在");
+  const title = wholeSentences("We open at 8am. Ask Dr. Smith about the cake ord");
+  check("a cut reply ends after a Chinese full stop with no space after it, and not after a title such as Dr.",
+    chineseCut === "我们早上八点开门。下午四点关门。" && title === "We open at 8am.", { chineseCut, title });
+
+  // A model that refuses the effort setting is asked again without it.
+  await post({ action: "settings", agent: "chat", model: "claude-haiku-4-5" }, admin);
+  const sentBefore = sent.length;
+  const older = await ask("What are your opening hours?");
+  const [withEffort, without] = sent.slice(sentBefore);
+  check("an agent on a model that refuses the effort setting still answers, asked again without it",
+    older.body.answer === "Opening hours: 8am to 4pm, Tuesday to Saturday." && withEffort?.output_config?.effort === "low" && without && !without.output_config,
+    { older, withEffort: withEffort?.output_config, without: without?.output_config });
+  await post({ action: "settings", agent: "chat", model: "claude-haiku-5-5" }, admin);
 
   // remove_key stops the answers.
   res = await post({ action: "remove_key" }, admin);
