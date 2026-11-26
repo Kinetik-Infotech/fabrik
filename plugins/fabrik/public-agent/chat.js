@@ -5,10 +5,12 @@
 //
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
-// turns that fit the function's limits: at most 10 turns and 8,000 characters. The page keeps those turns in memory
-// alone, so a reload starts afresh. When the box is drawn it makes the conversation's id, a random UUID, and sends it
-// with each question as conversation, so the business can read the conversation whole. The id too is kept in memory
-// alone, and the page stores nothing in the browser. A line under the box says the business keeps the conversation,
+// turns that fit the function's limits: at most 10 turns and 8,000 characters. When the box is drawn it makes the
+// conversation's id, a random UUID, and sends it with each question as conversation, so the business can read the
+// conversation whole. The page keeps each agent's conversation, its id and its messages with their times, in the browser
+// tab's session storage, so a visitor who goes to another page of the chat and comes back finds the conversation as they
+// left it. Session storage belongs to that one tab and is cleared when it closes. Where the browser refuses it, the
+// conversation lives in the page alone, and a reload starts afresh. A line under the box says the business keeps the conversation,
 // naming the business data-business gives. Three bouncing dots stand in the answer's place while the assistant thinks. Each
 // answer is shown as plain text, with each web address and email address as a link, and each message with the time it
 // was sent.
@@ -21,8 +23,18 @@
   var business = script && (script.getAttribute("data-business") || "").trim();
   var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
-  var conversation = newId();
+  var conversation = null;
+  var shown = [];
   var widget = null;
+  // This agent's conversation in the tab's session storage: { conversation, turns, shown }, shown being each message
+  // drawn, as { text, kind, at }. Storage the browser refuses leaves the conversation in the page alone.
+  var KEY = "fabrik-chat:" + (agent || "chat");
+  function stored() {
+    try { var v = JSON.parse(window.sessionStorage.getItem(KEY) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; }
+  }
+  function store() {
+    try { window.sessionStorage.setItem(KEY, JSON.stringify({ conversation: conversation, turns: turns, shown: shown })); } catch (e) { /* the page alone */ }
+  }
 
   // A random UUID. randomUUID exists only on https and in newer browsers, so getRandomValues makes one elsewhere. With
   // neither, the post has no conversation and the function makes an id for each question.
@@ -101,11 +113,11 @@
     if (at < text.length) li.appendChild(document.createTextNode(text.slice(at)));
   }
 
-  function line(text, kind) {
+  function line(text, kind, at) {
     var li = document.createElement("li");
     li.className = kind;
     linked(li, text);
-    var now = new Date(), time = document.createElement("time");
+    var now = at ? new Date(at) : new Date(), time = document.createElement("time");
     time.dateTime = now.toISOString();
     time.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     li.appendChild(time);
@@ -127,6 +139,15 @@
   }
 
   if (!address) { line("This chat box needs data-address on its script tag.", "problem"); form.hidden = true; return; }
+
+  // The conversation this tab had with this agent, drawn again, or a new one.
+  var earlier = stored();
+  if (earlier && typeof earlier.conversation === "string" && Array.isArray(earlier.turns) && Array.isArray(earlier.shown)) {
+    conversation = earlier.conversation;
+    turns = earlier.turns.filter(function (t) { return t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string"; });
+    shown = earlier.shown.filter(function (m) { return m && typeof m.text === "string" && (m.kind === "q" || m.kind === "a"); });
+    shown.forEach(function (m) { line(m.text, m.kind, m.at); });
+  } else conversation = newId();
 
   window.fabrikChatTurnstile = function () {
     // The check shows only while Cloudflare needs the visitor, and goes once it passes.
@@ -182,7 +203,8 @@
     if (!question) return;
     var token = widget !== null && window.turnstile ? window.turnstile.getResponse(widget) : "";
     if (!token) { line("Wait a moment for the security check, then send again.", "problem"); return; }
-    line(question, "q");
+    var asked = new Date().toISOString();
+    line(question, "q", asked);
     input.value = "";
     send.disabled = true;
     var dots = thinking();
@@ -196,9 +218,12 @@
     }).then(function (r) {
       dots.remove();
       if (r.ok && typeof r.body.answer === "string") {
-        line(r.body.answer, "a");
+        var answered = new Date().toISOString();
+        line(r.body.answer, "a", answered);
         turns.push({ role: "user", content: question }, { role: "assistant", content: r.body.answer });
         turns = turns.slice(-TURNS * 2);
+        shown.push({ text: question, kind: "q", at: asked }, { text: r.body.answer, kind: "a", at: answered });
+        store();
       } else line(r.body.problem || "The assistant can't answer right now. Try again later.", "a problem");
     }, function () {
       dots.remove();
