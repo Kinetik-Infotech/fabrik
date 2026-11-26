@@ -23,6 +23,8 @@
 // connections_setup_save and connections_off, keep and remove the business's Anthropic API key in the same way, each only
 // with the pass show_connections_setup gives the card in its result's _meta. The public agent card's two tools,
 // public-agent.ts's public_agent_setup_save and public_agent_off, keep and remove the public agent's keys the same way.
+// The Login card's four tools, logins.ts's logins_list, login_open, login_save and login_remove, list, open, save and
+// remove shared logins: a password goes between the card and fabrik through card_call, never through the model.
 // The other cards' tools write nothing. They read fabrik through
 // three app-only tools, which Claude keeps from the model: card_find_records (fabrik_find_records, with the scopes'
 // names from fabrik_get_scopes), card_record (fabrik_show_record) and card_view, which gives a board or graph its data:
@@ -40,7 +42,7 @@ export const CARD_TYPE = "text/html;profile=mcp-app";
 /** The shell's version. card_page refuses a shell of another version. */
 export const SHELL_VERSION = 1;
 /** The cards, by the name each shell gives card_page. */
-export const CARD_NAMES = ["records", "board", "graph", "mail-setup", "connections-setup", "public-agent-setup"] as const;
+export const CARD_NAMES = ["records", "board", "graph", "mail-setup", "connections-setup", "public-agent-setup", "login"] as const;
 export type Card = typeof CARD_NAMES[number];
 /** A card's address. */
 export const cardUri = (card: Card) => `ui://fabrik-apps/${card}.html`;
