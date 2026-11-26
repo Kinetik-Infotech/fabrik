@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { brandOf, headLogoHtml, LOGO_CSS, LOGO_SWITCH, logoHtml, MAX_LOGO, printStyle, readBrand } from "../cli/lib/brand.mjs";
-import { pageStyle } from "../cli/chat-page.mjs";
+import { buildChatPage, pageStyle } from "../cli/chat-page.mjs";
 import { createTools } from "../cli/lib/pages.mjs";
 
 const RECORD = JSON.parse(readFileSync(new URL("./widgets/brand-record.json", import.meta.url), "utf-8"));
@@ -210,4 +210,45 @@ function logosShown(first, next) {
 test("a card shows its dark-mode logo in dark mode and its light logo in light mode, and swaps them when its mode changes", { skip: !BROWSER }, () => {
   assert.equal(logosShown("light", "dark"), "light|dark");
   assert.equal(logosShown("dark", "light"), "dark|light");
+});
+
+/** Which logos each page shows in the browser, with the computer in light or dark mode, in one run of Chrome: for each
+ * page, its <img>s of the class given, each as its data-scheme or "one" where it has none, only those the page shows. */
+function logosOnPages(pages, mode) {
+  const work = mkdtempSync(join(tmpdir(), "fabrik-brand-"));
+  const page = join(work, "page.html");
+  const frames = pages.map(({ html }, n) => `<iframe id="f${n}" srcdoc="${html.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe>`).join("");
+  const classes = JSON.stringify(pages.map(p => p.cls));
+  writeFileSync(page, `<!doctype html><html><body>${frames}<p id="out"></p><script>window.onload = function () {` +
+    `document.getElementById("out").textContent = "[" + ${classes}.map(function (cls, n) { var d = document.getElementById("f" + n).contentDocument;` +
+    `return Array.prototype.filter.call(d.querySelectorAll("img." + cls), function (i) { return d.defaultView.getComputedStyle(i).display !== "none"; })` +
+    `.map(function (i) { return i.getAttribute("data-scheme") || "one"; }).join(","); }).join("|") + "]"; };</script></body></html>`);
+  try {
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", `--blink-settings=preferredColorScheme=${mode === "dark" ? 0 : 1}`, "--virtual-time-budget=5000", "--dump-dom", `file://${page}`],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1].split("|");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("the question card draw_widget draws, and the chat page, show the dark-mode logo in dark mode only, and a brand without one shows its logo in both", { skip: !BROWSER }, async t => {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-brand-")));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  writeFileSync(join(work, "question.json"), readFileSync(new URL("./widgets/question-data.json", import.meta.url)));
+  const pages = [];
+  for (const record of [DARK_RECORD, RECORD]) {
+    const brand = brandOf(record), folder = join(work, `chat-${pages.length}`);
+    const tools = createTools({ agentFolder: work, readBrand: async () => brand });
+    const { widget_code } = JSON.parse((await tools.callTool("draw_widget", { kind: "question", data_file: join(work, "question.json") })).content[0].text);
+    buildChatPage({ brand, address: "https://x.example/functions/v1/public-agent", folder, agents: [{ slug: "help", name: "Help", purpose: "" }] });
+    pages.push({ html: `<!doctype html><html><head><meta charset="utf-8"></head><body>${widget_code}</body></html>`, cls: "wk-logo" },
+      { html: readFileSync(join(folder, "index.html"), "utf-8"), cls: "logo" });
+  }
+  // The card and the chat page with a dark-mode logo, then the two without.
+  assert.deepEqual(logosOnPages(pages, "light"), ["light", "light", "one", "one"]);
+  assert.deepEqual(logosOnPages(pages, "dark"), ["dark", "dark", "one", "one"]);
 });
