@@ -330,7 +330,9 @@ Connections need your business's own Anthropic API key, and Anthropic charges th
 
 Connections are worth it when many of your files are about the same customers, suppliers, people or orders. For a handful of files, or a one-off lookup, words and meaning are enough. Without connections, search still finds files by their words and their meaning.
 
-To turn connections on, ask Claude. Claude suggests the kinds of things for your glossary from your business profile, and saves each one you approve. Then it shows a card where an administrator types the key. The key goes from the card into your project's Vault, and never into the chat. The same card turns connections off.
+To turn connections on, ask Claude. Claude suggests the kinds of things for your glossary from your files' names and contents and your business profile, and saves each one you approve. Then it shows a card where an administrator types the key. The key goes from the card into your project's Vault, and never into the chat. The same card turns connections off.
+
+fabrik reads no part until your glossary has at least one kind of thing. If the key is saved first, the card says connections are on but waiting for the glossary, and Claude suggests the kinds of things then.
 
 To make the key:
 
