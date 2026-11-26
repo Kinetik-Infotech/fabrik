@@ -165,8 +165,9 @@ try {
     ${JSON.stringify([{ ordinal: 0, place: "part 1", body: waiting.body }])}::text::jsonb)`;
   const second = await relay(local, [INIT, { method: "notifications/initialized" }, { id: 2, method: "tools/call", params: { name: "search", arguments: { query: "lighthouse" } } }]);
   const found = text(second.answers.get(2));
-  check("initialize through the relay answers as fabrik-apps, with fabrik's instructions",
-    init?.result?.serverInfo?.name === "fabrik-apps" && String(init?.result?.instructions ?? "").startsWith("fabrik is the person's own knowledge base"), init ?? ran.stderr);
+  check("initialize through the relay answers as fabrik-apps, with fabrik's instructions, which open by naming the project",
+    init?.result?.serverInfo?.name === "fabrik-apps" && String(init?.result?.instructions ?? "").startsWith("This connector is the fabrik in project ")
+      && String(init?.result?.instructions).includes("fabrik is the person's knowledge base"), init ?? ran.stderr);
   const names = (list?.result?.tools ?? []).map((t: { name: string }) => t.name);
   check("tools/list through the relay gives the connector's tools, search and save_record among them",
     names.length > 50 && names.includes("search") && names.includes("save_record"), names.length ? names : list ?? ran.stderr);

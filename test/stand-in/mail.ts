@@ -160,7 +160,28 @@ async function mcp(token: string, method: string, params: Record<string, unknown
   const text = await res.text();
   answers.push(text);
   const json = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5)).join("") || text;
-  try { return JSON.parse(json).result; } catch { return undefined; }
+  // deno-lint-ignore no-explicit-any
+  let result: any;
+  try { result = JSON.parse(json).result; } catch { return undefined; }
+  return method === "tools/call" ? unstamped(result) : result;
+}
+/** A tool's result without fabrik, the business and project every result names, which the fabrik-apps step checks, so
+ * the checks below compare each tool's own answer. */
+// deno-lint-ignore no-explicit-any
+function unstamped(result: any) {
+  if (!result) return result;
+  if (result.structuredContent) delete result.structuredContent.fabrik;
+  if (result.isError && result.structuredContent && Object.keys(result.structuredContent).length === 0) delete result.structuredContent;
+  const content = result.content ?? [];
+  if (result.isError && content.length > 1 && /^This is the fabrik (of ".*", )?in project /.test(content.at(-1)?.text ?? "")) content.pop();
+  if (!result.isError && content.length > 1 && /^\{"fabrik":/.test(content.at(-1)?.text ?? "")) content.pop();
+  else if (!result.isError && content.length === 1) {
+    try {
+      const parsed = JSON.parse(content[0].text);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "fabrik" in parsed) { delete parsed.fabrik; content[0].text = JSON.stringify(parsed); }
+    } catch { /* not JSON */ }
+  }
+  return result;
 }
 const tool = (token: string, name: string, args: Record<string, unknown> = {}): Promise<Answer> => mcp(token, "tools/call", { name, arguments: args });
 
