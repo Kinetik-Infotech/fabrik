@@ -1,4 +1,4 @@
--- fabrik_tests 1.15.0
+-- fabrik_tests 1.16.0
 -- fabrik: setup tests, installed as stored functions in their own schema, fabrik_tests.
 -- Install this file once, as the postgres login, then run the checks part by part, in order:
 --   select fabrik_tests.parts();
@@ -1284,6 +1284,7 @@ begin
   ('fabrik_private.can_read_scope(uuid)','fabrik_identity'),
   ('fabrik_private.can_see_scope(uuid)','fabrik_identity'),
   ('fabrik_private.is_own_record(uuid,uuid)','fabrik_identity'),
+  ('fabrik_private.own_records_of(uuid)','fabrik_identity'),
   ('fabrik_private.scope_insert_for(uuid,uuid,text)','fabrik_identity'),
   ('fabrik_private.assert_request_scope(jsonb,uuid)','fabrik_identity'),
   ('fabrik_private.can_insert_record(uuid,text)','fabrik_identity'),
@@ -5090,6 +5091,82 @@ begin
  end;
 end $logins$;
 
+-- Upgrade 0020-own-records-set: own_records_of gives the records is_own_record gives, for every actor, and every
+-- seat reads the same records with readable_records as it did when each record was checked with is_own_record.
+create function fabrik_tests.suite_43_own_records_set() returns void language plpgsql set search_path = pg_catalog, public, extensions, fabrik, fabrik_private, fabrik_storage, storage, auth, file_search, fabrik_tests as $ownset$
+declare h uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); ag uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); d uuid:=gen_random_uuid();
+ s uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid(); who uuid; x record; want uuid[]; got uuid[]; f uuid[]:='{}'; seats int:=0;
+ kinds text[]:=array['activity','evidence'];
+begin
+ begin
+  insert into auth.users(id) values(h),(b),(ag),(c),(d);
+  perform fabrik_tests.approve_fixture(null);
+  insert into fabrik.actor(actor_id,auth_user_id,display_name,actor_kind,accountable_human_id,authority_class,enabled)
+   values(h,h,'Own set test administrator','human',h,'administrator',true);
+  perform fabrik_tests.approve_fixture(h);
+  insert into fabrik.actor(actor_id,auth_user_id,display_name,actor_kind,accountable_human_id,authority_class,enabled)
+   values(b,b,'Own set test person B','human',b,'restricted',true),(ag,ag,'Own set test agent of B','agent',b,'restricted',true),
+    (c,c,'Own set test person C','human',c,'restricted',true),(d,d,'Own set test person D','human',d,'restricted',true);
+  perform set_config('fabrik.provisioning_actor','',true);
+  insert into fabrik.scope(scope_id,code,display_name,description,created_by) values(s,'own_set_test','Own set test scope','Rolled-back fixture',h);
+  insert into fabrik.scope(scope_id,code,display_name,description,created_by) values(s2,'own_set_test_b','Own set test scope B','Rolled-back fixture',h);
+  -- B, B's agent and C hold grants limited to their own records in the scope. D reads and saves in the scope whole,
+  -- and B saves in scope B too.
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',h,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  foreach who in array array[b,ag,c] loop
+   perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),who,s,kinds,null,array['read','create','edit'],null,'Own set test',true));
+  end loop;
+  perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),d,s,kinds,null,array['read','create','edit'],null,'Own set test'));
+  perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),b,s2,kinds,null,array['read','create','edit'],null,'Own set test'));
+  execute 'reset role';
+  -- Each saves a record in the scope, and B one in scope B.
+  for x in select * from (values (b,'own_set_test'),(ag,'own_set_test'),(c,'own_set_test'),(d,'own_set_test'),(b,'own_set_test_b')) v(who,code) loop
+   perform set_config('request.jwt.claims',jsonb_build_object('sub',x.who,'role','authenticated')::text,true);
+   execute 'set local role authenticated';
+   f:=f||(pg_temp.raised(fabrik.fabrik_add_record(x.code,'evidence','Own set test evidence','Own set test','{"summary":"Seen","standing":"stated"}'))->>'record_id')::uuid;
+   execute 'reset role';
+  end loop;
+  perform set_config('request.jwt.claims','{}',true);
+
+  -- own_records_of gives the records is_own_record gives, for every actor.
+  for x in select a.actor_id from fabrik.actor a loop
+   want:=array(select r.record_id from fabrik.record r where fabrik_private.is_own_record(x.actor_id,r.record_id) order by 1);
+   got:=array(select y from fabrik_private.own_records_of(x.actor_id) y order by 1);
+   if got is distinct from want then raise exception 'FAIL own records set: own_records_of(%) gives % and is_own_record gives %',x.actor_id,got,want; end if;
+  end loop;
+  if array(select y from fabrik_private.own_records_of(b) y where y=any(f) order by 1) is distinct from array(select y from unnest(array[f[1],f[2],f[5]]) y order by 1)
+   or array(select y from fabrik_private.own_records_of(c) y where y=any(f)) is distinct from array[f[3]] then
+   raise exception 'FAIL own records set: B''s own records are % and C''s %',array(select fabrik_private.own_records_of(b)),array(select fabrik_private.own_records_of(c)); end if;
+  raise notice 'ok - own_records_of gives the records is_own_record gives, for every actor';
+
+  -- Every seat, each enabled actor with a sign-in, reads with readable_records the records it read when each was checked
+  -- with is_own_record.
+  for x in select a.actor_id,a.auth_user_id from fabrik.actor a where a.enabled and a.auth_user_id is not null loop
+   want:=array(select r.record_id from fabrik.record r where exists(select 1 from fabrik_private.read_grants(x.actor_id) g where g.scope_id=r.scope_id
+    and (g.record_kinds is null or r.kind=any(g.record_kinds)) and (g.record_id is null or g.record_id=r.record_id)
+    and case when g.own_records then fabrik_private.is_own_record(g.actor_id,r.record_id) else true end) order by 1);
+   perform set_config('request.jwt.claims',jsonb_build_object('sub',x.auth_user_id,'role','authenticated','aal','aal2')::text,true);
+   execute 'set local role fabrik_reader';
+   got:=array(select y from fabrik_private.readable_records() y order by 1);
+   execute 'reset role';
+   perform set_config('request.jwt.claims','{}',true);
+   if got is distinct from want then raise exception 'FAIL own records set: actor % reads % records and read % before',x.actor_id,cardinality(got),cardinality(want); end if;
+   seats:=seats+1;
+  end loop;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',b,'role','authenticated')::text,true);
+  execute 'set local role fabrik_reader';
+  got:=array(select y from fabrik_private.readable_records(s,null,null,null,null) y where y=any(f) order by 1);
+  execute 'reset role';
+  perform set_config('request.jwt.claims','{}',true);
+  if got is distinct from array(select y from unnest(array[f[1],f[2]]) y order by 1) then
+   raise exception 'FAIL own records set: B reads % in the scope, not its own and its agent''s',got; end if;
+  raise notice 'ok - each of % seats reads the records it read before, and B its own and its agent''s',seats;
+  raise exception using errcode='PHT43',message='Rollback own records set fixtures';
+ exception when sqlstate 'PHT43' then null;
+ end;
+end $ownset$;
+
 -- The parts the checks run in, in order. Each part's suites finish in under 45 seconds: inside the
 -- business analyst agent's statement_timeout, and inside the Supabase SQL Editor's limit, which is
 -- over 70 seconds. Suite 23 runs in a part with only suite 35: its saves take longer as fabrik grows.
@@ -5102,7 +5179,7 @@ create function fabrik_tests.part_list() returns table(part int, suites text[]) 
   (3,array['suite_23_task_functions','suite_35_refusal_log','suite_41_mailbox','suite_42_logins']),
   (4,array['suite_24_record_move','suite_25_scope_rename','suite_26_own_records','suite_27_scope_delete',
    'suite_28_advisors','suite_29_owners','suite_31_links_through_state','suite_33_permission_checks','suite_34_private_scopes','suite_36_access_templates',
-   'suite_37_administration_scope','suite_38_second_factor','suite_39_graph_reader','suite_40_private_sessions'])
+   'suite_37_administration_scope','suite_38_second_factor','suite_39_graph_reader','suite_40_private_sessions','suite_43_own_records_set'])
 $parts$;
 
 -- The number of parts, and each part's suites.
@@ -5173,4 +5250,4 @@ end $run$;
 
 revoke execute on all functions in schema fabrik_tests from public, anon, authenticated, service_role;
 
-comment on function fabrik_tests.run() is 'fabrik_tests 1.15.0';
+comment on function fabrik_tests.run() is 'fabrik_tests 1.16.0';
