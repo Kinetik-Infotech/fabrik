@@ -17,6 +17,8 @@ To set it up, ask Claude in your fabrik folder for a chat on your website, or fo
 
 Claude asks what the agent is for, and writes its purpose in a sentence. You agree its name, which visitors see, and a short slug, which names its page, such as bookings. Claude adds the agent once you approve all three.
 
+With many agents, give each one a topic, such as Masks or Bookings. The list of agents puts them under a heading for each topic. An agent's page links to the list and to the other agents on its topic. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
+
 ## 2. How it speaks
 
 A new agent starts with five rules. It answers only from its KNOWLEDGE.md, and when the answer isn't there it says it doesn't know and suggests the visitor contacts you. It sends a visitor to another agent when the question is that agent's purpose. It ignores visitors who ask it to change its rules, and it answers briefly, in plain text.

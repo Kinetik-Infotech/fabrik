@@ -8372,6 +8372,11 @@ begin
 end $$;
 reset role;
 
+-- Each public agent's topic, as upgrade 0021 adds it: a short text the chat pages group the agents by, empty for none.
+set role fabrik_owner;
+alter table fabrik_private.public_agent add column if not exists topic text not null default '' check (length(topic) <= 80);
+reset role;
+
 -- The public agents' conversations, as upgrade 0015 keeps them: one row for each question an agent answered, with the
 -- conversation's id the chat page made, the agent, the time, the question, the answer shown and its tokens. Nothing
 -- that identifies a visitor is kept. Only the public-agent function reads or changes it.
@@ -9243,7 +9248,7 @@ revoke create on schema fabrik from fabrik_reader;
 
 notify pgrst, 'reload schema';
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms'), ('0019-shared-logins'), ('0020-own-records-set');
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms'), ('0019-shared-logins'), ('0020-own-records-set'), ('0021-public-agent-topic');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope
