@@ -56,6 +56,7 @@ Otherwise, propose classes and relationships drawn from what the business alread
 5. Show each class with its name, its definition in plain words, and where it was seen, such as "named in 214 file titles in the General scope". Show each relationship with its from and to classes in the same way.
 6. Save each one as the `fabrik:reference` skill's section 2 says, only once the person approves it. Save the classes first, then the relationships.
 7. Tell the person that connections keep only things of these kinds, so a file's other things are left out. They can add a class later, and fabrik reads new parts by the new list.
+8. When the person wants files sorted by subject, propose a class such as `topic`. Propose the topics the files are mostly about, each saved with `instance_of` `topic`. Draw them from the same titles and searches, as the `fabrik:reference` skill says. fabrik then tags each new part with its topics as it reads it. Files read before are tagged with `tag_file`, as the `fabrik:records` skill's section 18 says.
 
 With no files and no business profile, ask the person what kinds of things their files are mostly about, and propose those.
 

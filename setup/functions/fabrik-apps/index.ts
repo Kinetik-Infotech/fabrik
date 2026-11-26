@@ -281,12 +281,41 @@ const readFile = tool({
   run: (ctx, a) => call(ctx, "fabrik_get_file_parts", { p_scope: a.scope, p_file: a.path, p_from: a.from ?? 0, p_limit: a.limit ?? 20 }),
 });
 
+const tagFile = tool({
+  name: "tag_file",
+  description: "Tag a file in a fabrik scope with glossary terms that each name one thing of a class, such as its topics, as the signed-in person, " +
+    "and keep what its parts hold. get_reference's glossary gives such a term's class as instance_of, and the term it comes under as broader. " +
+    "Each term is named by its glossary term or one of its other names, and each term it comes under is tagged with it. A tag the file has already is kept as it is. " +
+    "Gives tags, the terms tagged, and added_entities, how many were new. Needs create permission in the scope, and the file's first part read for connections.",
+  input: z.object({
+    scope: z.string().min(1).describe("The file's scope, by its scope_id, code or name. A search hit's bucket is its scope's code."),
+    path: z.string().min(1).describe("The file's path in the scope, as a search hit's file gives it."),
+    terms: z.array(z.string().min(1).max(100)).min(1).max(20).describe("The terms, 1 to 20, each as the glossary names it."),
+  }),
+  run: (ctx, a) => call(ctx, "fabrik_tag_file", { p_scope: a.scope, p_file: a.path, p_terms: a.terms }),
+});
+
+const taggedFiles = tool({
+  name: "tagged_files",
+  description: "List the files tagged with a glossary term that names one thing of a class, such as a topic, or with a term that comes under it, " +
+    "in the scopes the signed-in person may read. Each file gives scope, code, file, its path, which read_file reads, and terms, the terms it is tagged with. " +
+    "total is how many there are. With no term, gives each such term with its class, broader, the term it comes under, and files, how many files it tags.",
+  input: z.object({
+    term: z.string().min(1).max(100).optional().describe("The term, as the glossary names it. Leave out to list the terms."),
+    scope: z.string().min(1).optional().describe("Only this scope, by its scope_id, code or name. Leave out for every scope."),
+    from: z.number().int().min(0).optional().describe("How many files to pass over, 0 when left out."),
+    limit: z.number().int().min(1).max(1000).optional().describe("How many files to give, 1 to 1,000. 200 when left out."),
+  }),
+  run: (ctx, a) => call(ctx, "fabrik_get_tagged_files", { p_term: a.term ?? null, p_scope: a.scope ?? null, p_from: a.from ?? 0, p_limit: a.limit ?? 200 }),
+});
+
 // ---- Reference ----
 
 const getReference = tool({
   name: "get_reference",
   description: "Read fabrik's reference: the glossary, the data dictionary, or the link relations. " +
-    "glossary: each term with its kind (term, class or relationship), definition and other names, and each relationship's from_class and to_class. " +
+    "glossary: each term with its kind (term, class or relationship), definition and other names, each relationship's from_class and to_class, " +
+    "and for a term that names one thing of a class, such as a topic, that class as instance_of and the term it comes under as broader. " +
     "dictionary: each record kind (tables) with its glossary class and meaning, its fields (columns) with type, required, term and meaning, " +
     "and where each field comes from (sources). relations: each relation a link may use, with its description, and single_parent, " +
     "whether a record may have only one link of it. The glossary and dictionary need read permission in the Reference scope.",
@@ -306,7 +335,8 @@ const saveTerm = tool({
   description: "Save one glossary term, class or relationship in fabrik's Reference scope, as the signed-in person, under their grant there. " +
     "A term named in any case that is already in the glossary gets a new version; its name keeps the glossary's spelling, and a new name is a new term. " +
     "A class is a kind of thing records and files name, such as property or vendor. A relationship joins two classes, from_class to to_class, " +
-    "both already classes in the glossary. A class at the end of a relationship or of a record kind stays a class. " +
+    "both already classes in the glossary. A term that names one thing of a class, such as the topic Masks, gives that class as instance_of, " +
+    "and may give the broader term of the same class it comes under as broader. A class at the end of a relationship or of a record kind, or that a term is one of, stays a class. " +
     "Without preview the answer is the saved version of the term's model record.",
   input: z.object({
     term: z.string().min(1).max(100).describe("The term, 1 to 100 characters."),
@@ -316,11 +346,14 @@ const saveTerm = tool({
     other_names: z.array(z.string()).max(20).optional().describe("Other names for it, at most 20."),
     from_class: z.string().optional().describe("A relationship's first class. Only for a relationship."),
     to_class: z.string().optional().describe("A relationship's second class. Only for a relationship."),
+    instance_of: z.string().optional().describe("For a term that names one thing of a class, such as the topic Masks, that class. Only for a term."),
+    broader: z.string().optional().describe("For a term with instance_of, the broader term of the same class it comes under, such as a topic for a subtopic."),
     preview,
   }),
   run: (ctx, a) => call(ctx, "fabrik_save_term", {
     p_term: a.term, p_kind: a.kind, p_definition: a.definition, p_reason: a.reason, p_other_names: a.other_names ?? [],
     p_from_class: a.from_class ?? null, p_to_class: a.to_class ?? null, p_preview: a.preview ?? false,
+    p_instance_of: a.instance_of ?? null, p_broader: a.broader ?? null,
   }),
 });
 
@@ -531,7 +564,7 @@ const forCardOnly = (t: Tool) => { const v = (t.meta as any)?.ui?.visibility; re
 /** Every tool, in the order Claude lists them. */
 export const TOOLS: Tool[] = [
   search, getRecord, listRecords, saveRecord, linkRecords, unlinkRecords, listScopes,
-  getReference, saveTerm, saveRelationType, uploadFileTool, readFile, guide,
+  getReference, saveTerm, saveRelationType, uploadFileTool, readFile, tagFile, taggedFiles, guide,
   ...MEMORY_TOOLS,
   ...WORK_TOOLS,
   ...WORKFLOW_TOOLS,

@@ -13,7 +13,7 @@ business's own Supabase project. A **tool** is an operation the connector or the
 
 The connector is how every Claude client reaches fabrik. Its tools are `search`, `get_record`, `list_records`,
 `save_record`, `link_records`, `unlink_records`, `list_scopes`, `get_reference`, `save_term`, `save_relation_type`,
-`upload_file`, `read_file`, `show_records`, `show_board` and `show_graph`, and the tools for notes, documents, the profile,
+`upload_file`, `read_file`, `tag_file`, `tagged_files`, `show_records`, `show_board` and `show_graph`, and the tools for notes, documents, the profile,
 projects, tasks, workflows, contacts, groups, the person's writing voice and an administrator's mail, which `show_mail_setup` sets up on a card: reading, drafts, sending and moving to Trash. The `fabrik:records` skill lists them and
 names the one for each task.
 
