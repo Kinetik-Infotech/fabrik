@@ -173,7 +173,7 @@ function unstamped(result: any) {
   if (result.structuredContent) delete result.structuredContent.fabrik;
   if (result.isError && result.structuredContent && Object.keys(result.structuredContent).length === 0) delete result.structuredContent;
   const content = result.content ?? [];
-  if (result.isError && content.length > 1 && /^This is .*fabrik,? in project /.test(content.at(-1)?.text ?? "")) content.pop();
+  if (result.isError && content.length > 1 && /^This is the fabrik (of ".*", )?in project /.test(content.at(-1)?.text ?? "")) content.pop();
   if (!result.isError && content.length > 1 && /^\{"fabrik":/.test(content.at(-1)?.text ?? "")) content.pop();
   else if (!result.isError && content.length === 1) {
     try {

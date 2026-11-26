@@ -30,7 +30,7 @@
 // Markdown guides in docs/guides/. INSTRUCTIONS is what Claude reads about fabrik when it connects, and points to it.
 //
 // A person can connect two fabrik connectors, one for each business, whose tools have the same names. So each request
-// reads the business's name from the business profile, as the person, and the server names it with the project's
+// reads the business's name from the business profile in General, as the person, and the server names it with the project's
 // reference: first in the instructions, at the start of each tool's description, and as fabrik in each tool's result.
 //
 // The cards, the records card, the board card, the graph card and the mail setup card, are in cards.ts: show_records,
@@ -439,13 +439,19 @@ export function projectRef(url: string | undefined): string {
   return host.endsWith(".supabase.co") ? host.split(".")[0] : host;
 }
 
-/** The business's name, from the business profile's title, Business profile: <business name>. Where the person may
- * read more than one profile, the one in the General scope, then the one saved last. */
+/** The longest business name the connector repeats. */
+const NAME_LIMIT = 60;
+/** The business's name, from the business profile's title, Business profile: <business name>, among records read from
+ * the General scope, saved last first. The name goes into the instructions and every tool's description, so only a
+ * plain name is taken: at most NAME_LIMIT characters of letters, digits, spaces and & ' . , - ( ), with no full stop
+ * before a space. Anything else is no name, and the connector names the project. */
 // deno-lint-ignore no-explicit-any
-export function businessIn(items: any[], general?: string): string | null {
-  const named = (items ?? []).map((r) => ({ scope_id: r.scope_id, name: /^business profile:\s*(.+)$/i.exec(String(r.title ?? "").trim())?.[1]?.trim() }))
-    .filter((r): r is { scope_id: string; name: string } => !!r.name);
-  return (named.find((r) => r.scope_id === general) ?? named[0])?.name ?? null;
+export function businessIn(items: any[]): string | null {
+  for (const r of items ?? []) {
+    const name = /^business profile:\s*(.+)$/i.exec(String(r.title ?? "").trim())?.[1]?.trim();
+    if (name && name.length <= NAME_LIMIT && /^[\p{L}\p{N}][\p{L}\p{N} &'\u2019.,()-]*$/u.test(name) && !/\.\s/.test(name)) return name;
+  }
+  return null;
 }
 
 /** How long a business's name is kept for a person before it is read again. A person with no profile to read has it
@@ -461,17 +467,15 @@ export async function identityOf(ctx: Ctx, project = projectRef(Deno.env.get("SU
   if (kept && Date.now() - kept.at < IDENTITY_KEPT_MS) return { business: kept.business, project };
   let business: string | null = null;
   try {
-    const { data, error } = await ctx.fabrik.rpc("fabrik_find_records", {
-      p_kind: "model", p_scope_id: null, p_title: "Business profile", p_cutoff: null, p_cursor: null, p_limit: 20,
-    });
-    // deno-lint-ignore no-explicit-any
-    const items: any[] = error ? [] : data?.items ?? [];
-    let general: string | undefined;
-    if (new Set(items.map((r) => r.title)).size > 1) {
-      const all = await allScopes(ctx);
-      general = typeof all === "string" ? undefined : all.find((x) => x.code === "general")?.scope_id;
+    // Only the General scope's profile names the business: a profile saved in another scope is ignored.
+    const all = await allScopes(ctx);
+    const general = typeof all === "string" ? undefined : all.find((x) => x.code === "general")?.scope_id;
+    if (general) {
+      const { data, error } = await ctx.fabrik.rpc("fabrik_find_records", {
+        p_kind: "model", p_scope_id: general, p_title: "Business profile", p_cutoff: null, p_cursor: null, p_limit: 20,
+      });
+      business = error ? null : businessIn(data?.items ?? []);
     }
-    business = businessIn(items, general);
   } catch {
     business = null;
   }
@@ -482,17 +486,15 @@ export async function identityOf(ctx: Ctx, project = projectRef(Deno.env.get("SU
   return { business, project };
 }
 
-/** The business as a name, Kinetik, or where no profile names it, the project. */
-const nameOf = (id: Identity) => id.business ?? `project ${id.project}`;
+/** The business as a name, "Kinetik" in quotes, or where no profile names it, the project. */
+const nameOf = (id: Identity) => id.business ? `"${id.business}"` : `project ${id.project}`;
 /** What each tool's description starts with. */
 export const descriptionStart = (id: Identity) => `${nameOf(id)} fabrik: `;
-/** Which fabrik this is, as a sentence: Kinetik's fabrik, project abcdefghijklmnopqrst. */
-const whose = (id: Identity) => id.business
-  ? `${id.business}${/s$/i.test(id.business) ? "'" : "'s"} fabrik, in project ${id.project}`
-  : `the fabrik in project ${id.project}`;
+/** Which fabrik this is, as a sentence: the fabrik of "Kinetik", in project abcdefghijklmnopqrst. */
+const whose = (id: Identity) => id.business ? `the fabrik of "${id.business}", in project ${id.project}` : `the fabrik in project ${id.project}`;
 /** The instructions Claude reads, starting with which business's fabrik this is. */
 export function instructionsFor(id: Identity) {
-  return `This connector is ${whose(id)}. Save here only ${id.business ? `${id.business}'s` : "this fabrik's"} work, ` +
+  return `This connector is ${whose(id)}. Save here only ${id.business ? `the work of "${id.business}"` : "this fabrik's work"}, ` +
     "and another business's through its own fabrik connector. " + INSTRUCTIONS;
 }
 
