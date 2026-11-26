@@ -23,7 +23,8 @@
 <script>
 // The connections card: it shows whether connections are on, in the words show_connections_setup's result gives. Save
 // calls connections_setup_save with the key typed here, which fabrik keeps only once Anthropic takes it, and the card then
-// shows connected or the reason. Turn off calls connections_off, which removes the key. When Anthropic didn't answer, the
+// shows connected or the reason. Connected with no class in the glossary shows the waiting state, since fabrik then
+// reads no part. Turn off calls connections_off, which removes the key. When Anthropic didn't answer, the
 // card says why and offers both. Both send the pass show_connections_setup gave the card in its result's _meta, which
 // the model never sees.
 var SAID = {}, PASS = "";
@@ -40,7 +41,12 @@ $("cs-form").addEventListener("submit", function (e) {
   busy(true);
   say("Checking the key with Anthropic…", false);
   card.call("connections_setup_save", { key: $("cs-key").value, pass: PASS }).then(function (r) {
-    if (r && !r.isError) { $("cs-key").value = ""; showState("on"); say("Connected. Tell Claude connections are on.", false); }
+    if (r && !r.isError) {
+      var now = (r.structuredContent && r.structuredContent.state) || "on";
+      $("cs-key").value = ""; showState(now, r.structuredContent && r.structuredContent.problem);
+      say(now === "waiting" ? "Connected, but fabrik reads no part until the glossary has a class. Tell Claude connections are on, and ask it to propose the glossary's classes."
+        : "Connected. Tell Claude connections are on.", false);
+    }
     else say("Not kept: " + (textOf(r) || "fabrik gave nothing back."), true);
   }, function (e) { say("Not kept: " + (e && e.message || e), true); }).then(function () { busy(false); });
 });

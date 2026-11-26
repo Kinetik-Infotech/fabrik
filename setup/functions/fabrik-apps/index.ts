@@ -207,7 +207,8 @@ const search = tool({
     "A record hit gives record_id, version_number and file, the record's title; a file hit gives bucket, the scope's code, and file, its path there, " +
     "which read_file reads. Each hit gives place, snippet, found (words, meaning, graph) and section, the index into sections, which gives the text around it. " +
     "hits are ranked first; reference_hits are the reference scope's own, the glossary and data dictionary, ranked apart when no scope is named. " +
-    "stages says what search could not cover yet, such as files whose text is still being read (awaiting_text) or files it cannot read (unreadable).",
+    "stages says what search could not cover yet, such as files whose text is still being read (awaiting_text) or files it cannot read (unreadable). " +
+    "When parts wait to be read for connections (awaiting_extraction above 0), stages.waiting_for_classes is true while connections are on but the glossary has no class, so none is read.",
   input: z.object({
     query: z.string().min(1).max(1000).describe("The question or words to search for."),
     scope: z.string().min(1).optional().describe("Search only this scope, by its scope_id, code or name. Leave out to search every scope."),
@@ -229,7 +230,15 @@ const search = tool({
     if (!res.ok || !body || body.ok === false) return refused(String(body?.problem ?? `File search answered ${res.status}.`));
     // deno-lint-ignore no-explicit-any
     const label = (hits: any[]) => (hits ?? []).map((h) => ({ found_as: h.record_id ? "record" : "file", ...h }));
-    return answer({ ...body, hits: label(body.hits), reference_hits: label(body.reference_hits) });
+    // Parts waiting for connections are read only once the glossary has a class, so the search says when that holds
+    // them back. fabrik_get_graph_reader is asked only when a part waits.
+    let stages = body.stages;
+    if (stages && Number(stages.awaiting_extraction) > 0) {
+      const { data, error } = await ctx.fabrik.rpc("fabrik_get_graph_reader");
+      if (error) console.error(`search: fabrik_get_graph_reader failed: ${error.message}`);
+      else stages = { ...stages, waiting_for_classes: data?.waiting_for_classes === true };
+    }
+    return answer({ ...body, ...(stages ? { stages } : {}), hits: label(body.hits), reference_hits: label(body.reference_hits) });
   },
 });
 

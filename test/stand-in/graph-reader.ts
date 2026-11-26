@@ -2,7 +2,7 @@
 // answered here, through the Anthropic SDK the function uses. Nothing calls Anthropic. The reader is off until an
 // administrator sets the business's own API key, which is kept only once the Models API accepts it: before that the
 // schedule calls nothing, and a run says the reader is off. With the key and no class in the glossary, the schedule
-// still calls nothing. A person who is not an administrator is refused every action. A file of three parts in an
+// still calls nothing, and fabrik_get_graph_reader says connections wait for a class. A person who is not an administrator is refused every action. A file of three parts in an
 // ordinary scope, and one part each in a private scope, a sessions scope, the Administration, Guides and Plugins
 // scopes and a workflow plugin's scope, are uploaded and read for their text. The schedule's call sends one batch, of
 // Claude Haiku 5.5 requests at effort low with the rules and the glossary cached, holding only the ordinary scope's
@@ -176,8 +176,8 @@ try {
   // Off: with parts waiting and no key, the schedule calls nothing, and fabrik_get_graph_reader says it is off.
   const [{ due: off }] = await sql`select fabrik_private.graph_reader_dispatch() as due`;
   const [{ r: offState }] = await asUser(person, (tx) => tx`select fabrik.fabrik_get_graph_reader() as r` as any);
-  check("with parts waiting and no key, the schedule calls nothing, and fabrik_get_graph_reader says the reader is off",
-    off === false && offState.on === false && JSON.stringify(offState.scopes) === JSON.stringify(["graph_test"]) && !("month_cost_usd" in offState), { off, offState });
+  check("with parts waiting and no key, the schedule calls nothing, and fabrik_get_graph_reader says the reader is off and waits for no class",
+    off === false && offState.on === false && offState.waiting_for_classes === false && JSON.stringify(offState.scopes) === JSON.stringify(["graph_test"]) && !("month_cost_usd" in offState), { off, offState });
 
   // The key: refused to a person who is not an administrator, missing, a wrong one refused, then kept.
   let res = await call(person, { action: "check" });
@@ -206,7 +206,11 @@ try {
   // With the key and no class in the glossary, the schedule still calls nothing. With the glossary's classes and
   // relationships, it calls graph-reader.
   const [{ due: noClass }] = await sql`select fabrik_private.graph_reader_dispatch() as due`;
-  check("with the key and no class in the glossary, the schedule calls nothing", noClass === false || (await sql`select count(*)::int as n from fabrik.glossary_term where kind='class'`)[0].n > 0, noClass);
+  const [{ n: classCount }] = await sql`select count(*)::int as n from fabrik.glossary_term where kind='class'`;
+  check("with the key and no class in the glossary, the schedule calls nothing", noClass === false || classCount > 0, noClass);
+  const [{ r: waitingState }] = await asUser(person, (tx) => tx`select fabrik.fabrik_get_graph_reader() as r` as any);
+  check("with the key and no class in the glossary, fabrik_get_graph_reader says connections are on and wait for a class",
+    waitingState.on === true && waitingState.waiting_for_classes === (classCount === 0), { waitingState, classCount });
   for (const [term, kind, from, to] of [["supplier", "class", null, null], ["product", "class", null, null], ["retailer", "class", null, null],
     ["supplies", "relationship", "supplier", "product"], ["stocks", "relationship", "retailer", "product"]])
     await asUser(admin, (tx) => tx`select fabrik.fabrik_save_term(${term}, ${kind}, ${`The stand-in's ${term}.`}, 'Graph reader stand-in', '{}'::text[], ${from}, ${to})`);
@@ -431,7 +435,7 @@ try {
 
   // fabrik_get_graph_reader, on: the scopes it reads, and the month's cost for an administrator alone.
   const [{ r: onState }] = await asUser(admin, (tx) => tx`select fabrik.fabrik_get_graph_reader() as r` as any);
-  check("fabrik_get_graph_reader says the reader is on, gives its scopes, and gives an administrator the month's cost and cap", onState.on === true
+  check("fabrik_get_graph_reader says the reader is on, waits for no class once the glossary has one, gives its scopes, and gives an administrator the month's cost and cap", onState.on === true && onState.waiting_for_classes === false
     && onState.scopes.includes("graph_test") && !onState.scopes.some((c: string) => leftOutBuckets.includes(c)) && typeof onState.month_cost_usd === "number" && Number(onState.monthly_cap_usd) === 100, onState);
 
   // The second factor: an administrator's password-only sign-in is refused, and the same sign-in with a code is not.
