@@ -39,6 +39,8 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   show_board: { title: "Show a board", effect: "read" },
   show_graph: { title: "Show a graph", effect: "read" },
   show_mail_setup: { title: "Show mailbox setup", effect: "read" },
+  show_logins: { title: "Show the shared logins", effect: "read" },
+  logins_list: { title: "List the shared logins", effect: "read" },
   show_connections_setup: { title: "Show connections setup", effect: "read", outside: true },
   show_public_agent_setup: { title: "Show public agent setup", effect: "read", outside: true },
   public_knowledge_get: { title: "Read a public agent's knowledge", effect: "read" },
@@ -51,6 +53,8 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   card_find_records: { title: "Find records for a card", effect: "read" },
   card_record: { title: "Read a record for a card", effect: "read" },
   card_view: { title: "Read a card's view", effect: "read" },
+  // Opening a login gives its password to the Login card alone, and the audit log keeps the opening.
+  login_open: { title: "Open a shared login", effect: "save" },
   // A card's page calls card_call for its reads as well as for the mail setup and connections cards' Save, so marking
   // it destructive would ask before every read a card makes. Its writes are those Saves and Turn off, which the person presses on the card.
   card_call: { title: "Run a card's button", effect: "save", outside: true },
@@ -79,6 +83,7 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   voice_distil_profile: { title: "Learn your writing voice", effect: "save" },
   voice_record_feedback: { title: "Record voice feedback", effect: "save" },
   mail_setup_save: { title: "Save a mailbox", effect: "replace", outside: true },
+  login_save: { title: "Save a shared login", effect: "replace" },
   connections_setup_save: { title: "Turn connections on", effect: "replace", outside: true },
   public_agent_setup_save: { title: "Save the public agent's keys", effect: "replace", outside: true },
   public_knowledge_save: { title: "Replace a public agent's knowledge", effect: "replace" },
@@ -95,6 +100,7 @@ export const EFFECTS: Record<string, { title: string; effect: Effect; outside?: 
   mail_reply: { title: "Reply to an email", effect: "send", outside: true },
   mail_delete: { title: "Move email to Trash", effect: "remove", outside: true },
   connections_off: { title: "Turn connections off", effect: "remove" },
+  login_remove: { title: "Remove a shared login", effect: "remove" },
   public_agent_off: { title: "Turn the public agents off", effect: "remove" },
   public_agent_remove: { title: "Remove a public agent", effect: "remove" },
   public_conversations_delete: { title: "Delete public agents' conversations", effect: "remove" },
