@@ -1,4 +1,4 @@
--- fabrik_tests 1.13.0
+-- fabrik_tests 1.14.0
 -- fabrik: setup tests, installed as stored functions in their own schema, fabrik_tests.
 -- Install this file once, as the postgres login, then run the checks part by part, in order:
 --   select fabrik_tests.parts();
@@ -1392,7 +1392,7 @@ begin
   ('fabrik.fabrik_get_audit(timestamptz,timestamptz,text,integer)','fabrik_reader'),
   ('fabrik.fabrik_get_sign_ins()','fabrik_reader'),
   ('fabrik.fabrik_get_reference(text)','fabrik_reader'),
-  ('fabrik.fabrik_save_term(text,text,text,text,text[],text,text,boolean)','fabrik_reader'),
+  ('fabrik.fabrik_save_term(text,text,text,text,text[],text,text,boolean,text,text)','fabrik_reader'),
   ('fabrik.fabrik_save_dictionary(text,text,text,jsonb,text,boolean)','fabrik_reader'),
   ('fabrik.fabrik_save_relation_type(text,text,text,boolean)','fabrik_reader'),
   ('fabrik.fabrik_list_relation_types()','fabrik_reader'),
@@ -2390,7 +2390,7 @@ begin
   ok:=(pg_temp.raised(fabrik.fabrik_approve_change(gen_random_uuid(),h,req,clock_timestamp()+interval '1 hour','Reference test deletion'))->>'authorisation_id')::uuid;
   msg:=null; begin perform pg_temp.raised(fabrik.fabrik_delete_record(req,ok)); exception when foreign_key_violation then msg:=sqlerrm; end;
   execute 'reset role';
-  if msg is distinct from 'This term is still used by a relationship or the data dictionary: change those first, then delete it' then
+  if msg is distinct from 'This term is still used by a relationship, another term or the data dictionary: change those first, then delete it' then
    raise exception 'FAIL reference: a class in use was deleted %',msg; end if;
 
   -- A move of a term's record out of the reference scope is refused.
@@ -5038,4 +5038,4 @@ end $run$;
 
 revoke execute on all functions in schema fabrik_tests from public, anon, authenticated, service_role;
 
-comment on function fabrik_tests.run() is 'fabrik_tests 1.13.0';
+comment on function fabrik_tests.run() is 'fabrik_tests 1.14.0';

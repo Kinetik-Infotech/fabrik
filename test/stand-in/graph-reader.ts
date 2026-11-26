@@ -416,6 +416,113 @@ try {
   const [after] = await sql`select saved_by, entities from file_search.chunk_extraction where chunk_id=${ours[1]}::uuid`;
   check("a person with read and create replaces Graph reader's save", replaced.replaced === true && after.saved_by === p && after.entities === 2, { replaced, after });
 
+  // Terms of a class. The glossary gets the class topic, the topic Packaging, and Carton strength, first saved as a plain
+  // term, as a glossary made before these fields has it, then saved again as a topic under Packaging. Shelf life stays a
+  // plain term. save_term refuses a broader term of another class and a loop, and get_reference gives both fields.
+  const term = (t: string, kind: string, definition: string, instanceOf: string | null = null, broader: string | null = null) =>
+    asUser(admin, (tx) => tx`select fabrik.fabrik_save_term(p_term => ${t}, p_kind => ${kind}, p_definition => ${definition}, p_reason => 'Tags stand-in',
+      p_instance_of => ${instanceOf}, p_broader => ${broader}) as r` as any);
+  await term("topic", "class", "A subject the business writes about.");
+  await term("Packaging", "term", "Cartons, cases and pallets.", "topic");
+  await term("Carton strength", "term", "How much weight a carton takes.");
+  await term("Shelf life", "term", "How long a product keeps.");
+  await term("carton STRENGTH", "term", "How much weight a carton takes.", "topic", "packaging");
+  const termRefusal = async (call: () => Promise<unknown>) => { try { await call(); return null; } catch (err) { return err instanceof Error ? err.message : String(err); } };
+  const otherClass = await termRefusal(() => term("Box size", "term", "How big a box is.", "topic", "Shelf life"));
+  const loop = await termRefusal(() => term("Packaging", "term", "Cartons, cases and pallets.", "topic", "Carton strength"));
+  const [{ r: adminGlossary }] = await asUser(admin, (tx) => tx`select fabrik.fabrik_get_reference('glossary') as r` as any);
+  const row = (t: string) => adminGlossary.rows.find((x: any) => x.term === t);
+  check("a plain term saved again with instance_of and broader becomes a topic under its topic, and get_reference gives both",
+    row("Carton strength")?.instance_of === "topic" && row("Carton strength")?.broader === "Packaging"
+      && row("Packaging")?.instance_of === "topic" && row("Packaging")?.broader === null && row("Shelf life")?.instance_of === null, adminGlossary.rows);
+  check("save_term refuses a broader term of another class, and a term that would come under its own narrower term",
+    otherClass?.startsWith('A broader term is one of the same class, and "Shelf life" is not a topic in the glossary') === true
+      && loop?.startsWith('"Packaging" cannot come under "Carton strength", which comes under it') === true, { otherClass, loop });
+
+  // A new file's part is sent with the topics after the rules. Its read gives the subtopic in lower case and a topic the
+  // glossary lacks: that one is dropped with its reason, and the subtopic saved as the glossary writes it, with the topic
+  // it comes under added by fabrik.
+  const [cartons] = await upload("graph_test", "cartons.md", ["Northfield Packaging's double-wall cartons take 30 kg each."]);
+  const [{ r: unread }] = await asUser(person, (tx) => tx`select fabrik.fabrik_get_unextracted('graph_test', 5) as r` as any);
+  check("fabrik_get_unextracted lists the glossary's terms of a class, each with its class and broader term, and no plain term",
+    JSON.stringify(unread.instances.map((t: any) => [t.term, t.class, t.broader])) === JSON.stringify([["Carton strength", "topic", "Packaging"], ["Packaging", "topic", null]]), unread.instances);
+  res = await call(secret, {});
+  const [topicBatch, tb] = lastBatch();
+  const topicRequest = tb.requests.find((r: any) => r.custom_id === cartons)?.params;
+  check("the part is sent with the glossary's terms of a class after its relationships, each with its class and the term it comes under",
+    res.body.sent === true && topicRequest?.system[0].text.endsWith("**The glossary's terms of a class:**\n\n- Packaging, a topic: Cartons, cases and pallets."
+      + "\n- Carton strength, a topic under Packaging: How much weight a carton takes.")
+      && topicRequest.system[0].text.includes("A class with listed terms takes no other entity."), topicRequest?.system ?? res.body);
+  tb.answers.set(cartons, read([
+    { name: "Northfield Packaging", type: "supplier", description: "Northfield Packaging makes double-wall cartons." },
+    { name: "carton strength", type: "topic", description: "The part gives the weight a double-wall carton takes." },
+    { name: "Corrugation", type: "topic", description: "The part is about corrugated board." }]));
+  tb.ended = true;
+  res = await call(secret, {});
+  const topicDrops = await sql`select reason, item->>'name' as name from file_search.graph_drop where chunk_id=${cartons}::uuid`;
+  const topicSources = await sql`select name, entity_type from file_search.entity_source where chunk_id=${cartons}::uuid order by name`;
+  check("a topic the glossary lacks is dropped with its reason, and the part's subtopic saved as the glossary writes it, with its topic",
+    res.body.closed?.saved === tb.requests.length && JSON.stringify(topicDrops) === JSON.stringify([{ reason: "An entity is not one of its class's terms in the glossary", name: "Corrugation" }])
+      && JSON.stringify(topicSources.map((s) => [s.name, s.entity_type])) === JSON.stringify([["Carton strength", "topic"], ["Northfield Packaging", supplierClass], ["Packaging", "topic"]]),
+    { closed: res.body.closed, topicDrops, topicSources, topicBatch });
+
+  // A term's files: a term gives the files tagged with it or a term under it, and no term gives each term with its count.
+  const taggedFiles = async (t: string | null) => (await asUser(person, (tx) => tx`select fabrik.fabrik_get_tagged_files(${t}, null, 0, 200) as r` as any))[0].r;
+  let byTerm = await taggedFiles("packaging");
+  check("fabrik_get_tagged_files gives the file Graph reader tagged, with its scope and terms", byTerm.term === "Packaging" && byTerm.total === 1
+    && JSON.stringify(byTerm.narrower) === JSON.stringify(["Carton strength"])
+    && JSON.stringify(byTerm.files.map((f: any) => [f.scope, f.code, f.file, f.terms])) === JSON.stringify([["Graph test", "graph_test", "cartons.md", ["Carton strength", "Packaging"]]]), byTerm);
+
+  // Search follows the topic's entity to the part it came from: with the question's vector the topic's own, the graph
+  // finds cartons.md, whose text holds neither the question's word nor the topic's name.
+  const unit = `[1${",0".repeat(383)}]`;
+  await sql`update file_search.entity set embedding=${unit}::extensions.vector, state='embedded' where name_key='packaging' and type_key='topic'`;
+  const [{ r: topicSearch }] = await asUser(person, (tx) => tx`select file_search.search('Corrugation', ${`{1${",0".repeat(383)}}`}::real[], 'graph_test', 10) as r` as any);
+  const topicHit = topicSearch.hits.find((h: any) => h.file === "cartons.md");
+  check("a search follows a topic's entity to the file it tags", topicHit?.found?.includes("graph") === true
+    && topicHit.entities.some((e: any) => e.name === "Packaging" && e.type === "topic"), topicSearch.hits.map((h: any) => [h.file, h.found]));
+
+  // After the fact: the person tags suppliers.md, whose first part Graph reader read, with the subtopic. Its topic comes
+  // with it, and Graph reader's findings stay. Tagging it again adds nothing.
+  const graphFindings = async () => (await sql`select name from file_search.entity_source where chunk_id=${ours[0]}::uuid and saved_by=${g}::uuid order by name`).map((r) => r.name);
+  const before = await graphFindings();
+  const tag = async (terms: string[], file = "suppliers.md") => (await asUser(person, (tx) => tx`select fabrik.fabrik_tag_file('Graph test', ${file}, ${terms}::text[]) as r` as any))[0].r;
+  const tagged = await tag(["carton STRENGTH"]);
+  const [kept0] = await sql`select saved_by, entities, relations from file_search.chunk_extraction where chunk_id=${ours[0]}::uuid`;
+  check("fabrik_tag_file adds the subtopic and the topic it comes under to the file's first part, and keeps Graph reader's findings",
+    JSON.stringify(tagged.tags) === JSON.stringify(["Carton strength", "Packaging"]) && tagged.added_entities === 2
+      && JSON.stringify(await graphFindings()) === JSON.stringify(before) && before.length === 2
+      && kept0.saved_by === g && kept0.entities === 4 && kept0.relations === 1, { tagged, before, kept0 });
+  const again = await tag(["Packaging"]);
+  check("tagging a file again with a term it has adds nothing", again.added_entities === 0 && again.added_relations === 0 && again.entities === 4, again);
+  byTerm = await taggedFiles("Carton strength");
+  check("fabrik_get_tagged_files gives a subtopic's files, the file tagged after it was read among them",
+    JSON.stringify(byTerm.files.map((f: any) => f.file)) === JSON.stringify(["cartons.md", "suppliers.md"]), byTerm);
+  const counts = (await taggedFiles(null)).terms;
+  check("fabrik_get_tagged_files with no term gives each term, one under another after it, with its class and how many files it tags",
+    JSON.stringify(counts.map((t: any) => [t.term, t.class, t.broader, t.files])) === JSON.stringify([["Packaging", "topic", null, 2], ["Carton strength", "topic", "Packaging", 2]]), counts);
+  const refusal = async (call: (tx: postgres.TransactionSql) => Promise<unknown>) => {
+    try { await asUser(person, call); return null; } catch (err) { return err instanceof Error ? err.message : String(err); }
+  };
+  const plain = await refusal((tx) => tx`select fabrik.fabrik_tag_file('Graph test', 'suppliers.md', array['Shelf life'])`);
+  check("a plain glossary term is refused as a tag", plain?.startsWith('No glossary term that names one thing of a class is called "Shelf life"') === true, plain);
+
+  // fabrik_add_extraction: a relation may name an entity the part holds, a term its class lacks is refused, and a part
+  // not yet read is refused.
+  const [{ r: added }] = await asUser(person, (tx) => tx`select fabrik.fabrik_add_extraction(${ours[0]}::uuid,
+    '[{"name":"Harbour Timber","type":"supplier","description":"Harbour Timber also supplies AC-01."}]'::jsonb,
+    '[{"source":"Harbour Timber","target":"AC-01","relationship":"supplies","description":"Harbour Timber supplies AC-01."}]'::jsonb) as r` as any);
+  check("fabrik_add_extraction adds an entity and a relation to an entity the part already holds, and keeps the rest",
+    added.added_entities === 1 && added.added_relations === 1 && added.entities === 5 && added.relations === 2
+      && JSON.stringify(await graphFindings()) === JSON.stringify(before), added);
+  const invented = await refusal((tx) => tx`select fabrik.fabrik_add_extraction(${ours[0]}::uuid, '[{"name":"Corrugation","type":"topic","description":"Board."}]'::jsonb)`);
+  check("fabrik_add_extraction refuses a term its class lacks", invented?.startsWith('The topic "Corrugation" is not one of the glossary\'s terms of that class') === true, invented);
+  const [fresh] = await upload("graph_test", "unread.md", ["Brightway stocks AC-02."]);
+  const notRead = await refusal((tx) => tx`select fabrik.fabrik_add_extraction(${fresh}::uuid, '[{"name":"Packaging","type":"topic","description":"Cartons."}]'::jsonb)`);
+  const notReadTag = await refusal((tx) => tx`select fabrik.fabrik_tag_file('Graph test', 'unread.md', array['Packaging'])`);
+  check("a part not yet read for connections is refused, by fabrik_add_extraction and fabrik_tag_file",
+    notRead?.startsWith("This part is not read for connections yet") === true && notReadTag?.startsWith('The first part of "unread.md" is not read for connections yet') === true, { notRead, notReadTag });
+
   // The audit log gives each batch to an administrator, and to no one else.
   const audit = async (user: string) => (await asUser(user, (tx) => tx`select fabrik.fabrik_get_audit(now() - interval '1 hour', now() + interval '1 hour', null, 100) as r`))[0].r.items as any[];
   const seenByAdmin = (await audit(admin)).filter((i) => i.event.startsWith("graph_batch_"));

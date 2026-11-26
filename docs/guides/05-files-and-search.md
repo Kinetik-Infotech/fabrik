@@ -45,6 +45,12 @@ To make the key:
 4. Name the key fabrik, leave Expires at Never and Scope at Default workspace, then create it and copy it. It starts `sk-ant-`, and the Console shows it only once.
 5. Paste it on the card and choose Save.
 
+## Topics
+
+Topics sort your files by subject. Each topic is a term in your glossary, saved as one of the kind of thing called topic. A subtopic also names the topic it comes under. Ask Claude to add the topics your files are about. The same works for any kind of thing with a fixed list, such as your regions or product lines.
+
+With connections on, fabrik tags each new file with the topics it's about as it reads the file. A subtopic brings the topic it comes under. A file about none of them gets none. To tag files fabrik read before, ask Claude, such as "Tag these files with Masks". To find a topic's files, ask "Which files are about Masks?". A search for a topic's name also finds the files tagged with it.
+
 ## Saving a file to your computer
 
 In a Code session, ask Claude to save a file from fabrik into your folder.

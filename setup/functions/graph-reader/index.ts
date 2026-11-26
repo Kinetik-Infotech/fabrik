@@ -14,8 +14,9 @@
 // and the third marks it failed. A request the API did not answer leaves its part waiting, with no
 // attempt counted. No batch is sent once the month's logged cost reaches the cap in
 // file_search.graph_settings. The rules Claude follows are section 19 of the fabrik plugin's records skill, built
-// into prompt.ts by scripts/graph-reader-prompt.ts, followed by the glossary's classes and relationships, read
-// from fabrik at each run.
+// into prompt.ts by scripts/graph-reader-prompt.ts, followed by the glossary's classes, relationships and terms of a
+// class, such as its topics, read from fabrik at each run. An entity of such a class that is not one of its terms is
+// dropped with its reason.
 //
 // An administrator calls it with their own sign-in for three actions. "set_key" keeps the business's Anthropic API
 // key in the Vault, as the secret anthropic_api_key, once the Models API accepts it, which turns the reader on.
@@ -120,12 +121,17 @@ export function readResult(text: string): { entities: unknown[]; relations: unkn
   return { entities: got.entities, relations: got.relations };
 }
 
-/** The system prompt: section 19's rules, then the glossary's classes and relationships. */
+/** The system prompt: section 19's rules, then the glossary's classes and relationships, and its terms that each name one
+ * thing of a class when it has any, each with its class, the term it comes under and the start of its definition. */
 async function system(): Promise<string> {
   const classes = await sql`select term from fabrik.glossary_term where kind = 'class' order by lower(term)`;
   const relationships = await sql`select term, from_class, to_class from fabrik.glossary_term where kind = 'relationship' order by lower(term)`;
+  const instances = await sql`select term, class, broader, left(definition, 300) as definition from fabrik_private.glossary_instances()
+    order by lower(class), lower(coalesce(broader, term)), broader is not null, lower(term)`;
   return `${PROMPT}\n\n**The glossary's classes:**\n\n${classes.map((r) => `- ${r.term}`).join("\n")}\n\n**The glossary's relationships:**\n\n${
-    relationships.map((r) => `- ${r.term}, from a ${r.from_class} to a ${r.to_class}`).join("\n") || "- The glossary has no relationships yet. Give no relations."}`;
+    relationships.map((r) => `- ${r.term}, from a ${r.from_class} to a ${r.to_class}`).join("\n") || "- The glossary has no relationships yet. Give no relations."}${
+    instances.length ? `\n\n**The glossary's terms of a class:**\n\n${instances.map((r) =>
+      `- ${r.term}, a ${r.class}${r.broader ? ` under ${r.broader}` : ""}: ${r.definition}`).join("\n")}` : ""}`;
 }
 
 /** The open batch's state from the API. Once it has ended, each result is saved and the batch closed. */
