@@ -1,13 +1,13 @@
 ---
 name: records
-description: Use when a person, or their agent, works in fabrik's records as themselves. Covers scopes and grants, finding and reading records, history, progress, the audit log and sign-ins. Covers saving records, states, assigned tasks, approvals, the task functions, moving records, limited grants, renaming or deleting a scope, private scopes and access templates. Covers the connections between what a scope's files name, and finding a routine's version in force. Each task names the connector tool the agent calls, or the database function where the connector has no tool.
+description: Use when a person, or their agent, works in fabrik's records as themselves. Covers scopes and grants, finding and reading records, history, progress, the audit log and sign-ins. Covers saving records, states, assigned tasks, approvals, the task functions, moving records, limited grants, renaming or deleting a scope, private scopes and access templates. Covers shared logins on the Login card. Covers the connections between what a scope's files name, and finding a routine's version in force. Each task names the connector tool the agent calls, or the database function where the connector has no tool.
 ---
 
 # fabrik records
 
 This skill is how a signed-in actor works in the records of fabrik, the business's organisational knowledge base. Changes to fabrik are made by the assistant, `@fabrik:assistant`, which follows this skill's rules on asking before each change. A session that is not the assistant calls it for each change. It passes on the person's answer, quoting their words with the change the agent proposed.
 
-Every task is a call to a tool of the fabrik-apps connector, as the signed-in person: `search`, `get_record`, `list_records`, `save_record`, `link_records`, `unlink_records`, `list_scopes`, `get_reference`, `save_term`, `save_relation_type`, `upload_file` and `read_file`, and `show_records`, `show_board` and `show_graph`, which draw a list, a board and a graph. It also has `remember`, `update_record`, `lookup_by_name`, `delete_record`, `restore_record`, `ingest_document`, `profile_get` and `profile_update` for notes, documents and the person's profile; `project_create`, `project_list`, `project_get`, `project_update`, `project_complete`, `task_create`, `task_update`, `task_list`, `task_get`, `task_ready` and `task_complete` for projects and tasks; `workflow_save`, `workflow_list`, `workflow_get` and `workflow_delete` for workflows; `contact_create`, `contact_lookup`, `contact_update`, `contact_list`, `contact_delete`, `contact_export`, `group_create` and `group_manage` for contacts and groups; `voice_tag_content`, `voice_distil_profile`, `voice_get_conditioning` and `voice_record_feedback` for the person's writing voice; and, for an administrator, `mail_list_mailboxes`, `mail_read`, `mail_search`, `mail_fetch_body` and `mail_fetch_attachment` to read a mailbox set up in fabrik, `mail_save_attachment` to save an attachment into a scope's files, `mail_draft`, `mail_draft_edit`, `mail_draft_list` and `mail_draft_send` for its drafts, `mail_send` and `mail_reply` to send from it without a draft, `mail_signature_set` to set its signatures, `mail_delete` to move its messages to Trash, and `show_mail_setup` to set a mailbox up: the person types its password on that card, never in the chat. Each tool's description gives its arguments. A task the connector has no tool for yet names the database function instead, in the `fabrik` schema, which the fabrik plugin's `rpc` tool calls as the same person. fabrik itself decides what each call may see and change, from the actor's grants. A record the actor may not read is absent, and a change the actor may not make is refused.
+Every task is a call to a tool of the fabrik-apps connector, as the signed-in person: `search`, `get_record`, `list_records`, `save_record`, `link_records`, `unlink_records`, `list_scopes`, `get_reference`, `save_term`, `save_relation_type`, `upload_file` and `read_file`, and `show_records`, `show_board` and `show_graph`, which draw a list, a board and a graph. It also has `remember`, `update_record`, `lookup_by_name`, `delete_record`, `restore_record`, `ingest_document`, `profile_get` and `profile_update` for notes, documents and the person's profile; `project_create`, `project_list`, `project_get`, `project_update`, `project_complete`, `task_create`, `task_update`, `task_list`, `task_get`, `task_ready` and `task_complete` for projects and tasks; `workflow_save`, `workflow_list`, `workflow_get` and `workflow_delete` for workflows; `contact_create`, `contact_lookup`, `contact_update`, `contact_list`, `contact_delete`, `contact_export`, `group_create` and `group_manage` for contacts and groups; `voice_tag_content`, `voice_distil_profile`, `voice_get_conditioning` and `voice_record_feedback` for the person's writing voice; and, for an administrator, `mail_list_mailboxes`, `mail_read`, `mail_search`, `mail_fetch_body` and `mail_fetch_attachment` to read a mailbox set up in fabrik, `mail_save_attachment` to save an attachment into a scope's files, `mail_draft`, `mail_draft_edit`, `mail_draft_list` and `mail_draft_send` for its drafts, `mail_send` and `mail_reply` to send from it without a draft, `mail_signature_set` to set its signatures, `mail_delete` to move its messages to Trash, and `show_mail_setup` to set a mailbox up: the person types its password on that card, never in the chat. `show_logins` shows the Login card. On it a person opens the shared logins of the scopes they read, and an administrator adds, changes and removes them. A password is typed and read on that card alone, never in the chat. Each tool's description gives its arguments. A task the connector has no tool for yet names the database function instead, in the `fabrik` schema, which the fabrik plugin's `rpc` tool calls as the same person. fabrik itself decides what each call may see and change, from the actor's grants. A record the actor may not read is absent, and a change the actor may not make is refused.
 
 When the person asks for an email from a mailbox in fabrik, draft it first with `mail_draft`. Tell them it's in the mailbox's Drafts folder. Send that draft with `mail_draft_send` only once they approve sending it. Use `mail_send` and `mail_reply` only when the person asks to send without a draft. Set a mailbox's signatures with `mail_signature_set`. For an HTML file the person gives, read it and pass its text as `html`.
 
@@ -657,6 +657,36 @@ An **access template** is a named set of grants, which fabrik holds. Each of its
 - **Evidence:** each answer, and the `access_template_changed` entry in `fabrik_get_audit`.
 
 **AI guided:** the agent shows the person each change before it is made, and waits for their approval.
+
+## 22. Shared logins
+
+A **shared login** is a username and password that the business's staff share for an outside portal. fabrik keeps each one in a scope, with its service, web address, username and notes. fabrik keeps its password, and the password before the last change, in Vault, Supabase's encrypted store for secrets. It needs fabrik's upgrade 0019.
+
+- A person whose grant in the login's scope holds `read` lists and opens it. A grant limited to the person's own records, or to one record, opens none. An agent or an application opens none.
+- A person who is an administrator adds a login, changes it and removes it. fabrik keeps a login in a scope that is enabled and not private.
+- `fabrik_find_logins` lists the logins the person opens, with no password. `p_search` keeps those whose service, username or web address holds it.
+- The Data API refuses `fabrik_open_login` and `fabrik_save_login` to every sign-in, the person's own included. The fabrik-apps function calls them as the person, over its own database connection, for the Login card alone.
+- A change of password keeps the one before it as the previous password, and deletes the one before that.
+- The audit log, section 8, lists `login_added`, `login_changed`, `login_removed` and `login_opened`, with no password.
+- A scope that holds a login is not deleted. The refusal names each login, and an administrator removes them first.
+
+The connector's `show_logins` shows the Login card:
+
+- **Opening a login:** the person picks a login. The card shows its username, and its password hidden, with Show and Copy. It shows the previous password the same way.
+- **Adding a login:** an administrator presses Add login, picks the scope, and types the service, web address, username, notes and password. Save keeps it.
+- **Changing a password:** an administrator opens the login, presses Change password, types or generates the new one, and saves it.
+- **Generating a password:** Generate fills the password field with a random password, 24 characters long. Length sets 12 to 64 characters. Turn Symbols off for a portal that refuses them.
+- **Removing a login:** an administrator opens the login, presses Remove and confirms. fabrik deletes the login and both its passwords.
+
+- **Responsible:** the person.
+- **Person:** opens, adds, changes and removes logins on the Login card, and types a password there alone.
+- **Agent:** calls `show_logins`, and ends the turn. It never reads, types, passes on or repeats a password. When a person asks for one, it shows the Login card. It reads a login's service, web address and username with `fabrik_find_logins`. The fabrik plugin's login guard refuses every agent and session these calls:
+  - `rpc` of `fabrik_open_login` or `fabrik_save_login`;
+  - the Login card's `login_open`, `login_save` and `login_remove`, and `card_call` of any of them;
+  - any other tool, a Bash or PowerShell command and an Agent prompt that name `fabrik_open_login`, `fabrik_save_login`, `login_open`, `login_save`, `decrypted_secret` or Vault's secrets.
+
+  In a Claude Code session, the plugin's `rpc` refuses `fabrik_open_login` and `fabrik_save_login`.
+- **Evidence:** the audit log's entries for the login.
 
 ## The routine in force
 

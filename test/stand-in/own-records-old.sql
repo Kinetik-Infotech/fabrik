@@ -1,4 +1,4 @@
--- readable_records as 18f7f35 defined it, before 0020-own-records-set: a grant limited to the actor's own records
+-- readable_records as b936cc4 defined it, before 0020-own-records-set: a grant limited to the actor's own records
 -- calls is_own_record for each record. own-records-times.sql loads it to time fabrik_find_records before the upgrade.
 -- Kept as it was; never part of a build.
 grant create on schema fabrik_private to fabrik_identity;

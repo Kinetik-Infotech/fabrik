@@ -1,5 +1,5 @@
 -- 0020-own-records-set
--- base: 18f7f35
+-- base: b936cc4
 -- Each read finds the person's own records once, as a set, for a grant limited to them. own_records_of gives every
 -- record is_own_record is true for, in one query, and readable_records reads it once for each read, in place of a
 -- call to is_own_record for each record. is_own_record stays, for the checks of one record. Who may read what is
