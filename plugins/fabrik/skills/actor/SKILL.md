@@ -17,9 +17,10 @@ The connector is how every Claude client reaches fabrik. Its tools are `search`,
 projects, tasks, workflows, contacts, groups, the person's writing voice and an administrator's mail, which `show_mail_setup` sets up on a card: reading, drafts, sending and moving to Trash. The `fabrik:records` skill lists them and
 names the one for each task.
 
-Each connector serves one business's fabrik, and takes the business's name from the business profile's title. It puts
-the name at the start of its instructions and of each tool's description, such as `Kinetik fabrik: `. Each result gives
-it as `fabrik`, with the project's reference. Where no profile is readable, the connector names the project alone. A person can have two
+Each connector serves one business's fabrik, and takes the business's name from the title of the business profile in
+General. It puts the name in quotes at the start of its instructions and of each tool's description, such as
+`"Kinetik" fabrik: `. Each result gives
+it as `fabrik`, with the project's reference. Where no profile is readable, or its name is more than a plain name of 60 characters, the connector names the project alone. A person can have two
 fabrik connectors in Claude, one for each business, whose tools have the same names. The agent calls the one that names
 the business the work is for, and reads `fabrik` in the result to check.
 
