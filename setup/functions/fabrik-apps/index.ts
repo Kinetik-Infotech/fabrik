@@ -631,17 +631,20 @@ export function register(server: McpServer, ctx: Ctx, tools: Tool[] = TOOLS, id?
   }
 }
 
-/** The account's id in a bearer token that withSupabase has already verified, or nothing. */
-function personOf(authorization: string | null): string | undefined {
+/** The claims of a bearer token that withSupabase has already verified, or none. */
+// deno-lint-ignore no-explicit-any
+function claimsOf(authorization: string | null): Record<string, any> {
   const part = (authorization ?? "").replace(/^Bearer\s+/i, "").split(".")[1];
-  if (!part) return undefined;
+  if (!part) return {};
   try {
-    const sub = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "="))).sub;
-    return typeof sub === "string" && sub ? sub : undefined;
+    const claims = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=")));
+    return claims && typeof claims === "object" ? claims : {};
   } catch {
-    return undefined;
+    return {};
   }
 }
+/** The account's id in a verified bearer token, or nothing. */
+const personOf = (claims: Record<string, unknown>) => typeof claims.sub === "string" && claims.sub ? claims.sub : undefined;
 
 Deno.serve(
   pipeline(
@@ -654,7 +657,9 @@ Deno.serve(
         headers.set("apikey", Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "");
         return fetch(`${Deno.env.get("SUPABASE_URL")}${path}`, { ...init, headers });
       };
-      const ctx: Ctx = { fabrik: supabase.schema("fabrik") as unknown as Fabrik, project, person: personOf(req.headers.get("Authorization")) };
+      const claims = claimsOf(req.headers.get("Authorization"));
+      const ctx: Ctx = { fabrik: supabase.schema("fabrik") as unknown as Fabrik, project, person: personOf(claims),
+        aal: claims.aal === "aal2" ? "aal2" : "aal1" };
       const id = await identityOf(ctx);
       const handler = createMcpHandler(() => {
         const server = new McpServer(SERVER_INFO, { instructions: instructionsFor(id) });

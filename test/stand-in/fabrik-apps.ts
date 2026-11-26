@@ -34,7 +34,7 @@
 // refused. With no class in the glossary, the card, show_connections_setup and a search say connections wait for one.
 // Turn off removes the key, and no answer holds it. The Login card adds a login with a generated password, opens it,
 // changes its password and removes it, a reader of its scope opens it, and the model's calls without the card's pass are
-// refused. Only login_open's answers, to the card, hold a password. run.sh runs it.
+// refused, as are opening and saving through the Data API with the person's own token. Only login_open's answers, to the card, hold a password. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import { exportJWK, generateKeyPair, jwtVerify, SignJWT } from "npm:jose@6.2.17";
 import { Window } from "npm:happy-dom@20.0.10";
@@ -1770,6 +1770,14 @@ try {
   await until(() => shownOn(lgCard).includes("The new password for Stand-in portal is saved."), "the password changed", lgCard);
   lg.changed = await loginSecrets();
 
+  // The Data API refuses opening and saving to the person's own token, as an agent holding it would call them, and
+  // gives no password. Removing goes through, for the administrator alone, and is called here with no login.
+  lg.direct = {
+    readerOpen: await rpc(secondToken, "fabrik_open_login", { p_login: loginId }),
+    ownerOpen: await rpc(ownerToken, "fabrik_open_login", { p_login: loginId }),
+    ownerSave: await rpc(ownerToken, "fabrik_save_login", { p_login: loginId, p_password: "Stand-in direct password" }),
+  };
+  lg.afterDirect = await loginSecrets();
   // The second person reads General, and opens the login on their own card, with its previous password.
   const lgReader = await openCard(secondToken, "show_logins", {});
   await until(() => !!lgReader.doc.querySelector("[data-open]"), "the reader's list", lgReader);
@@ -1823,6 +1831,9 @@ try {
     lg.hidden === true, lg.hidden);
   check("Change password keeps the one before it as the previous password",
     JSON.stringify(lg.changed) === JSON.stringify([firstPassword, secondPassword].sort()), lg.changed);
+  check("the Data API refuses opening and saving a login to the person's own token, the administrator's included, gives no password and changes nothing",
+    Object.values(lg.direct as Record<string, any>).every((r) => r?.code === "42501") && !JSON.stringify(lg.direct).includes(firstPassword)
+      && !JSON.stringify(lg.direct).includes(secondPassword) && JSON.stringify(lg.afterDirect) === JSON.stringify(lg.changed), { direct: lg.direct, secrets: lg.afterDirect });
   check("the second person, who reads General, opens the login with its previous password, and has no Add login or Change password",
     lg.readerAdd === false && lg.readerChange === false, { add: lg.readerAdd, change: lg.readerChange });
   check("show_logins gives the card its pass in the result's _meta alone, never in the text or data the model reads",

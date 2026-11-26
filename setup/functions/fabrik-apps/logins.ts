@@ -9,8 +9,14 @@
 // the card a pass in its result's _meta, which the host gives the card and not the model, signed as connections.ts signs
 // the connections card's. Each of the four refuses a call without a pass for the person that is still in time, before
 // fabrik is called. A password goes from the card to fabrik and back to the card: show_logins's result holds none, the
-// card tells Claude nothing, and this file logs no tool's arguments or answer. The fabrik plugin's login-guard hook
-// refuses every agent a call that would reach a password by another route.
+// card tells Claude nothing, and this file logs no tool's arguments or answer.
+//
+// The Data API refuses fabrik_open_login and fabrik_save_login to every token, the person's own included, so an agent
+// holding the person's sign-in can call neither. login_open and login_save call them over this function's own database
+// connection, SUPABASE_DB_URL, which no agent holds, in a transaction that carries the person's account and sign-in
+// level from the request's verified token, so fabrik decides as it would for the person. The fabrik plugin's
+// login-guard hook also refuses every agent the calls that name them.
+import postgres from "npm:postgres@3.4.9";
 import { z } from "npm:zod@4.3.6";
 import { allScopes, type Ctx, refused, type Result, type Tool, tool } from "./tool.ts";
 import { appTool, cardUri } from "./cards.ts";
@@ -22,12 +28,37 @@ const CARD = "login";
 export const CARD_ONLY = "Only the Login card lists, opens and changes shared logins, and this one has expired. Show the Login card again.";
 const passArg = z.string().optional();
 
-/** One fabrik function's answer for the card, with its refusal as the tool's error, and only a line of text for Claude. */
-async function forCard(ctx: Ctx, fn: string, args: Record<string, unknown>, said: (data: Record<string, unknown>) => string): Promise<Result> {
-  const { data, error } = await ctx.fabrik.rpc(fn, args);
-  if (error) return refused(error.message);
+/** A fabrik answer for the card, with its refusal as the tool's error, and only a line of text for Claude. */
+// deno-lint-ignore no-explicit-any
+function cardAnswer(data: any, said: (data: Record<string, unknown>) => string): Result {
   if (data && typeof data === "object" && data.refused === true) return refused(String(data.problem ?? "fabrik refused it."));
   return { content: [{ type: "text", text: said(data ?? {}) }], structuredContent: data ?? {} };
+}
+
+/** One fabrik function's answer through the Data API as the person, for the card. */
+async function forCard(ctx: Ctx, fn: string, args: Record<string, unknown>, said: (data: Record<string, unknown>) => string): Promise<Result> {
+  const { data, error } = await ctx.fabrik.rpc(fn, args);
+  return error ? refused(error.message) : cardAnswer(data, said);
+}
+
+let sql: ReturnType<typeof postgres> | null = null;
+const db = () => sql ??= postgres(Deno.env.get("SUPABASE_DB_URL")!, { max: 1, prepare: false, idle_timeout: 1, connection: { application_name: "fabrik-apps logins" } });
+
+/** One call over this function's own connection, as the person the request's token names, at its sign-in level. Its
+ * refusal is fabrik's own sentence, which names no value given. */
+// deno-lint-ignore no-explicit-any
+async function asPerson(ctx: Ctx, call: (tx: any) => Promise<any>, said: (data: Record<string, unknown>) => string): Promise<Result> {
+  if (!ctx.person) return refused("fabrik couldn't confirm your sign-in. Sign in again, then try again.");
+  let data: unknown;
+  try {
+    data = await db().begin(async (tx) => {
+      await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: ctx.person, role: "authenticated", aal: ctx.aal ?? "aal1" })}, true)`;
+      return (await call(tx))[0]?.r ?? null;
+    });
+  } catch (error) {
+    return refused(String((error as Error)?.message ?? "fabrik couldn't finish that."));
+  }
+  return cardAnswer(data, said);
 }
 
 const showLogins = tool({
@@ -76,7 +107,7 @@ const loginOpen = appTool(["login"], {
   input: z.object({ login_id: z.string().regex(UUID), pass: passArg }),
   run: async (ctx, { login_id, pass }) => {
     if (!await passHolds(pass, ctx.person, Date.now(), CARD)) return refused(CARD_ONLY);
-    return forCard(ctx, "fabrik_open_login", { p_login: login_id }, () => "The login is open on the card.");
+    return asPerson(ctx, (tx) => tx`select fabrik.fabrik_open_login(${login_id}) as r`, () => "The login is open on the card.");
   },
 });
 
@@ -95,10 +126,8 @@ const loginSave = appTool(["login"], {
   }),
   run: async (ctx, a) => {
     if (!await passHolds(a.pass, ctx.person, Date.now(), CARD)) return refused(CARD_ONLY);
-    return forCard(ctx, "fabrik_save_login", {
-      p_login: a.login_id ?? null, p_scope: a.scope ?? null, p_service: a.service ?? null, p_web_address: a.web_address ?? null,
-      p_username: a.username ?? null, p_notes: a.notes ?? null, p_password: a.password,
-    }, (d) => `The login is ${d.saved}.`);
+    return asPerson(ctx, (tx) => tx`select fabrik.fabrik_save_login(${a.login_id ?? null}::uuid, ${a.scope ?? null}, ${a.service ?? null},
+      ${a.web_address ?? null}, ${a.username ?? null}, ${a.notes ?? null}, ${a.password}) as r`, (d) => `The login is ${d.saved}.`);
   },
 });
 
