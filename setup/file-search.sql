@@ -1776,8 +1776,8 @@ grant execute on function file_search.graph_held_chunks() to authenticated;
 
 -- Adds entities and relations to a chunk whose extraction was saved before, and keeps what is there. p_entities and
 -- p_relations take the shape save_extraction takes. A relation may name an entity this call gives or one the chunk
--- already holds, this call's first. An entity the chunk already holds keeps its description, and a relation it
--- already holds gains this call's keywords and description. The chunk's counts are those it holds after. Only the
+-- already holds, this call's first. An entity or a relation the chunk already holds is kept as it was saved, with its
+-- description, keywords and saver. The chunk's counts are those it holds after. Only the
 -- project's own functions call it, after checking the caller may read the chunk and may add to its bucket. Returns how
 -- many entities and relations were added, and how many the chunk holds.
 create or replace function file_search.add_extraction(p_chunk uuid, p_entities jsonb, p_relations jsonb,
@@ -1846,15 +1846,11 @@ begin
     where least(source_id, target_id)=least(a, b) and greatest(source_id, target_id)=greatest(a, b);
    end if;
   end if;
-  if exists (select 1 from file_search.relation_source where relation_id=rid and chunk_id=p_chunk) then
-   update file_search.relation_source s set keywords=(select coalesce(array_agg(distinct w order by w), '{}') from unnest(s.keywords||kw) w),
-    description=case when strpos(s.description, btrim(r->>'description'))>0 then s.description else left(s.description||' '||btrim(r->>'description'), 2000) end
-   where s.relation_id=rid and s.chunk_id=p_chunk;
-  else
-   insert into file_search.relation_source(relation_id, chunk_id, object_id, keywords, description, saved_by, saved_by_name)
-   values (rid, p_chunk, c.object_id, kw, btrim(r->>'description'), p_saved_by, p_saved_by_name);
-   n_r:=n_r+1;
-  end if;
+  insert into file_search.relation_source(relation_id, chunk_id, object_id, keywords, description, saved_by, saved_by_name)
+  values (rid, p_chunk, c.object_id, kw, btrim(r->>'description'), p_saved_by, p_saved_by_name)
+  on conflict (relation_id, chunk_id) do nothing;
+  get diagnostics n=row_count;
+  n_r:=n_r+n;
  end loop;
  select count(*) into held_e from file_search.entity_source where chunk_id=p_chunk;
  select count(*) into held_r from file_search.relation_source where chunk_id=p_chunk;
@@ -1865,4 +1861,4 @@ end $$;
 revoke all on function file_search.add_extraction(uuid,jsonb,jsonb,uuid,text) from public, anon, authenticated;
 
 -- The upgrades this build already contains, so a new project has none pending.
-insert into file_search.schema_upgrade(id) values ('0001-baseline'), ('0002-sentence-claim'), ('0003-graph-reader'), ('0004-claim-once'), ('0005-worker-budget'), ('0006-claim-source'), ('0007-any-word'), ('0008-retired-chunks'), ('0009-add-extraction') on conflict (id) do nothing;
+insert into file_search.schema_upgrade(id) values ('0001-baseline'), ('0002-sentence-claim'), ('0003-graph-reader'), ('0004-claim-once'), ('0005-worker-budget'), ('0006-claim-source'), ('0007-any-word'), ('0008-retired-chunks'), ('0009-add-extraction'), ('0010-add-keeps-saves') on conflict (id) do nothing;

@@ -544,7 +544,7 @@ These rules are adapted from EdgeQuake's entity extraction instructions, `edgequ
 
 **Terms of a class:**
 
-- `fabrik_get_unextracted` lists the glossary's terms that each name one thing of a class as `instances`, each `{"term", "class", "broader", "definition"}`, such as the topic Masks. `broader` names the term of the same class it comes under, or is null.
+- `fabrik_get_unextracted` lists the glossary's terms that each name one thing of a class as `instances`, each `{"term", "class", "broader"}`, such as the topic Masks. `broader` names the term of the same class it comes under, or is null. `get_reference` gives each term's definition.
 - A class with listed terms takes no other entity. An entity of that class is one of its terms, named exactly as the list names it.
 - Give a listed term when the part names it, or when the part is mainly about it. Leave out a term the part only touches in passing.
 - A part that names none of a class's terms, and is about none of them, gives no entity of that class.
