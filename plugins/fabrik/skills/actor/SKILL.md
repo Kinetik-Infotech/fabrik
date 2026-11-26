@@ -19,13 +19,13 @@ names the one for each task.
 
 Each connector serves one business's fabrik, and takes the business's name from the title of the business profile in
 General. It puts the name in quotes at the start of its instructions and of each tool's description, such as
-`"Kinetik" fabrik: `. Each result gives
-it as `fabrik`, with the project's reference. Where no profile is readable, or its name is more than a plain name of 60 characters, the connector names the project alone. A person can have two
-fabrik connectors in Claude, one for each business, whose tools have the same names. The agent calls the one that names
-the business the work is for, and reads `fabrik` in the result to check.
+`"Kinetik" fabrik: `. Each result gives it as `fabrik`, with the project's reference. Where no profile is readable, or
+its title holds more than a plain name of up to 60 characters, the connector names the project alone. A person can have
+two fabrik connectors in Claude, one for each business, whose tools have the same names. The agent calls the one that
+names the business the work is for, and reads `fabrik` in the result to check.
 
-The plugin's tools below reach what the connector has no tool for: a database function
-through `rpc`, files in the agent folder, and pages.
+The plugin's tools below reach what the connector has no tool for: a database function through `rpc`, files in the
+agent folder, and pages.
 
 Changes go through the assistant, `@fabrik:assistant`, which asks before each change. A session that is
 neither does not make changes itself with these tools.
