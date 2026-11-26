@@ -224,7 +224,7 @@ const settings = tool({
 
 const changeSettings = tool({
   name: "public_agent_settings_change",
-  description: "Change a public agent's model, a Claude model's id, or its daily_cap_tokens, from 1,000 to 100,000,000, or both. " +
+  description: "Change a public agent's model, a Claude model's id, or its daily_cap_tokens, from 5,000 to 100,000,000, or both. " +
     "page sets the chat page's address, which fabrik chat-page printed, for AGENTS.md. Gives the settings after the change, as " +
     "public_agent_settings does. Administrators only.",
   input: z.object({ agent: AGENT.optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional(), page: z.string().optional() }),

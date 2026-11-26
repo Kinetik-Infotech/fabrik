@@ -1879,7 +1879,7 @@ try {
   const paCreate = await tool(ownerToken, "public_agent_create", { agent: "chat", name: "Chat", purpose: "Answers questions about the joinery." });
   const paSave = await tool(ownerToken, "public_knowledge_save", { agent: "chat", text: "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" });
   const paGet = await tool(ownerToken, "public_knowledge_get", { agent: "chat" });
-  const paSettings = await tool(ownerToken, "public_agent_settings_change", { agent: "chat", daily_cap_tokens: 2000 });
+  const paSettings = await tool(ownerToken, "public_agent_settings_change", { agent: "chat", daily_cap_tokens: 5000 });
   const paStarting = await tool(ownerToken, "public_instructions_get", { agent: "chat" });
   const paVoice = "You are Rosie, the joinery's helper. Speak plainly and warmly.\n";
   const paInstructionsSave = await tool(ownerToken, "public_instructions_save", { agent: "chat", text: paVoice });
@@ -1931,7 +1931,7 @@ try {
       && [paNoPass, paOtherCard].every((r) => said(r) === "Only the public agent card sets its keys, and this one has expired. Show the public agent card again."),
     { paWrong, paNoPass, paOtherCard });
   check("public_knowledge_save keeps KNOWLEDGE.md, public_knowledge_get reads it back, and public_agent_settings_change sets the cap and gives the site key and the chat box's address",
-    ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 2000 && v(paSettings)?.turnstile_sitekey === SITEKEY
+    ok(paSave) && v(paGet)?.text === "# Opening hours\n\n9am to 5pm, Monday to Friday.\n" && v(paSettings)?.daily_cap_tokens === 5000 && v(paSettings)?.turnstile_sitekey === SITEKEY
       && v(paSettings)?.model === "claude-haiku-5-5" && v(paSettings)?.address === `http://127.0.0.1:${api.addr.port}/functions/v1/public-agent`, { paSave, paGet, paSettings });
   check("public_agent_create adds an agent whose INSTRUCTIONS.md starts as fabrik's starting rules, public_instructions_save replaces it, and the card lists each agent with its files",
     v(paCreate)?.slug === "chat" && v(paStarting)?.text === publicAgentModule.STARTING && ok(paInstructionsSave) && v(paInstructionsGet)?.text === paVoice
