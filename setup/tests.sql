@@ -1235,6 +1235,8 @@ begin
  if bad is not null then raise exception 'FAIL anon execute on task helpers: %',bad; end if;
  select string_agg(p.oid::regprocedure::text,', ') into bad from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='fabrik' and p.proname like 'fabrik\_%' escape '\'
+  -- The two that save and open a shared login's password are the fabrik-apps function's alone: suite 42 checks them.
+  and p.proname not in ('fabrik_open_login','fabrik_save_login')
   and (not has_function_privilege('authenticated',p.oid,'EXECUTE') or has_function_privilege('anon',p.oid,'EXECUTE'));
  if bad is not null then raise exception 'FAIL fabrik_* execute grants: %',bad; end if;
  select string_agg(p.oid::regprocedure::text,', ') into bad from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -4956,7 +4958,9 @@ begin
 end $mailbox$;
 
 -- -------------------------------------------------------------------
--- Suite: shared logins. A reader opens a login, and a person without a grant, one whose grant is limited to their own
+-- Suite: shared logins. The Data API refuses the functions that save and open a password to every token, the person's
+-- own included: the fabrik-apps function calls them as the person over its own connection, the postgres login, as
+-- these checks do. A reader opens a login, and a person without a grant, one whose grant is limited to their own
 -- records and an agent with a full grant do not. A change keeps the previous password, a removal deletes its Vault
 -- secrets, a scope that holds a login is not deleted, and the audit log gives each add, change, removal and opening
 -- without a password.
@@ -4986,8 +4990,12 @@ begin
    or has_function_privilege('service_role','fabrik_private.login_secret_read(uuid)','execute')
    or has_function_privilege('authenticated','fabrik_private.login_secret_new(text)','execute')
    or has_function_privilege('authenticated','fabrik_private.open_login(text)','execute')
-   or has_function_privilege('anon','fabrik.fabrik_open_login(text)','execute') then
-   raise exception 'FAIL logins: a client role reaches a login''s table or Vault function'; end if;
+   or has_function_privilege('anon','fabrik.fabrik_open_login(text)','execute')
+   or has_function_privilege('authenticated','fabrik.fabrik_open_login(text)','execute')
+   or has_function_privilege('authenticated','fabrik.fabrik_save_login(uuid,text,text,text,text,text,text)','execute')
+   or not has_function_privilege('postgres','fabrik.fabrik_open_login(text)','execute')
+   or not has_function_privilege('authenticated','fabrik.fabrik_find_logins(text)','execute') then
+   raise exception 'FAIL logins: a client role reaches a login''s table, its password or a Vault function'; end if;
   if exists(select 1 from pg_proc where oid in ('fabrik.fabrik_save_login(uuid,text,text,text,text,text,text)'::regprocedure,'fabrik.fabrik_open_login(text)'::regprocedure) and provolatile<>'v') then
    raise exception 'FAIL logins: fabrik_save_login or fabrik_open_login is not volatile, so the Data API takes it in a URL'; end if;
 
@@ -4997,16 +5005,21 @@ begin
   perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),r,sc,array['evidence'],null,array['read'],null,'Logins test'));
   perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),ag,sc,array['evidence'],null,array['read'],null,'Logins test'));
   perform pg_temp.raised(fabrik.fabrik_grant_permission(gen_random_uuid(),w,sc,array['evidence'],null,array['read','create'],null,'Logins test',true));
-  -- The administrator adds a login, and changes its password twice.
+  -- The administrator's own token is refused a save, as the Data API would call it.
+  msg:=null;
+  begin perform fabrik.fabrik_save_login(null,'auth_test_logins','Logins test direct','https://x.example.com/','direct@example.com',null,first_pw);
+  exception when insufficient_privilege then msg:=sqlerrm; end;
+  if msg is null then raise exception 'FAIL logins: the administrator''s token saved a login without the fabrik-apps function'; end if;
+  execute 'reset role';
+  -- The administrator adds a login through the function's connection, and changes its password twice.
   res:=pg_temp.raised(fabrik.fabrik_save_login(null,'auth_test_logins','Logins test portal','https://portal.example.com/','ops@example.com','Test notes',first_pw));
   lid:=(res->'login'->>'login_id')::uuid;
   if res->>'saved'<>'added' or lid is null or res::text like '%'||first_pw||'%' then raise exception 'FAIL logins: the add gave %',res; end if;
   res:=pg_temp.raised(fabrik.fabrik_save_login(lid,null,null,null,null,null,second_pw));
   if res->>'saved'<>'changed' or res->'fields'<>'["password"]'::jsonb or res->'login'->>'has_previous'<>'true' then raise exception 'FAIL logins: the change gave %',res; end if;
-  execute 'reset role';
   select secret_id,previous_secret_id into s1,s2 from fabrik_private.shared_login where login_id=lid;
-  execute 'set local role authenticated';
   perform pg_temp.raised(fabrik.fabrik_save_login(lid,null,null,null,null,null,third_pw));
+  execute 'set local role authenticated';
   -- A scope that holds a login is not deleted, and the refusal names it.
   msg:=null;
   begin perform pg_temp.raised(fabrik.fabrik_delete_scope('auth_test_logins','Logins test')); exception when foreign_key_violation then msg:=sqlerrm; end;
@@ -5018,17 +5031,23 @@ begin
   -- A Vault secret that is not a login's is not read through the login functions.
   if fabrik_private.login_secret_read(other) is not null then raise exception 'FAIL logins: login_secret_read reads another secret'; end if;
 
-  -- The reader lists and opens it, by its service in any case.
+  -- The reader lists it with their own token, which is refused its opening. Through the function's connection, the
+  -- reader opens it, by its service in any case.
   perform set_config('request.jwt.claims',jsonb_build_object('sub',r,'role','authenticated')::text,true);
   execute 'set local role authenticated';
   res:=fabrik.fabrik_find_logins();
   if jsonb_array_length(res->'logins')<>1 or res::text like '%Stored-check%' or res->>'administrator'<>'false' then raise exception 'FAIL logins: the reader''s list is %',res; end if;
+  msg:=null;
+  begin perform fabrik.fabrik_open_login('LOGINS TEST PORTAL'); exception when insufficient_privilege then msg:=sqlerrm; end;
+  if msg is null then raise exception 'FAIL logins: the reader''s own token opened a login without the fabrik-apps function'; end if;
+  execute 'reset role';
   res:=pg_temp.raised(fabrik.fabrik_open_login('LOGINS TEST PORTAL'));
   if res->>'password'<>third_pw or res->>'previous_password'<>second_pw or res->>'username'<>'ops@example.com' then
    raise exception 'FAIL logins: the reader opened %, %',res->>'username',res->>'service'; end if;
   -- The reader is refused a change and a removal.
   res:=fabrik.fabrik_save_login(lid,null,null,null,null,null,'Stored-check refused');
   if res->>'refused' is distinct from 'true' then raise exception 'FAIL logins: the reader changed a login'; end if;
+  execute 'set local role authenticated';
   res:=fabrik.fabrik_remove_login(lid);
   execute 'reset role';
   if res->>'refused' is distinct from 'true' then raise exception 'FAIL logins: the reader removed a login'; end if;
@@ -5039,8 +5058,8 @@ begin
    perform set_config('request.jwt.claims',jsonb_build_object('sub',who,'role','authenticated')::text,true);
    execute 'set local role authenticated';
    if jsonb_array_length(fabrik.fabrik_find_logins()->'logins')<>0 then raise exception 'FAIL logins: an actor who opens none lists the login'; end if;
-   res:=fabrik.fabrik_open_login(lid::text);
    execute 'reset role';
+   res:=fabrik.fabrik_open_login(lid::text);
    if res->>'refused' is distinct from 'true' or res ? 'password' then raise exception 'FAIL logins: an actor who opens none opened the login: %',res->>'problem'; end if;
   end loop;
   if (select count(*) from fabrik.refusal_event where function_name='fabrik_open_login' and actor_id in (o,w,ag))<>3 then

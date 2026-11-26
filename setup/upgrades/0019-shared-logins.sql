@@ -7,8 +7,9 @@
 -- whose grant in the login's scope holds read, unlimited, lists the logins with fabrik_find_logins, which gives no
 -- password, and opens one with fabrik_open_login, which gives its password and previous password. An agent or an
 -- application opens none. The audit log gives each add, change, removal and opening, without the password. A scope
--- that holds a login is not deleted. fabrik_save_login and fabrik_open_login change data, so the Data API takes them
--- only as a POST, with the password in the body. From HUMVI's upgrade 0143-shared-logins.
+-- that holds a login is not deleted. The Data API refuses fabrik_save_login and fabrik_open_login to every token: the
+-- fabrik-apps function calls them as the person, over its own database connection, for the Login card alone. From
+-- HUMVI's upgrade 0143-shared-logins.
 -- The same text is in setup.sql. Safe to run twice. Run as the postgres login.
 
 -- Each shared login. The password is the Vault secret secret_id, and the password before the last change
@@ -306,8 +307,12 @@ exception when insufficient_privilege then
 end $$;
 reset role;
 revoke create on schema fabrik from fabrik_writer;
-revoke all on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) from public, anon;
-grant execute on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) to authenticated;
+-- A password goes in or out only through the fabrik-apps function's own database connection, the postgres login,
+-- which calls fabrik_save_login and fabrik_open_login as the person once the Login card's pass holds. The Data API
+-- refuses both to every token, the person's own included, so an agent holding the person's sign-in opens and saves none.
+revoke all on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) from public, anon, authenticated;
+grant execute on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_open_login(text) to postgres;
+grant execute on function fabrik.fabrik_remove_login(uuid) to authenticated;
 
 set role fabrik_owner;
 -- Deletes an empty scope, its grants and its bucket, and logs it. fabrik_delete_scope calls it after

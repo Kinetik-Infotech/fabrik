@@ -8762,7 +8762,8 @@ notify pgrst, 'reload schema';
 -- fabrik keeps the logins a business's staff share for outside portals: each one's scope, service, web address,
 -- username and notes in fabrik_private.shared_login, and its password and previous password in Vault alone. A person
 -- who is an administrator adds, changes and removes a login, and a person whose grant in the login's scope holds read,
--- unlimited, opens it on the Login card. An agent or an application opens none.
+-- unlimited, opens it on the Login card. An agent or an application opens none. The Data API refuses the functions
+-- that save and open a password to every token, and the fabrik-apps function calls them for the Login card alone.
 
 -- Each shared login. The password is the Vault secret secret_id, and the password before the last change
 -- previous_secret_id. A service and username are one login, in any case.
@@ -9059,8 +9060,12 @@ exception when insufficient_privilege then
 end $$;
 reset role;
 revoke create on schema fabrik from fabrik_writer;
-revoke all on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) from public, anon;
-grant execute on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) to authenticated;
+-- A password goes in or out only through the fabrik-apps function's own database connection, the postgres login,
+-- which calls fabrik_save_login and fabrik_open_login as the person once the Login card's pass holds. The Data API
+-- refuses both to every token, the person's own included, so an agent holding the person's sign-in opens and saves none.
+revoke all on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_remove_login(uuid), fabrik.fabrik_open_login(text) from public, anon, authenticated;
+grant execute on function fabrik.fabrik_save_login(uuid,text,text,text,text,text,text), fabrik.fabrik_open_login(text) to postgres;
+grant execute on function fabrik.fabrik_remove_login(uuid) to authenticated;
 
 set role fabrik_owner;
 -- Deletes an empty scope, its grants and its bucket, and logs it. fabrik_delete_scope calls it after

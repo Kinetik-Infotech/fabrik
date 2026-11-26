@@ -665,6 +665,7 @@ A **shared login** is a username and password that the business's staff share fo
 - A person whose grant in the login's scope holds `read` lists and opens it. A grant limited to the person's own records, or to one record, opens none. An agent or an application opens none.
 - A person who is an administrator adds a login, changes it and removes it. fabrik keeps a login in a scope that is enabled and not private.
 - `fabrik_find_logins` lists the logins the person opens, with no password. `p_search` keeps those whose service, username or web address holds it.
+- The Data API refuses `fabrik_open_login` and `fabrik_save_login` to every sign-in, the person's own included. The fabrik-apps function calls them as the person, over its own database connection, for the Login card alone.
 - A change of password keeps the one before it as the previous password, and deletes the one before that.
 - The audit log, section 8, lists `login_added`, `login_changed`, `login_removed` and `login_opened`, with no password.
 - A scope that holds a login is not deleted. The refusal names each login, and an administrator removes them first.
