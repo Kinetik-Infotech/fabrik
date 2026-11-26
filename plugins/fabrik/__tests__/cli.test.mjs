@@ -97,26 +97,40 @@ test("a fabrik function is called in the fabrik schema, with objects, lists and 
   } finally { await project.close(); }
 });
 
-test("an object's fields may be given one at a time, and a list of files one file at a time", async () => {
+test("an object's fields may be given one at a time, and a list one item at a time", async () => {
   const project = await supabase();
   try {
     const me = person(project);
     const ran = await fabrik(me, ["fabrik_add_record", "p_scope=general", "p_fields.description=Two words", "p_fields.index=1.2", "progress_files=a.json", "progress_files=b.json"]);
     assert.equal(ran.code, 0, ran.err);
-    assert.deepEqual(JSON.parse(ran.out).received, { p_scope: "general", p_fields: { description: "Two words", index: "1.2" }, progress_files: [join(me.work, "a.json"), join(me.work, "b.json")] });
+    assert.deepEqual(JSON.parse(ran.out).received, { p_scope: "general", p_fields: { description: "Two words", index: "1.2" }, progress_files: ["a.json", "b.json"] });
     const twice = await fabrik(me, ["fabrik_add_record", "p_scope=general", "p_scope=other"]);
     assert.equal(twice.code, 2);
     assert.match(twice.err, /p_scope is given twice/);
   } finally { await project.close(); }
 });
 
-test("a field of an object is sent as typed, so a bucket path stays a bucket path", async () => {
+test("a fabrik function's arguments are sent as typed, so a bucket path stays a bucket path", async () => {
   const project = await supabase();
   try {
     const me = person(project);
     const ran = await fabrik(me, ["fabrik_purge_check", "body.bucket=finance", "body.file=reports/q3.pdf", "file=q3.pdf"]);
     assert.equal(ran.code, 0, ran.err);
-    assert.deepEqual(JSON.parse(ran.out).received, { body: { bucket: "finance", file: "reports/q3.pdf" }, file: join(me.work, "q3.pdf") });
+    assert.deepEqual(JSON.parse(ran.out).received, { body: { bucket: "finance", file: "reports/q3.pdf" }, file: "q3.pdf" });
+  } finally { await project.close(); }
+});
+
+test("a function's p_file is a Storage path, by rpc and by name, while result_file is written in the working folder", async () => {
+  const project = await supabase();
+  try {
+    const me = person(project);
+    const path = "general/substack/1.html";
+    const byRpc = await fabrik(me, ["rpc", "function=fabrik_tag_file", `args.p_file=${path}`, "args.p_terms=[\"Health\"]", "result_file=tagged.json"]);
+    assert.equal(byRpc.code, 0, byRpc.err);
+    assert.deepEqual(JSON.parse(readFileSync(join(me.work, "tagged.json"), "utf-8")), { received: { p_file: path, p_terms: ["Health"] } });
+    const byName = await fabrik(me, ["fabrik_get_file_parts", `p_file=${path}`]);
+    assert.equal(byName.code, 0, byName.err);
+    assert.deepEqual(JSON.parse(byName.out), { received: { p_file: path } });
   } finally { await project.close(); }
 });
 
