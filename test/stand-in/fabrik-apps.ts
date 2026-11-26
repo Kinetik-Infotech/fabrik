@@ -790,6 +790,40 @@ try {
   check("get_reference by a person with no read in the Reference scope is refused with fabrik's words",
     said(seen.outsiderGlossary) === "Scope or record unavailable", seen.outsiderGlossary);
 
+  // ---- Tags: save_term makes topics, tag_file tags a file read for connections with a subtopic and its topic, and tagged_files lists them ----
+  for (const [term, kind, definition, instance_of, broader] of [["topic", "class", "A subject the harbour's files are about.", undefined, undefined],
+    ["Harbour works", "term", "Repairs to the harbour's walls, cranes and berths.", "topic", undefined],
+    ["Crane cables", "term", "The cables of the quayside cranes.", "topic", "Harbour works"]])
+    seen[`topic ${term}`] = await tool(ownerToken, "save_term", { term, kind, definition, reason: "Connector test topic", ...(instance_of ? { instance_of } : {}), ...(broader ? { broader } : {}) });
+  seen.topicGlossary = await tool(ownerToken, "get_reference", { part: "glossary" });
+  const [{ chunk_id: quaysidePart }] = await sql`select c.chunk_id from file_search.chunk c join file_search.file_version f on f.version_id = c.version_id
+    where f.bucket_id = 'connector_granted' and f.name = 'surveys/quayside.md' and f.state = 'extracted' order by c.ordinal limit 1`;
+  seen.tagUnread = await tool(ownerToken, "tag_file", { scope: "Connector granted", path: "surveys/quayside.md", terms: ["Crane cables"] });
+  await sql`select file_search.save_extraction(${quaysidePart}::uuid, '[]'::jsonb, '[]'::jsonb, ${actor}::uuid, 'Connector test')`;
+  seen.tagged = await tool(ownerToken, "tag_file", { scope: "Connector granted", path: "surveys/quayside.md", terms: ["crane cables"] });
+  seen.readerTag = await tool(readerToken, "tag_file", { scope: "Connector granted", path: "surveys/quayside.md", terms: ["Harbour works"] });
+  seen.taggedFiles = await tool(ownerToken, "tagged_files", { term: "Harbour works" });
+  seen.termList = await tool(ownerToken, "tagged_files", {});
+  seen.outsiderTaggedFiles = await tool(outsiderToken, "tagged_files", { term: "Harbour works" });
+  // deno-lint-ignore no-explicit-any
+  const glossaryRow = (t: string) => v(seen.topicGlossary)?.rows?.find((x: any) => x.term === t);
+  check("save_term saves a topic and a subtopic under it, and get_reference gives each one's instance_of and broader",
+    ["topic topic", "topic Harbour works", "topic Crane cables"].every((k) => ok(seen[k]))
+      && glossaryRow("Crane cables")?.instance_of === "topic" && glossaryRow("Crane cables")?.broader === "Harbour works"
+      && glossaryRow("Harbour works")?.instance_of === "topic" && glossaryRow("Harbour works")?.broader === null,
+    { saves: ["topic topic", "topic Harbour works", "topic Crane cables"].map((k) => seen[k]), glossary: seen.topicGlossary });
+  check("tag_file refuses a file whose first part is not read for connections yet",
+    said(seen.tagUnread)?.startsWith('The first part of "surveys/quayside.md" is not read for connections yet') === true, seen.tagUnread);
+  check("tag_file tags a read file with the subtopic and the topic it comes under, as the glossary writes them",
+    ok(seen.tagged) && JSON.stringify(v(seen.tagged)?.tags) === JSON.stringify(["Crane cables", "Harbour works"]) && v(seen.tagged)?.added_entities === 2, seen.tagged);
+  check("tag_file by a person with read and no create in the scope is refused", said(seen.readerTag) === "Tagging a file needs create permission in its scope", seen.readerTag);
+  check("tagged_files gives a term's files, those of a term under it among them, and with no term gives each term with its count",
+    JSON.stringify(v(seen.taggedFiles)?.files?.map((f: { file: string; terms: string[] }) => [f.file, f.terms]))
+      === JSON.stringify([["surveys/quayside.md", ["Crane cables", "Harbour works"]]])
+      && JSON.stringify(v(seen.termList)?.terms?.map((t: { term: string; files: number }) => [t.term, t.files])) === JSON.stringify([["Harbour works", 1], ["Crane cables", 1]]),
+    { taggedFiles: seen.taggedFiles, termList: seen.termList });
+  check("tagged_files gives a person with no grant no file", ok(seen.outsiderTaggedFiles) && v(seen.outsiderTaggedFiles)?.total === 0, seen.outsiderTaggedFiles);
+
   // ---- The memory tools, as the owner, in General, which the stand-in makes as setup makes it; and the outsider ----
   await sql`insert into fabrik.scope(code, display_name, description, created_by) select 'general', 'General', 'Stand-in fixture', ${actor}
     where not exists (select 1 from fabrik.scope where code = 'general')`;
@@ -1551,6 +1585,9 @@ try {
   const ownerPass = connCard.result?._meta?.pass;
   // The glossary's classes are made plain terms while the key is saved, as a project whose glossary setup left empty: the card
   // then says connections wait for a class, and so do show_connections_setup and a search. They are made classes again after.
+  // A term's class and broader term are set aside first, as a class some term is one of cannot become a plain term.
+  const instances = await sql`select term, instance_of, broader from fabrik.glossary_term where instance_of is not null`;
+  await sql`update fabrik.glossary_term set instance_of = null, broader = null where instance_of is not null`;
   const classes = (await sql`update fabrik.glossary_term set kind = 'term' where kind = 'class' returning term`).map((r) => r.term as string);
   connCard.doc.getElementById("cs-key").value = ANTHROPIC_KEY;
   const callsBefore = readerCalls.length;
@@ -1562,6 +1599,7 @@ try {
   const waitingShow = await tool(ownerToken, "show_connections_setup", {});
   const waitingSearch = await tool(ownerToken, "search", { query: "quayside" });
   await sql`update fabrik.glossary_term set kind = 'class' where term = any(${classes}::text[])`;
+  for (const i of instances) await sql`update fabrik.glossary_term set instance_of = ${i.instance_of}, broader = ${i.broader} where term = ${i.term}`;
   const classSearch = await tool(ownerToken, "search", { query: "quayside" });
   const savedWithClass = await tool(ownerToken, "card_call", { card: "connections-setup", name: "connections_setup_save", arguments: { key: ANTHROPIC_KEY, pass: ownerPass } });
   const onAgain = await tool(ownerToken, "show_connections_setup", {});

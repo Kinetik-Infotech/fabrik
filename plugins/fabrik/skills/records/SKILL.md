@@ -494,6 +494,12 @@ Each new part of a file is read once, by one of two readers:
 
 `fabrik_get_graph_reader` says which: `on`, and `scopes`, the scopes fabrik reads that the person may read. `waiting_for_classes` true means connections are on but fabrik reads no part, because the glossary has no class. A person corrects a part's entities and relations in a scope where they may read and create. A person's save of a part stands: a later answer from Claude for that part is set aside.
 
+**Tags.** A glossary term can name one thing of a class, such as the topic Masks of the class `topic`. Its `instance_of` names the class, and its `broader` names the term of the same class it comes under, such as a topic for a subtopic. The `fabrik:reference` skill says how to save them. An entity of a class that has such terms is one of them, and fabrik saves each term it comes under with it.
+
+A file is tagged with such a term when one of its parts holds the term's entity. fabrik tags each new part with the terms it names or is about as it reads it, by section 19. A part about none gets none. A person tags a file read before with `tag_file`, and `tagged_files` lists a term's files. A search finds a tagged file through its term's name.
+
+A save with `p_replace` true replaces a part's tags too, so the agent gives the part's tags again in that save. To add a tag, or any entity or relation, to a part already read, the agent uses `fabrik_add_extraction` instead, which keeps what the part holds.
+
 The agent names a part not yet read as "waiting to be read for connections". It names a part still waiting for its text or its vector as one fabrik is still preparing. It names a failed part as one fabrik could not read, with its reason.
 
 - **Responsible:** fabrik, for each new part of a scope it reads while connections are on. The actor whose agent reads a part, or who corrects one.
@@ -508,6 +514,9 @@ The agent names a part not yet read as "waiting to be read for connections". It 
   7. Reports how many parts it saved, and the entities and relations each save gave.
   8. For each file it read that holds a plan, a table or a list, offers the file's database form, as section 6 says.
   9. Asked to correct a part's entities and relations, calls `read_file` with the file's `scope` and `path`, which gives each part with its `chunk_id`, reads the part's `text` by section 19, and saves it with `p_replace` true. A person with read and create in the scope replaces fabrik's own save. The actor who saved a part, or an administrator, replaces any other save.
+  10. Asked to add an entity or a relation to a part already read, calls `fabrik_add_extraction`. It gives the part's `chunk_id` and the new entities and relations, in the shape section 19 gives. A relation may name an entity the part already holds. It needs read and create in the scope, and keeps the part's other entities and relations.
+  11. Asked to tag files, such as with topics, calls `tag_file` with each file's `scope`, `path` and `terms`, as the glossary names them. fabrik adds the terms each comes under, and a tag the file has already adds nothing. A file whose first part is not read yet is refused: the agent tags it once the part is read. Given a list of files and their terms, it tags each file in turn. It reports how many it tagged, and each refusal with its reason.
+  12. Asked which files are about a term, such as a topic, calls `tagged_files` with the term. With no term, it gives each such term and how many files it tags.
 - **Evidence:** each call's result, quoted.
 
 **AI guided:** the agent shows the person each part's entities and relations before it saves them, and waits for their approval.
@@ -532,6 +541,14 @@ These rules are adapted from EdgeQuake's entity extraction instructions, `edgequ
 - A relation's name is exactly one of those relationships, such as `places`, from a `customer` to an `order`. It goes from an entity of its `from_class` to an entity of its `to_class`.
 - There is no other type and no other relation name. A thing that fits no class is left out, and so is a relation that fits no relationship.
 - When a part names something that matters and fits no class, or a relation that fits no relationship, a person's agent may propose a new class or relationship to the person, through the `fabrik:reference` skill. It is saved only when the person approves. The agent then reads the part again, with the new class or relationship. Until the person decides, the agent leaves that part unsaved.
+
+**Terms of a class:**
+
+- `fabrik_get_unextracted` lists the glossary's terms that each name one thing of a class as `instances`, each `{"term", "class", "broader", "definition"}`, such as the topic Masks. `broader` names the term of the same class it comes under, or is null.
+- A class with listed terms takes no other entity. An entity of that class is one of its terms, named exactly as the list names it.
+- Give a listed term when the part names it, or when the part is mainly about it. Leave out a term the part only touches in passing.
+- A part that names none of a class's terms, and is about none of them, gives no entity of that class.
+- fabrik adds the terms a given term comes under itself, so the answer needn't give them.
 
 **Each part.** Read the part's `text` alone. Use nothing from other parts, other files or the agent's own knowledge.
 
@@ -593,7 +610,7 @@ Save the part with `fabrik_save_extraction`. In this example, the glossary has t
 
 A part with nothing to save is saved with two empty lists, and counts as read.
 
-fabrik refuses an entity whose type is not a class, a relation whose `relationship` is not a relationship in the glossary, and a relation whose ends' classes are not the relationship's `from_class` and `to_class`. It merges an entity with one already saved of the same name and type, in any case and spacing. It keeps each part's description beside the others.
+fabrik refuses an entity whose type is not a class, and one of a class with listed terms that is none of them. It refuses a relation whose `relationship` is not in the glossary, and one whose ends' classes are not the relationship's `from_class` and `to_class`. It merges an entity with one already saved of the same name and type, in any case and spacing. It keeps each part's description beside the others.
 
 ## 20. Private scopes
 
