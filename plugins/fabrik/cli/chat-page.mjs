@@ -86,11 +86,15 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const fill = (text, values) => text.replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => values[k]);
   const template = readFileSync(join(SOURCE, "page.html"), "utf8");
   const style = pageStyle(brand), logo = headLogoHtml(brand, "logo");
+  // A page's heading beside a logo that already shows it, the business's own name or the logo's alt text, is kept for
+  // screen readers and hidden from view.
+  const shown = new Set([business, brand?.logo?.alt ?? ""].map(n => n.trim().toLowerCase()).filter(Boolean));
+  const heading = name => `<h1${brand?.logo && shown.has(name.trim().toLowerCase()) ? ' class="in-logo"' : ""}>${esc(name)}</h1>`;
   // The tab's icon: the brand's logo where it has one, and fabrik's mark otherwise.
   const icon = esc(brand?.logo?.src || FABRIK_MARK);
   const list = `<ul class="agents">${agents.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
-  const root = fill(template, { TITLE: esc(business || "Ask a question"), NAME: esc(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, NAV: "", MAIN: list, SCRIPT: "" });
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, NAV: "", MAIN: list, SCRIPT: "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
   const fallback = agents.some(a => a.slug === "chat") ? "chat" : "";
@@ -104,7 +108,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
-      TITLE: esc(business ? `${a.name} | ${business}` : a.name), NAME: esc(a.name), STYLE: style, LOGO: logo, ICON: icon, NAV: nav(a.slug),
+      TITLE: esc(business ? `${a.name} | ${business}` : a.name), HEADING: heading(a.name), STYLE: style, LOGO: logo, ICON: icon, NAV: nav(a.slug),
       MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}></script>`,
     }));
   }

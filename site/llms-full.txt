@@ -797,7 +797,9 @@ Each answer uses some of your Anthropic API credits. Each agent has a daily limi
 
 ## What visitors asked
 
-Every question an agent answers is kept in your own Supabase project, with the answer the visitor got. fabrik's makers never see them. A conversation is known only by a random number the chat page makes when it opens, and a reload starts a new one. Nothing that identifies a visitor is kept: no IP address, no cookie and no browser details. Under the chat box, the page says your business keeps the conversation.
+Every question an agent answers is kept in your own Supabase project, with the answer the visitor got. fabrik's makers never see them. A conversation is known only by a random number the chat page makes.
+
+The visitor's browser tab keeps each agent's conversation, so they can move between your agents' pages and come back to it. The tab forgets it when it closes. Nothing that identifies a visitor is kept: no IP address, no cookie and no browser details. Under the chat box, the page says your business keeps the conversation.
 
 Ask Claude what visitors asked this week, or about one agent, and it lists the conversations with each one's first question. Ask to see a conversation and Claude shows it whole. When visitors keep asking something an agent can't answer, Claude offers to add the answer to its KNOWLEDGE.md.
 
