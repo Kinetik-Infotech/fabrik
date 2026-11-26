@@ -445,7 +445,8 @@ try {
   const [cartons] = await upload("graph_test", "cartons.md", ["Northfield Packaging's double-wall cartons take 30 kg each."]);
   const [{ r: unread }] = await asUser(person, (tx) => tx`select fabrik.fabrik_get_unextracted('graph_test', 5) as r` as any);
   check("fabrik_get_unextracted lists the glossary's terms of a class, each with its class and broader term, and no plain term",
-    JSON.stringify(unread.instances.map((t: any) => [t.term, t.class, t.broader])) === JSON.stringify([["Carton strength", "topic", "Packaging"], ["Packaging", "topic", null]]), unread.instances);
+    JSON.stringify(unread.instances.map((t: any) => [t.term, t.class, t.broader])) === JSON.stringify([["Carton strength", "topic", "Packaging"], ["Packaging", "topic", null]])
+      && unread.instances.every((t: any) => !("definition" in t)), unread.instances);
   res = await call(secret, {});
   const [topicBatch, tb] = lastBatch();
   const topicRequest = tb.requests.find((r: any) => r.custom_id === cartons)?.params;
@@ -515,6 +516,14 @@ try {
   check("fabrik_add_extraction adds an entity and a relation to an entity the part already holds, and keeps the rest",
     added.added_entities === 1 && added.added_relations === 1 && added.entities === 5 && added.relations === 2
       && JSON.stringify(await graphFindings()) === JSON.stringify(before), added);
+  // A relation the part already holds stays as Graph reader saved it.
+  const heldRelation = async () => (await sql`select rs.description, rs.keywords, rs.saved_by from file_search.relation_source rs where rs.chunk_id=${ours[0]}::uuid
+    and rs.saved_by=${g}::uuid`).map((r) => JSON.stringify(r));
+  const heldBefore = await heldRelation();
+  const [{ r: readded }] = await asUser(person, (tx) => tx`select fabrik.fabrik_add_extraction(${ours[0]}::uuid, '[]'::jsonb,
+    '[{"source":"Northfield Packaging","target":"AC-01","relationship":"supplies","keywords":["corrected"],"description":"Another account of it."}]'::jsonb) as r` as any);
+  check("fabrik_add_extraction leaves a relation the part already holds as Graph reader saved it",
+    readded.added_relations === 0 && heldBefore.length === 1 && JSON.stringify(await heldRelation()) === JSON.stringify(heldBefore), { readded, heldBefore });
   const invented = await refusal((tx) => tx`select fabrik.fabrik_add_extraction(${ours[0]}::uuid, '[{"name":"Corrugation","type":"topic","description":"Board."}]'::jsonb)`);
   check("fabrik_add_extraction refuses a term its class lacks", invented?.startsWith('The topic "Corrugation" is not one of the glossary\'s terms of that class') === true, invented);
   const [fresh] = await upload("graph_test", "unread.md", ["Brightway stocks AC-02."]);
