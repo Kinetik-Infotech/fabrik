@@ -14,13 +14,15 @@ const section = skill.slice(start, end);
 const credit = section.match(/^These rules are adapted from .*$/m)?.[0];
 const from = section.indexOf("**Types and relationships:**"), to = section.indexOf("**The save:**");
 if (!credit || from < 0 || to < 0) throw new Error("Section 19 has no credit line, Types and relationships or The save");
-// The classes and relationships come from the glossary, listed after the rules, in place of the agent's call. The
+// The classes, relationships and terms of a class come from the glossary, listed after the rules, in place of the agent's call. The
 // proposal of a new class is the person's agent's, and is left out.
-const listed = /^- `fabrik_get_unextracted` lists .*$/m;
+const listed = /^- `fabrik_get_unextracted` lists the glossary's classes .*$/m;
+const instances = /^- `fabrik_get_unextracted` lists the glossary's terms that each name .*$/m;
 const proposal = /^- When a part names something that matters and fits no class.*$\n?/m;
 let rules = section.slice(from, to).trim();
-if (!listed.test(rules) || !proposal.test(rules)) throw new Error("Section 19's Types and relationships no longer start with the fabrik_get_unextracted line, or no longer end with the proposal line");
+if (!listed.test(rules) || !instances.test(rules) || !proposal.test(rules)) throw new Error("Section 19's Types and relationships no longer start with the fabrik_get_unextracted line, its Terms of a class no longer start with theirs, or the proposal line is gone");
 rules = rules.replace(listed, "- The glossary's classes, and its relationships, each from a class to a class, are listed after these rules.")
+  .replace(instances, "- The glossary's terms that each name one thing of a class, such as its topics, are listed after its relationships when it has any. Each gives its class, the term it comes under, and the start of its definition.")
   .replace(proposal, "").trim();
 
 const prompt = `You read one part of a file kept in a business's knowledge base, and write down the things the part names, and how they relate.
