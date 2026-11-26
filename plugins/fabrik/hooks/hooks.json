@@ -12,6 +12,15 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/actor-file-edit.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Agent|Task|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/login-guard.mjs\""
+          }
+        ]
       }
     ],
     "Stop": [

@@ -30,6 +30,8 @@ Most assistants keep your data on their makers' servers, for those companies to 
 
 Claude shows your records, lists, boards and graphs as cards you can work with, as an app would. You make each decision in one click, as in the apps you already know. A business's cards and printed pages take its own brand.
 
+The Login card keeps the logins your staff share for outside portals. An administrator adds each one in a scope, and anyone who reads that scope opens it on the card and copies its password. fabrik keeps the password in your project's encrypted store, and Claude never sees it.
+
 ## Your routines
 
 Say "Let's get started" and Claude asks whether fabrik is for a business, your own life, or both. For a business, it reads the website for its profile and brand. It asks what you want from each routine, such as triaging your email or creating invoices. For one of them, it writes down how it runs today, and which applications must stay. Then it designs a better way with the connectors and plugins you have or could add. Once you approve the design, Claude follows it whenever it does that work for you.
