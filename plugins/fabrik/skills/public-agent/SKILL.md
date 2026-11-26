@@ -61,7 +61,7 @@ The file is at most 100,000 characters. Every question sends the agent's three f
 
 ## 4. The chat pages
 
-fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. Beside a logo, a page heading that is the business's own name is hidden, since the logo shows it. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
+fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. Beside a logo, a page heading that is the business's own name, or the logo's alt text, is hidden, since the logo shows it. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.

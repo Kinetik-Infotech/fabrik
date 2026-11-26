@@ -29,11 +29,16 @@
   // This agent's conversation in the tab's session storage: { conversation, turns, shown }, shown being each message
   // drawn, as { text, kind, at }. Storage the browser refuses leaves the conversation in the page alone.
   var KEY = "fabrik-chat:" + (agent || "chat");
+  // The most messages kept to draw again: the latest, as session storage is shared by every agent of the chat's address.
+  var SHOWN = 100;
+  var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   function stored() {
     try { var v = JSON.parse(window.sessionStorage.getItem(KEY) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; }
   }
   function store() {
-    try { window.sessionStorage.setItem(KEY, JSON.stringify({ conversation: conversation, turns: turns, shown: shown })); } catch (e) { /* the page alone */ }
+    // Storage that refuses the write, as when it is full, holds no older copy of the conversation either.
+    try { window.sessionStorage.setItem(KEY, JSON.stringify({ conversation: conversation, turns: turns, shown: shown })); }
+    catch (e) { try { window.sessionStorage.removeItem(KEY); } catch (f) { /* the page alone */ } }
   }
 
   // A random UUID. randomUUID exists only on https and in newer browsers, so getRandomValues makes one elsewhere. With
@@ -118,6 +123,7 @@
     li.className = kind;
     linked(li, text);
     var now = at ? new Date(at) : new Date(), time = document.createElement("time");
+    if (isNaN(now.getTime())) now = new Date();
     time.dateTime = now.toISOString();
     time.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     li.appendChild(time);
@@ -140,12 +146,23 @@
 
   if (!address) { line("This chat box needs data-address on its script tag.", "problem"); form.hidden = true; return; }
 
-  // The conversation this tab had with this agent, drawn again, or a new one.
+  // The conversation this tab had with this agent, drawn again, or a new one. A stored conversation is taken whole only
+  // as the function takes it: its id a UUID, or none where the browser could make none, and its turns each a question then
+  // its answer, none of them empty. Anything else starts afresh.
+  function pairs(list) {
+    if (!Array.isArray(list) || list.length % 2) return false;
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i];
+      if (!t || t.role !== (i % 2 ? "assistant" : "user") || typeof t.content !== "string" || !t.content.trim()) return false;
+    }
+    return true;
+  }
   var earlier = stored();
-  if (earlier && typeof earlier.conversation === "string" && Array.isArray(earlier.turns) && Array.isArray(earlier.shown)) {
+  if (earlier && (earlier.conversation === null || (typeof earlier.conversation === "string" && UUID.test(earlier.conversation)))
+    && pairs(earlier.turns) && Array.isArray(earlier.shown)) {
     conversation = earlier.conversation;
-    turns = earlier.turns.filter(function (t) { return t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string"; });
-    shown = earlier.shown.filter(function (m) { return m && typeof m.text === "string" && (m.kind === "q" || m.kind === "a"); });
+    turns = earlier.turns;
+    shown = earlier.shown.filter(function (m) { return m && typeof m.text === "string" && (m.kind === "q" || m.kind === "a"); }).slice(-SHOWN);
     shown.forEach(function (m) { line(m.text, m.kind, m.at); });
   } else conversation = newId();
 
@@ -223,6 +240,7 @@
         turns.push({ role: "user", content: question }, { role: "assistant", content: r.body.answer });
         turns = turns.slice(-TURNS * 2);
         shown.push({ text: question, kind: "q", at: asked }, { text: r.body.answer, kind: "a", at: answered });
+        shown = shown.slice(-SHOWN);
         store();
       } else line(r.body.problem || "The assistant can't answer right now. Try again later.", "a problem");
     }, function () {
