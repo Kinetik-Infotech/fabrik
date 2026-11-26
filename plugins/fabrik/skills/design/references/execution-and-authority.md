@@ -37,10 +37,17 @@ fabrik schedules nothing. The person may run a routine on a schedule with one of
 | `tool` | the application or connector, or `none` |
 | `has_tool` | `yes` or `no` |
 | `tool_source` | from the stock-take |
-| `confirmed_by` | who says yes before it takes effect |
+| `confirmed_by` | who says yes before it takes effect, or empty when it runs without asking |
+| `auto_for` | the email addresses of requesters whose cases the step runs for without asking |
+| `cases` | the step's case lists, each named, such as `customers` or `sources`; an empty list covers every case |
+| `settings` | each value the step reads, by name, such as a look-back in days or a channel |
 | `if_it_fails` | what happens when input is missing or a tool is down |
 
-Each failure route ends with the person. A retry reads the inputs again first.
+Each attribute but `done_by` is optional. Each failure route ends with the person. A retry reads the inputs again first.
+
+The routine holds every value a step reads. A rule the person states goes in the step's attributes, not in its text. Such a rule might name who is asked, which customers a step covers or how many days it looks back. When the agent reviews a design, it asks the person for each value a step reads and the attributes lack. A step whose value is missing is handed over when it runs, never given a value the agent chose.
+
+`auto_for` doesn't change what the person approves. A step that sends, pays, books, buys, accepts terms or deletes waits for the person's approval in the session, whoever asked.
 
 Each Claude step starts untested. The person checks each result until they trust it. The design names what they check, and what counts as wrong.
 
@@ -48,4 +55,4 @@ Each Claude step starts untested. The person checks each result until they trust
 
 The summary lists every step with who does it, its tool, whether the person has the tool, and who confirms it. Each step is assigned, or carries the reason it is not. A step that changes is assessed again before the design is drawn.
 
-A worked line, for an invoicing routine: "3. Draft the invoice: Claude, bounded, from the job record, through the accounting connector the person has; confirmed by Sam before it is sent."
+A worked line, for an invoicing routine: "3. Draft the invoice: Claude, bounded, from the job record, through the accounting connector the person has; confirmed by Sam before it is sent, except for Sam's own requests; for every customer."

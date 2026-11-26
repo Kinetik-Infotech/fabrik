@@ -43,6 +43,44 @@ BROWSERS = {
 }
 STATE_NAMES = {"pending": "Pending", "in_progress": "In progress", "paused": "Paused",
                "completed": "Completed", "cancelled": "Cancelled"}
+# A routine step's attributes, in the order a state machine page's card and outline give them, with
+# their names there. The page shell's stepLines gives the same lines on the card.
+STEP_ATTRIBUTES = [("done_by", "Done by"), ("tool", "Tool"), ("has_tool", "Has the tool"),
+                   ("tool_source", "Tool source"), ("confirmed_by", "Confirmed by"),
+                   ("auto_for", "Runs without asking for"), ("cases", None), ("settings", "Settings"),
+                   ("if_it_fails", "If it fails")]
+DONE_BY = {"person": "a person", "code": "code", "claude_bounded": "Claude, bounded",
+           "claude_open": "Claude, open-ended"}
+
+
+def step_text(value):
+    """A step attribute's value as one line: a list joined with commas, an object as name: value pairs."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, list):
+        return ", ".join(t for t in (step_text(v) for v in value) if t)
+    if isinstance(value, dict):
+        return ", ".join(f"{k}: {step_text(v)}" for k, v in value.items())
+    return str(value)
+
+
+def step_lines(properties):
+    """The (name, text) lines a step's attributes give. Each case list names its cases, or every case when empty."""
+    lines = []
+    for key, label in STEP_ATTRIBUTES:
+        if key not in properties:
+            continue
+        value = properties[key]
+        if key == "cases" and isinstance(value, dict):
+            for name, cases in value.items():
+                lines.append((name.replace("_", " ").capitalize(), step_text(cases) or "every case"))
+            continue
+        text = DONE_BY.get(value, step_text(value)) if key == "done_by" else step_text(value)
+        if text:
+            lines.append((label, text))
+    return lines
 
 
 def browser():
@@ -522,6 +560,8 @@ def check_state_machine(page_path, title, line, graph_data, sm_data):
         out = [f"{indent}- {n['reference'] or '(no reference)'} {n['name']} · {n['typeLabel']}{tags}"]
         if n.get("description"):
             out.extend(quoted(n["description"], indent + "  "))
+        for label, text in step_lines(detail.get(n["id"], {}).get("properties", n.get("properties", {}))):
+            out.append(f"{indent}  {label}: {text}")
         for category, heading in (("actors", "Actors"), ("applications", "Applications"), ("data", "Data")):
             linked = detail.get(n["id"], {}).get("links", {}).get(category, [])
             if linked:
@@ -529,8 +569,8 @@ def check_state_machine(page_path, title, line, graph_data, sm_data):
         return out
 
     lines = [f"# State machine: {title}", "", line, "",
-             "Each routine in order, with its states in order as reference, name, type and tags, then the "
-             "drawn objects. The transitions, dependencies and routes follow.", ""]
+             "Each routine in order, with its states in order as reference, name, type and tags, and each "
+             "step's attributes, then the drawn objects. The transitions, dependencies and routes follow.", ""]
     states = [n for n in nodes if n["kind"] == "node" and n["role"] != "group"]
     for g in graph_data["groups"]:
         heading = f"{g['reference']} {g['name']}" if g.get("reference") else g["name"]

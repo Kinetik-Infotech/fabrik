@@ -668,7 +668,13 @@ With no design selected, the version in force is the `<routine>: current state` 
 
 `list_records` matches each word of `title` anywhere in a record's title, so it also finds other routines whose names hold the same words. The agent keeps only the record whose title is exactly `<routine>: design choice` or `<routine>: current state`, ignoring case.
 
-Before work a routine covers, the agent finds that routine and reads its version in force. It names the version it follows, and follows its steps. A step the routine assigns to the person stays theirs. When the person asks to work differently, the agent does as asked. It offers to record the change as a new version of the routine.
+Before work a routine covers, the agent finds that routine and reads its version in force. It names the version it follows, and follows its steps. A step the routine assigns to the person stays theirs.
+
+The routine holds every value its steps run by, in each step's node's `attributes`, as the `fabrik:design` skill's section 6 says. `confirmed_by` names who says yes before the step runs, and is empty for a step that runs without asking. `auto_for` lists the email addresses of requesters whose cases run the step without asking. `cases` holds the step's case lists, each named, such as `customers` or `sources`. `settings` holds each value the step reads, such as a look-back in days or a channel.
+
+This skill holds the mechanics alone. A value the routine lacks is never given a default.
+
+A gap is a step that is missing, or wrong for the case. The agent may find one, or the person may name one, or ask to work differently. The agent then offers the change as a new version of the routine before the work goes on. That is a new version of the selected design, or of the confirmed current state where no design is selected. It saves the version only once the person says yes.
 
 - **Responsible:** the agent, for the person who asked.
 - **Person:** names the work or the routine. `list_records` finds the routine's records, and `get_record` reads them.
@@ -679,7 +685,11 @@ Before work a routine covers, the agent finds that routine and reads its version
   4. With no selection, calls `list_records` with `kind` `model` and `title` `<routine> current state`, keeps the record titled exactly `<routine>: current state`, and reads it with `get_record`. It is in force when its `payload` has `model_kind` `observed_current`, a confirmed `source_status`, and a `routine` node whose `basis` is `performed`.
   5. With neither, says the routine has no version in force. When the routine is not written down, it offers the `interview` skill. When the routine's basis is `intended`, it offers the `design` skill.
   6. Names in one line the routine, the version it follows, and whether it is a selected design or the confirmed current state.
-- **Evidence:** the version in force's `record_id` and `version_id`, and the decision that selected it where there is one.
+  7. Keeps the steps for the case. A step runs where each of its `cases` lists is empty or names the case's value, such as its customer. A step with no `cases` runs for every case.
+  8. Runs a step without asking where its `confirmed_by` is empty, or its `auto_for` names the email address of the person who asked. Otherwise it shows what the step will do, asks the person `confirmed_by` names, and waits. A step that sends, pays, books, buys, accepts terms or deletes waits for the person's approval in the session, whatever `auto_for` says.
+  9. Hands a step over to the person where its `settings` lack a value the step reads. It names the step and the value, and goes on with the steps that don't need it.
+  10. At a gap, stops before the step and offers the change. It drafts the new version with `save_record` and `preview` true, as the `fabrik:design` skill's section 7 says, or as the `fabrik:interview` skill's section 5 saves a current state. It saves the version once the person says yes. A new current state is in force once saved with the person's confirmation. A new design is in force once the person selects it in `<routine>: design choice`, as the design skill's section 8 says. Until then the agent follows the version in force, and hands the gap's step over.
+- **Evidence:** the version in force's `record_id` and `version_id`, and the decision that selected it where there is one. Each step run without asking, with its reason. Each step handed over, with the value it lacked. Each new version saved for a gap.
 
 **AI guided:** the agent names the version it found, and waits for the person's approval before the first step.
 

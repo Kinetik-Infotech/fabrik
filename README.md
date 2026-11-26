@@ -34,6 +34,8 @@ Claude shows your records, lists, boards and graphs as cards you can work with, 
 
 Say "Let's get started" and Claude asks whether fabrik is for a business, your own life, or both. For a business, it reads the website for its profile and brand. It asks what you want from each routine, such as triaging your email or creating invoices. For one of them, it writes down how it runs today, and which applications must stay. Then it designs a better way with the connectors and plugins you have or could add. Once you approve the design, Claude follows it whenever it does that work for you.
 
+Everything a step runs by belongs to the routine. That covers who confirms it and whose requests it runs for without asking. It also covers the cases it takes and the values it reads. When a step is missing or wrong, Claude offers a new version of the routine before it goes on.
+
 ## What comes with it
 
 fabrik ships three plugins for Claude, on top of Claude's own connectors and plugins.
