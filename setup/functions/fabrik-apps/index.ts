@@ -418,13 +418,17 @@ export function findGuide(about: string) {
     const best = GUIDES.reduce((a, g) => shared(g) > shared(a) ? g : a);
     return shared(best) > 0 ? { guide: best, also: [] as typeof GUIDES } : null;
   }
+  // A guide whose text alone shares one word with the question scores nothing: a word such as weather, in one guide's
+  // list of connectors, is no sign that the guide answers What is the weather in Paris?
   const scored = GUIDE_WORDS.map(({ guide, title, text }) => {
-    let score = 0;
+    let score = 0, shared = 0, inTitle = false;
     for (const w of words) {
       if (!text.has(w) && !title.has(w)) continue;
+      shared += 1;
+      inTitle ||= title.has(w);
       score += Math.log(1 + GUIDES.length / (SPREAD.get(w) ?? 1)) * (title.has(w) ? 3 : 1);
     }
-    return { guide, score };
+    return { guide, score: inTitle || shared >= 2 ? score : 0 };
   }).sort((a, b) => b.score - a.score);
   if (scored[0].score < ENOUGH) return null;
   return { guide: scored[0].guide, also: scored.slice(1, 3).filter((s) => s.score >= ENOUGH).map((s) => s.guide) };
