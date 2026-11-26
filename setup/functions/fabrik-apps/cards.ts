@@ -31,7 +31,7 @@
 // records.
 import type { McpServer } from "npm:@modelcontextprotocol/server@2.4.0";
 import { z } from "npm:zod@4.3.6";
-import { type Brand, cardStyle, FONT_DOMAINS, headLogoHtml, readBrand } from "./brand.ts";
+import { type Brand, cardStyle, FONT_DOMAINS, headLogoHtml, LOGO_SWITCH, readBrand } from "./brand.ts";
 import { CARDS } from "./card.ts";
 import { allScopes, answer, call, type Ctx, refused, type Result, scopeIn, scopeOf, type Tool, tool, VERSION } from "./tool.ts";
 
@@ -153,13 +153,14 @@ export function pageOf(card: Card): Page {
 const PAGES = Object.fromEntries(CARD_NAMES.map((c) => [c, pageOf(c)])) as Record<Card, Page>;
 
 /** A card's page in the business's brand: the fonts' @import first, the brand's tokens after the kit's and the card's
- * style. The brand's logo, or fabrik's mark where there is no brand logo, goes at the start of the card's first header. */
+ * style. The brand's logo, or fabrik's mark where there is no brand logo, goes at the start of the card's first header.
+ * Where the brand has a dark-mode logo, the card's code ends with the switch that shows it in dark mode. */
 export function brandedPage(page: Page, brand: Brand | null): Page {
   const logo = headLogoHtml(brand);
   const body = page.body.replace('<div class="fk-head">', () => `<div class="fk-head">${logo}`);
   if (!brand) return { ...page, body };
   const { imports, css } = cardStyle(brand);
-  return { style: imports + page.style + css, body, script: page.script };
+  return { style: imports + page.style + css, body, script: brand.logo?.dark ? page.script + LOGO_SWITCH : page.script };
 }
 
 const cardPage = tool({

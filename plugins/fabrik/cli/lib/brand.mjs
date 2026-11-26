@@ -1,6 +1,6 @@
 // The business's brand, as fabrik keeps it: one model record in General titled Brand. Its brand node's attributes hold
 // the palette, six tokens each with a light and a dark value, the heading and body fonts, and the logo, a small copy as
-// a data address. readBrand reads it as the signed-in person; brandOf keeps only the values that are a colour, a font's
+// a data address, with a second copy for dark mode where the logo's own has dark text. readBrand reads it as the signed-in person; brandOf keeps only the values that are a colour, a font's
 // name or a picture's data address, so no value can carry markup or a style of its own into a card or a page.
 // widgetStyle dresses the question and list cards' kit, and printStyle the printed pages and decks. This file is the one
 // source of all of it: plugins/fabrik/cards/make-card.ts copies it to the fabrik-apps connector as brand-core.mjs, and
@@ -27,6 +27,9 @@ function fallbackOf(text) {
   return names.some(n => GENERIC.has(n)) ? names : [...names, "sans-serif"];
 }
 
+/** Whether a value is a logo's copy a card or page may take: a PNG, JPEG, GIF or WebP data address of at most MAX_LOGO. */
+const pictureOf = v => typeof v === "string" && v.length <= MAX_LOGO && PICTURE.test(v);
+
 /** The brand from fabrik_show_record's answer for the Brand record, or null where it holds nothing a card can use. */
 export function brandOf(record) {
   const nodes = record?.payload?.graph?.nodes;
@@ -46,8 +49,10 @@ export function brandOf(record) {
     if (typeof f?.family === "string" && FONT.test(f.family.trim())) fonts[role] = { family: f.family.trim(), google: f.source === "google", fallback: fallbackOf(f.fallback) };
   }
   const l = a.logo;
-  const logo = typeof l?.data_address === "string" && l.data_address.length <= MAX_LOGO && PICTURE.test(l.data_address)
+  const logo = pictureOf(l?.data_address)
     ? { src: l.data_address, alt: typeof l.alt === "string" && l.alt.trim() ? l.alt.trim() : String(node.label ?? "") } : null;
+  // The dark-mode copy goes with the logo only: with no logo, there is nothing for it to stand in for.
+  if (logo && pictureOf(l.dark?.data_address)) logo.dark = l.dark.data_address;
   if (!Object.keys(palette.light).length && !Object.keys(palette.dark).length && !Object.keys(fonts).length && !logo) return null;
   return { name: String(node.label ?? ""), palette, fonts, logo };
 }
@@ -105,8 +110,47 @@ export function printStyle(brand) {
   ])}\n}\n`;
 }
 
-/** The brand's logo as an <img> of the class given, or nothing. */
+/** The brand's logo as an <img> of the class given, or nothing. It is the light logo always, as paper takes it. */
 export const logoHtml = (brand, cls) => brand?.logo ? `<img class="${cls}" alt="${esc(brand.logo.alt)}" src="${brand.logo.src}">` : "";
+
+/** The brand's logo for a card or a page on screen, as <img> of the class given, or nothing. With a dark-mode copy it is
+ * two: the light logo, then the dark one, hidden. LOGO_SWITCH on a card, or LOGO_CSS on a page, shows the one that fits
+ * the light or dark mode the card or page is in. */
+export const themedLogoHtml = (brand, cls) => brand?.logo?.dark
+  ? `<img class="${cls}" data-scheme="light" alt="${esc(brand.logo.alt)}" src="${brand.logo.src}">` +
+    `<img class="${cls}" data-scheme="dark" alt="${esc(brand.logo.alt)}" src="${brand.logo.dark}" hidden>`
+  : logoHtml(brand, cls);
+
+/** A card's code that shows its dark logo in dark mode and its light logo otherwise. A card is in dark mode where the
+ * palette's light-dark() takes its dark value at the logo: the same test that picks the brand's dark accent. It looks
+ * again when the computer's mode changes, and when Claude sets the card's mode on its root. */
+export const LOGO_SWITCH = `;(function () {
+  var logos = document.querySelectorAll("img[data-scheme]");
+  if (!logos.length) return;
+  function dark(img) {
+    var probe = document.createElement("span");
+    probe.style.cssText = "position: absolute; visibility: hidden; color: #000; color: light-dark(#000, #fff);";
+    img.parentNode.appendChild(probe);
+    var seen = getComputedStyle(probe).color;
+    probe.remove();
+    return seen === "rgb(255, 255, 255)";
+  }
+  function show() {
+    Array.prototype.forEach.call(logos, function (img) { img.hidden = (img.getAttribute("data-scheme") === "dark") !== dark(img); });
+  }
+  show();
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", show);
+  if (window.MutationObserver) new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class"] });
+})();
+`;
+
+/** A page's style that shows its dark logo in dark mode and its light logo otherwise, for a page whose root is
+ * color-scheme: light dark, so its palette's light-dark() follows the same mode. */
+export const LOGO_CSS = `@media (prefers-color-scheme: dark) {
+  img[data-scheme="light"] { display: none; }
+  img[data-scheme="dark"] { display: inline; }
+}
+`;
 
 /** fabrik's mark, the gold "f" of its connector icon, as a data address. */
 export const FABRIK_MARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTEiIGZpbGw9IiNFM0E4MkIiLz48cGF0aCBkPSJNMjYuODcgMzUuNDhRMjYuODcgMzYuMDkgMjcuMDcgMzYuNDJRMjcuMjcgMzYuNzUgMjcuNzYgMzYuODFMMjkuODggMzcuMDlRMzAuMzcgMzcuMTQgMzAuNTggMzcuNDFRMzAuNzkgMzcuNjcgMzAuNzkgMzguMDVRMzAuNzkgMzkgMjkuNjQgMzlIMTcuNTlRMTcuMDggMzkgMTYuNzcgMzguNzZRMTYuNDYgMzguNTIgMTYuNDYgMzguMVExNi40NiAzNy43MSAxNi42NyAzNy40NlExNi44OSAzNy4yMiAxNy4zNiAzNy4wOEwxOC4xNSAzNi44N1ExOC43MSAzNi43IDE4LjkzIDM2LjRRMTkuMTQgMzYuMDkgMTkuMTQgMzUuNTVWMjMuNjdRMTkuMTQgMjMuMzMgMTguOTcgMjMuMDhRMTguNzkgMjIuODMgMTguMjkgMjIuNjNMMTcuMiAyMi4yM1ExNi41OCAyMS45NSAxNi4zNSAyMS42OVExNi4xMSAyMS40NCAxNi4xMSAyMS4xUTE2LjExIDIwLjczIDE2LjM5IDIwLjQ4UTE2LjY3IDIwLjI0IDE3LjI1IDIwLjI0SDIwLjU0TDE5LjE3IDIwLjgyVjIwLjNRMTkuMTcgMTkuODMgMTguODMgMTkuMzVRMTguNDggMTguODggMTguMDMgMTguM1ExNy41NyAxNy43MiAxNy4yMiAxNi45NFExNi44OCAxNi4xNSAxNi44OCAxNS4wNlExNi44OCAxMi4zIDE4LjkzIDEwLjY1UTIwLjk3IDkgMjQuNjcgOVEyNy4wNCA5IDI4LjY0IDkuNzRRMzAuMjUgMTAuNDcgMzEuMDcgMTEuNjlRMzEuODkgMTIuOSAzMS44OSAxNC4zM1EzMS44OSAxNS45MiAzMS4wMSAxNi43NFEzMC4xMyAxNy41NiAyOC43NSAxNy41NlEyNy4yMSAxNy41NiAyNi4yOCAxNi42M1EyNS4zNCAxNS43MSAyNS4zNCAxNC4xNVYxMi4zNVEyNS4zNCAxMS41IDI0Ljg5IDExLjFRMjQuNDMgMTAuNjkgMjMuNjcgMTAuNjlRMjIuNzMgMTAuNjkgMjIuMjUgMTEuMjhRMjEuNzYgMTEuODYgMjEuNzYgMTIuOTVRMjEuNzYgMTQuMDIgMjIuMjIgMTQuODhRMjIuNjggMTUuNzQgMjMuMzcgMTYuNDVRMjQuMDYgMTcuMTcgMjQuNzQgMTcuOFEyNS40MyAxOC40NCAyNS44OSAxOS4wN1EyNi4zNSAxOS42OSAyNi4zNSAyMC4zOFYyMS4yN0wyNS42MSAyMC4yNEgzMC4xMVEzMC42MiAyMC4yNCAzMC45MiAyMC40NVEzMS4yMSAyMC42NiAzMS4yMSAyMS4wNlEzMS4yMSAyMS42NyAzMC42MSAyMi4wOFEzMC4wMSAyMi40OSAyOC42NyAyMi40OUgyNi44N1oiIGZpbGw9IiMxQjI0MzMiLz48L3N2Zz4K";
@@ -114,8 +158,8 @@ export const FABRIK_MARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3
 /** fabrik's mark as an <img> of the class given. */
 export const markHtml = (cls) => `<img class="${cls}" alt="fabrik" src="${FABRIK_MARK}">`;
 
-/** The brand's logo where it has one, and fabrik's mark otherwise, as an <img> of the class given. */
-export const headLogoHtml = (brand, cls) => logoHtml(brand, cls) || markHtml(cls);
+/** The brand's logo for the screen where it has one, and fabrik's mark otherwise, as <img> of the class given. */
+export const headLogoHtml = (brand, cls) => themedLogoHtml(brand, cls) || markHtml(cls);
 
 /** The value of work, or null where work fails or takes longer than ms. With strict, a failure or the wait running out
  * throws instead. The timer never keeps the process alive. */
