@@ -543,9 +543,9 @@ try {
   // Another agent's page in the same tab starts a conversation of its own.
   const tabStorage = Object.fromEntries(Object.keys(page.sessionStorage).map((k) => [k, page.sessionStorage.getItem(k)]));
   await page.happyDOM.close();
-  const backAgain = async (slug: string | null) => {
+  const backAgain = async (slug: string | null, storage: Record<string, unknown> = tabStorage) => {
     const w = new Window({ url: "https://bakery.example/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
-    for (const [k, v] of Object.entries(tabStorage)) w.sessionStorage.setItem(k, String(v));
+    for (const [k, v] of Object.entries(storage)) w.sessionStorage.setItem(k, String(v));
     const t = w.document.createElement("script");
     t.setAttribute("data-address", "https://project.example/functions/v1/public-agent");
     t.setAttribute("data-sitekey", "1x00000000000000000000AA");
@@ -571,6 +571,23 @@ try {
       && back.body?.conversation === pageConversation && back.body.history.length === 18 && back.body.history.at(-2).content.startsWith("Question 12:")
       && cakesTab.drawn.length === 0 && cakesTab.body?.history.length === 0 && cakesTab.body.conversation !== pageConversation,
     { drawn: back.drawn.length, conversation: back.body?.conversation, history: back.body?.history?.length, cakesTab });
+  // A stored conversation the function would refuse is never sent: a bad time is drawn as now, an id that isn't a UUID or
+  // turns out of order start afresh, and a conversation stored with no id, by a browser with no crypto, carries on with none.
+  {
+  const pair = [{ role: "user", content: "Do you bake bread?" }, { role: "assistant", content: "Every morning." }];
+  const drawnBefore = [{ text: "Do you bake bread?", kind: "q", at: "yesterday" }, { text: "Every morning.", kind: "a", at: "not a time" }];
+  const tab = (value: unknown) => ({ "fabrik-chat:chat": JSON.stringify(value) });
+  const badTime = await backAgain(null, tab({ conversation: pageConversation, turns: pair, shown: drawnBefore }));
+  const badId = await backAgain(null, tab({ conversation: "not-a-uuid", turns: pair, shown: drawnBefore }));
+  const outOfOrder = await backAgain(null, tab({ conversation: pageConversation, turns: [pair[1], pair[0]], shown: drawnBefore }));
+  const noId = await backAgain(null, tab({ conversation: null, turns: pair, shown: drawnBefore }));
+  check("chat.js sends no stored conversation the function would refuse: a bad time is drawn as now, a bad id or turns out of order start afresh, and a conversation with no id carries on with none",
+    badTime.drawn.length === 2 && badTime.drawn.every(([, at]) => !Number.isNaN(Date.parse(at))) && badTime.body?.conversation === pageConversation && badTime.body.history.length === 2
+      && badId.drawn.length === 0 && badId.body?.conversation !== "not-a-uuid" && badId.body.history.length === 0
+      && outOfOrder.drawn.length === 0 && outOfOrder.body?.history.length === 0
+      && noId.drawn.length === 2 && noId.body && !("conversation" in noId.body) && noId.body.history.length === 2,
+    { badTime, badId, outOfOrder, noId });
+  }
 
   // A browser without crypto.randomUUID, such as Safari before 15.4 or a page on http, and one with no crypto at all.
   const oldBrowser = async (crypto: unknown) => {

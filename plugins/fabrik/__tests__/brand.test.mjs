@@ -263,6 +263,9 @@ test("a chat page hides a heading that is the business's own name beside its log
   };
   assert.deepEqual(headings(brandOf(RECORD), join(work, "logo")),
     ['<h1 class="in-logo">Smith Joinery</h1>', '<h1 class="in-logo">smith JOINERY</h1>', "<h1>Help</h1>"]);
+  const alt = { ...brandOf(RECORD), logo: { ...brandOf(RECORD).logo, alt: "Smith & Sons" } };
+  buildChatPage({ brand: alt, address: "https://x.example/functions/v1/public-agent", folder: join(work, "alt"), agents: [{ slug: "sons", name: "smith & sons", purpose: "" }] });
+  assert.equal(readFileSync(join(work, "alt", "sons", "index.html"), "utf-8").match(/<h1[^>]*>[^<]*<\/h1>/)[0], '<h1 class="in-logo">smith &amp; sons</h1>');
   const plain = { ...brandOf(RECORD), logo: null };
   assert.deepEqual(headings(plain, join(work, "plain")), ["<h1>Smith Joinery</h1>", "<h1>smith JOINERY</h1>", "<h1>Help</h1>"]);
 });
