@@ -27,9 +27,18 @@ When the connector has no `public_agents_list` tool, Claude connected to fabrik 
 1. Call `public_agents_list`. An agent named Chat, with the slug `chat`, is the chat box the business had before there could be several. Tell the owner which agents there are.
 2. Ask what the new agent is for. Write its purpose as one sentence a visitor would understand, such as "Takes table bookings and cake orders." Every other agent reads it in AGENTS.md, so it says when to send a visitor there.
 3. Agree its name, which visitors see, and its slug, which names its page: `https://<chat page>/<slug>/`. A slug is 1 to 40 characters of a to z, 0 to 9 and hyphens. Where the business has many agents, also agree its topic, at most 80 characters, such as Masks. Offer the topics the other agents already have, from `public_agents_list`, and the topics in the glossary, so one topic keeps one name.
-4. Show the slug, name, purpose and topic, if it has one, and say what follows. Creating the agent saves only these. `public_agent_create` takes the topic as `topic`. Its INSTRUCTIONS.md and KNOWLEDGE.md come next, each as a Claude Doc for the owner to approve, and it answers no one until KNOWLEDGE.md is saved. Ask "Create the agent, then open its files?", not "Create the agent?". Call `public_agent_create` only once the owner approves. A purpose that runs past one sentence goes in a Claude Doc for approval, as section 9 says, and is saved with `public_agent_create` or `public_agent_change`.
+4. Offer a greeting, as section 1a says, when the agent is the main agent or a page visitors open first.
+5. Show the slug, name, purpose, and the topic and greeting it has, and say what follows. Creating the agent saves only these. `public_agent_create` takes the topic as `topic` and the greeting as `greeting`. Its INSTRUCTIONS.md and KNOWLEDGE.md come next, each as a Claude Doc for the owner to approve, and it answers no one until KNOWLEDGE.md is saved. Ask "Create the agent, then open its files?", not "Create the agent?". Call `public_agent_create` only once the owner approves. A purpose that runs past one sentence goes in a Claude Doc for approval, as section 9 says, and is saved with `public_agent_create` or `public_agent_change`.
 
-A new agent starts with fabrik's starting INSTRUCTIONS.md and no KNOWLEDGE.md, and answers no one until its KNOWLEDGE.md is saved. To change an agent's name, purpose or topic, use `public_agent_change`, once the owner approves the new text. An empty `topic` takes the agent out of its topic. fabrik rewrites AGENTS.md when the name or purpose changes. The chat pages show the change once `chat-page` runs again, as section 4 says.
+A new agent starts with fabrik's starting INSTRUCTIONS.md and no KNOWLEDGE.md, and answers no one until its KNOWLEDGE.md is saved. To change an agent's name, purpose, topic or greeting, use `public_agent_change`, once the owner approves the new text. An empty `topic` takes the agent out of its topic, and an empty `greeting` removes the greeting. fabrik rewrites AGENTS.md when the name or purpose changes. The chat pages show the change once `chat-page` runs again, as section 4 says.
+
+## 1a. A greeting
+
+An agent may have a greeting, the first message of a new conversation. Its chat page shows it at once as the agent's first answer, with the brand's logo. Claude doesn't write it, so it costs nothing and shows before the visitor types. It is never sent to Claude with the conversation and never kept with the conversations. With no greeting, the chat opens empty, as it always did.
+
+Offer the owner a greeting for the main agent, and for any agent visitors open first, such as from a link on the website. Don't offer one for each agent of a long list, since a visitor reaches those from the main agent. A greeting says where the visitor is and what they can ask, in two or three short sentences, in the agent's voice from INSTRUCTIONS.md. For example: "Hello, I'm Bea, Northfield Bakery's booking assistant. Ask me about booking a table or ordering a cake."
+
+A greeting is plain text of at most 600 characters. It keeps its line breaks, and a web or email address in it becomes a link, as in an answer. Markdown shows as typed. Show the owner the text and save it with `public_agent_create` or `public_agent_change` once they approve. The page shows a new or changed greeting once `chat-page` runs again, as section 4 says.
 
 ## 2. INSTRUCTIONS.md
 
@@ -86,6 +95,7 @@ Every build of the pages meets these rules, and a change to the pages keeps them
 - Wider than 640 pixels, and without JavaScript, the links show in a row with no menu button.
 - Wider than 640 pixels, the agent's name sits beside the logo and the Send button shows its word.
 - Each answer shows the brand's logo beside it, or fabrik's mark where the Brand record has no logo.
+- An agent with a greeting opens a new conversation with it, as its first answer with the logo, without calling Claude. A conversation the tab kept shows the greeting once, where it was, and no greeting is added over it. The greeting is never sent to Claude or kept with the conversations. An agent with no greeting opens with an empty chat.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
