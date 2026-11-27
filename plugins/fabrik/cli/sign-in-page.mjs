@@ -2,12 +2,20 @@
 // with Wrangler, Cloudflare's command-line tool, and returns the page's address. fabrik chat-page puts the chat page up
 // the same way, with putUpPage.
 //
-// Wrangler runs with XDG_CONFIG_HOME set to ~/.config/fabrik/wrangler, so fabrik's Cloudflare sign-in is its own and
-// never another Wrangler sign-in on the computer. When no one is signed in there, `wrangler login` opens the browser
-// for the owner's Cloudflare sign-in or a new free account, asking for SCOPES. The Pages project is fabrik-sign-in-<ref>,
-// created when it is missing, and the address is read from `wrangler pages project list --json`.
+// fabrik's Cloudflare sign-in is its own, in ~/.config/fabrik/wrangler/.wrangler, and never another Wrangler sign-in on
+// the computer. Wrangler finds its sign-in folder as os.homedir()/.wrangler when that folder exists, and as
+// $XDG_CONFIG_HOME/.wrangler only when it doesn't (getGlobalConfigPath in Wrangler's workers-utils, the same in 4.123.0
+// and 4.168.0). So XDG_CONFIG_HOME alone loses to a ~/.wrangler from a Wrangler sign-in of the person's own. fabrik runs
+// Wrangler with HOME, USERPROFILE and XDG_CONFIG_HOME all set to ~/.config/fabrik/wrangler, so both of Wrangler's
+// choices are the same folder, fabrik's own, and Wrangler never reads or writes ~/.wrangler. It also leaves out the
+// environment variables that would give Wrangler a Cloudflare token or account other than that sign-in's.
+//
+// When no one is signed in there, `wrangler login` opens the browser for the owner's Cloudflare sign-in or a new free
+// account, asking for SCOPES. The Cloudflare account a fabrik project's pages go on is saved in ACCOUNTS the first time
+// they are put up, and every later run checks fabrik's sign-in holds it before putting anything up. The Pages project
+// is fabrik-sign-in-<ref>, created when it is missing, and the address is read from `wrangler pages project list --json`.
 import { spawnSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -18,8 +26,26 @@ export const WRANGLER = ["npx", "--yes", "wrangler@4.123.0"];
  * domains, reading the account's domains (zones), and the Worker that serves the chat pages on the owner's own domain.
  * Wrangler adds offline_access itself. */
 export const SCOPES = ["account:read", "user:read", "pages:write", "zone:read", "workers:write", "workers_scripts:write"];
-/** The folder that holds fabrik's own Cloudflare sign-in, as XDG_CONFIG_HOME. */
+/** The folder Wrangler runs with as its home and XDG_CONFIG_HOME. fabrik's Cloudflare sign-in is in its .wrangler. */
 export const wranglerHome = (home = homedir()) => join(home, ".config", "fabrik", "wrangler");
+/** The file that keeps, for each fabrik project, the Cloudflare account its pages are on: { [ref]: { id, name } }. */
+export const accountsFile = (home = homedir()) => join(wranglerHome(home), "accounts.json");
+/** The environment variables that would have Wrangler use a Cloudflare token, key or account other than fabrik's
+ * sign-in's. The CF_ names are the older names Wrangler still reads. */
+export const FOREIGN_CREDENTIALS = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_API_KEY", "CLOUDFLARE_EMAIL", "CLOUDFLARE_ACCOUNT_ID",
+  "CF_API_TOKEN", "CF_API_KEY", "CF_EMAIL", "CF_ACCOUNT_ID"];
+
+/** The environment Wrangler runs with: `env` without FOREIGN_CREDENTIALS, with fabrik's folder as Wrangler's home. npm
+ * keeps reading the person's own ~/.npmrc, so npx fetches Wrangler from the registry it always does. */
+export function wranglerEnv(env, home = homedir()) {
+  const own = wranglerHome(home);
+  const out = { ...env };
+  for (const name of FOREIGN_CREDENTIALS) delete out[name];
+  return { ...out, HOME: own, USERPROFILE: own, XDG_CONFIG_HOME: own, npm_config_userconfig: env.npm_config_userconfig ?? join(home, ".npmrc"),
+    WRANGLER_SEND_METRICS: "false", WRANGLER_NO_SKILLS_UPDATE_PROMPTS: "true" };
+}
+
+const readAccounts = home => { try { return JSON.parse(readFileSync(accountsFile(home), "utf8")) ?? {}; } catch { return {}; } };
 /** The folder setup makes one fabrik project's sign-in page in, beside fabrik's Cloudflare sign-in, never in the owner's folder. */
 export const pageFolder = (ref, home = homedir()) => join(home, ".config", "fabrik", "sign-in", ref);
 /** The Pages project of one fabrik project's sign-in page. */
@@ -38,11 +64,11 @@ function lastLines(text, count = 6) {
  * a stand-in. Throws a PageStopped whose message is one plain line, with Wrangler's own last lines where it failed.
  */
 export function putUpSignInPage({ ref, folder }, options = {}) {
-  return putUpPage({ name: pagesProject(ref), folder, what: "sign-in page" }, options);
+  return putUpPage({ ref, name: pagesProject(ref), folder, what: "sign-in page" }, options);
 }
 
-/** Puts the page in `folder` up on Cloudflare Pages as the project `name`, and returns its https address. `what` names
- * the page in what it says, such as "chat page". The options are putUpSignInPage's. */
+/** Puts the page in `folder` up on Cloudflare Pages as the project `name`, for the fabrik project `ref`, and returns its
+ * https address. `what` names the page in what it says, such as "chat page". The options are putUpSignInPage's. */
 export async function putUpPage(page, options = {}) {
   return (await publishPage(page, options)).site;
 }
@@ -50,9 +76,9 @@ export async function putUpPage(page, options = {}) {
 /** putUpPage, giving { site, accountId, token, deploy }: token() gives the sign-in's access token for Cloudflare's API,
  * read with `wrangler auth token --json`, which refreshes it when it has expired. deploy(config, what) runs
  * `wrangler deploy --config <config>` on the same sign-in, and throws with Wrangler's last lines where it fails. */
-export async function publishPage({ name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
+export async function publishPage({ ref, name, folder, what }, { ask, say, wrangler = WRANGLER, home = homedir(), env = process.env } = {}) {
   // WRANGLER_NO_SKILLS_UPDATE_PROMPTS, and no terminal on Wrangler's input, keep Wrangler from asking questions of its own.
-  const base = { ...env, XDG_CONFIG_HOME: wranglerHome(home), WRANGLER_SEND_METRICS: "false", WRANGLER_NO_SKILLS_UPDATE_PROMPTS: "true" };
+  const base = wranglerEnv(env, home);
   // npx and Wrangler read config files, such as .npmrc and wrangler.toml, from the folder they run in, and keep a
   // .wrangler cache there. They run in an empty folder only fabrik makes, never the owner's folder an agent can write to.
   const runFolder = join(wranglerHome(home), "run");
@@ -84,13 +110,30 @@ export async function publishPage({ name, folder, what }, { ask, say, wrangler =
     if (lacking().length) throw new PageStopped(`Cloudflare's sign-in didn't give fabrik ${lacking().join(" and ")}. Run the command again, and allow Wrangler everything it asks for in the browser.`);
   }
   const accounts = Array.isArray(me.accounts) ? me.accounts : [];
-  if (accounts.length > 1) {
-    accounts.forEach((a, i) => say(`${i + 1}. ${a.name}`));
-    while (!accountId) {
-      const n = Number((await ask(`Which Cloudflare account is for fabrik's ${what}? Type its number: `)).trim());
-      if (Number.isInteger(n) && n >= 1 && n <= accounts.length) accountId = accounts[n - 1].id;
+  const named = a => `${a.name} (${a.id})`;
+  const saved = readAccounts(home);
+  const target = saved[ref];
+  if (target) {
+    // The project's pages are on the account saved the first time. A sign-in without it puts nothing up, so a page
+    // never moves to another business's Cloudflare account.
+    if (!accounts.some(a => a.id === target.id)) {
+      const holds = accounts.length ? `the Cloudflare account${accounts.length > 1 ? "s" : ""} ${accounts.map(named).join(", ")}` : "no Cloudflare account";
+      throw new PageStopped(`fabrik's Cloudflare sign-in is ${me.email ?? "someone"}, with ${holds}, but this fabrik's pages are on the Cloudflare account ${named(target)}. fabrik put nothing up. `
+        + `To sign fabrik in to Cloudflare as a person on ${target.name}, delete the folder ${join(wranglerHome(home), ".wrangler")}, then run this command again in a terminal, and sign in in the browser.`);
     }
-  } else if (accounts.length === 1) accountId = accounts[0].id;
+    accountId = target.id;
+  } else {
+    if (accounts.length > 1) {
+      accounts.forEach((a, i) => say(`${i + 1}. ${a.name}`));
+      while (!accountId) {
+        const n = Number((await ask(`Which Cloudflare account is for fabrik's ${what}? Type its number: `)).trim());
+        if (Number.isInteger(n) && n >= 1 && n <= accounts.length) accountId = accounts[n - 1].id;
+      }
+    } else if (accounts.length === 1) accountId = accounts[0].id;
+    else throw new PageStopped(`fabrik's Cloudflare sign-in, ${me.email ?? "someone"}, has no Cloudflare account to put your ${what} on.`);
+    const chosen = accounts.find(a => a.id === accountId);
+    writeFileSync(accountsFile(home), `${JSON.stringify({ ...saved, [ref]: { id: chosen.id, name: chosen.name } }, null, 2)}\n`, { mode: 0o600 });
+  }
   say(`Signed in to Cloudflare as ${me.email ?? "you"}.`);
 
   const listed = () => {

@@ -222,7 +222,7 @@ export async function chatPage({ ref, url, readBrand, readAgents, savePage, doma
   buildChatPage({ brand, address: `${url}/functions/v1/public-agent`, folder, agents });
   say(brand ? `Built ${agents.length === 1 ? "the chat page" : `${agents.length} chat pages`} in ${brand.name || "the business"}'s brand.`
     : "Built the chat pages in fabrik's own look, since fabrik holds no Brand record.");
-  const put = await publishPage({ name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
+  const put = await publishPage({ ref, name: chatProject(ref), folder, what: "chat page" }, { ask, say, wrangler, home, env });
   // Where the own domain isn't ready, the pages are still up at pages.dev, so the agents' addresses are given there.
   const site = await ownDomain({ ref, project: chatProject(ref), pagesHost: new URL(put.site).host, accountId: put.accountId, token: put.token, given: domain,
     folder, deploy: put.deploy },

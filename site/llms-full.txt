@@ -780,6 +780,8 @@ Claude asks what visitors ask this agent about, such as opening hours, services,
 
 Claude builds a page for each agent in your brand, with your logo, colours and fonts, and Cloudflare hosts them for you. Claude asks which of your domains they go on, and puts them at chat on that domain, such as chat.example.com, unless you name another. Your website stays as it is. If Cloudflare runs your domain's DNS, Cloudflare makes the record and certificate the address needs, and you add nothing. If the address already has a DNS record, Claude asks you to delete it on Cloudflare's DNS page first. If your domain's DNS is somewhere other than Cloudflare, Claude gives you one record to add there.
 
+They stay on the Cloudflare account they were first put on. If fabrik's Cloudflare sign-in is for another account, fabrik puts nothing up and names both accounts.
+
 The root page lists your agents, and each agent's page adds its slug, such as /bookings/. If you haven't given fabrik your brand, the pages take fabrik's own look until you do. When your brand changes, or you add or remove an agent, Claude puts the pages up again.
 
 ## 5. Three keys
