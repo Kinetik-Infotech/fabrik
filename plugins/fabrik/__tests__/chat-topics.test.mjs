@@ -17,7 +17,9 @@ function built(agents) {
     const main = root.match(/<main>([^]*)<\/main>/)[1];
     const navs = Object.fromEntries(agents.map(a => [a.slug, readFileSync(join(folder, a.slug, "index.html"), "utf8").match(/<nav[^]*?<\/nav>/)?.[0] ?? null]));
     const close = root.match(/<a class="close"[^>]*>/)?.[0] ?? null, script = root.match(/<script>([^]*?)<\/script>/)?.[1] ?? null;
-    return { main, navs, close, script };
+    const logoLink = html => html.match(/<header>(<a class="home"[^>]*>)?<img/)[1] ?? null;
+    const logos = Object.fromEntries([["", root], ...agents.map(a => [a.slug, readFileSync(join(folder, a.slug, "index.html"), "utf8")])].map(([k, h]) => [k, logoLink(h)]));
+    return { main, navs, close, script, logos };
   } finally { rmSync(folder, { recursive: true, force: true }); }
 }
 const headings = main => [...main.matchAll(/<h2>([^<]*)<\/h2>/g)].map(m => m[1]);
@@ -61,9 +63,9 @@ test("a topic's heading takes the spelling most of its agents have, and capitals
 
 test("an agent's page links to the list and to the other agents of its own topic, labelled with the topic", () => {
   const { navs } = built(AGENTS);
-  assert.equal(navs.n95, '<nav aria-label="masks: other agents"><a href="../?from=n95">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
+  assert.equal(navs.n95, '<nav id="agent-nav" aria-label="masks: other agents"><a href="../?from=n95">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
   assert.deepEqual(linked(navs.shampoo), ["../?from=shampoo", "../hair/"]);
-  assert.equal(navs.main, '<nav aria-label="Other agents"><a href="../?from=main">All agents</a><a href="../other/">Allergy</a></nav>');
+  assert.equal(navs.main, '<nav id="agent-nav" aria-label="Other agents"><a href="../?from=main">All agents</a><a href="../other/">Allergy</a></nav>');
 });
 
 test("with no topics, the list has no headings and every page links to every other agent", () => {
@@ -77,7 +79,7 @@ test("with no topics, the list has no headings and every page links to every oth
 
 test("past the most agents a page links to by name, it links to the list alone", () => {
   const many = Array.from({ length: MOST_LINKED + 2 }, (_, i) => ({ slug: `a${i}`, name: `Agent ${i}`, purpose: "", topic: "Masks" }));
-  assert.equal(built(many).navs.a0, '<nav aria-label="Masks: other agents"><a href="../?from=a0">All agents</a></nav>');
+  assert.equal(built(many).navs.a0, '<nav id="agent-nav" aria-label="Masks: other agents"><a href="../?from=a0">All agents</a></nav>');
   assert.equal(linked(built(many.slice(0, MOST_LINKED + 1)).navs.a0).length, MOST_LINKED + 1);
 });
 
@@ -107,4 +109,38 @@ test("with no main agent, the close link shows only for a visitor who came from 
   const one = built([{ slug: "chat", name: "Chat", purpose: "" }]);
   assert.equal(one.close, null);
   assert.equal(one.script, null);
+});
+
+test("with a main agent, every other agent's page links home to it from its logo and from a Home link beside All agents", () => {
+  const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
+  assert.equal(navs.n95, '<nav id="agent-nav" aria-label="masks: other agents"><a href="../main/">Home</a><a href="../?from=n95">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
+  assert.equal(logos.n95, '<a class="home" href="../main/" aria-label="fabrik: home">');
+  assert.equal(logos.shampoo, '<a class="home" href="../main/" aria-label="fabrik: home">');
+});
+
+test("the main agent's own page has no Home link and its logo links nowhere, and the list's logo links to the main agent", () => {
+  const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
+  assert.ok(!navs.main.includes(">Home<"));
+  assert.equal(logos.main, null);
+  assert.equal(logos[""], '<a class="home" href="main/" aria-label="fabrik: home">');
+});
+
+test("with no main agent, or one agent, no page has a Home link and no logo links anywhere", () => {
+  const { navs, logos } = built(AGENTS);
+  assert.ok(Object.values(navs).every(nav => !nav.includes(">Home<")));
+  assert.ok(Object.values(logos).every(link => link === null));
+  assert.deepEqual(built([{ slug: "chat", name: "Chat", purpose: "" }]).logos, { "": null, chat: null });
+});
+
+test("an agent's page has a menu button that controls its nav, and the list and one agent's page have none", () => {
+  const folder = mkdtempSync(join(tmpdir(), "fabrik-chat-menu-"));
+  try {
+    buildChatPage({ brand: null, address: ADDRESS, folder, agents: AGENTS });
+    const page = readFileSync(join(folder, "n95", "index.html"), "utf8");
+    assert.match(page, /<button class="menu" type="button" aria-expanded="false" aria-controls="agent-nav" aria-label="Menu">/);
+    assert.match(page, /<nav id="agent-nav"/);
+    assert.ok(!readFileSync(join(folder, "index.html"), "utf8").includes('class="menu"'));
+    buildChatPage({ brand: null, address: ADDRESS, folder, agents: [{ slug: "chat", name: "Chat", purpose: "" }] });
+    assert.ok(!readFileSync(join(folder, "chat", "index.html"), "utf8").includes('class="menu"'));
+  } finally { rmSync(folder, { recursive: true, force: true }); }
 });

@@ -854,10 +854,14 @@ try {
       '<section><h2>Visits</h2><ul class="agents"><li><a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a></li></ul></section></div></main>')
       && rootHtml.includes('<a class="close" href="chat/" aria-label="Close the list of agents">') && !rootHtml.includes("<script src") && !rootHtml.includes("{{"),
     rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
-  check("an agent's page links to the list of agents and to the other agents of its own topic alone, and the list's own page has no such links",
-    navOf(bookingsHtml) === '<nav aria-label="Visits: other agents"><a href="../?from=bookings">All agents</a></nav>'
-      && navOf(chatHtml) === '<nav aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
+  check("an agent's page links home to the main agent, except the main agent's own, to the list of agents and to the other agents of its own topic alone, and the list's own page has no such links",
+    navOf(bookingsHtml) === '<nav id="agent-nav" aria-label="Visits: other agents"><a href="../chat/">Home</a><a href="../?from=bookings">All agents</a></nav>'
+      && navOf(chatHtml) === '<nav id="agent-nav" aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
     { bookings: navOf(bookingsHtml), chat: navOf(chatHtml) });
+  check("the logo links to the main agent's page on the list and on another agent's page, and nowhere on the main agent's own page",
+    rootHtml.includes('<header><a class="home" href="chat/" aria-label="Smith Joinery: home"><img') && bookingsHtml.includes('<header><a class="home" href="../chat/" aria-label="Smith Joinery: home"><img')
+      && chatHtml.includes("<header><img") && !chatHtml.includes('class="home"'),
+    { root: rootHtml.match(/<header>.{0,80}/)?.[0], bookings: bookingsHtml.match(/<header>.{0,80}/)?.[0], chat: chatHtml.match(/<header>.{0,80}/)?.[0] });
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
     widgetJs.slice(0, 1200));
 
