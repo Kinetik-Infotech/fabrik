@@ -5,6 +5,11 @@
 //
 // Where the business has a logo, data-mark gives it, and data-mark-dark its dark-mode copy, to show beside each answer.
 //
+// Where the agent has a greeting, data-greeting gives it. A new conversation opens with it, drawn at once as the agent's
+// first answer, without asking the function anything. It is kept with the messages drawn, so it is drawn again with a
+// conversation the tab kept, and never added over one. It is never one of the turns posted, so the function never sends
+// it to Claude or keeps it as an exchange.
+//
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
 // turns that fit the function's limits: at most 10 turns and 8,000 characters. When the box is drawn it makes the
@@ -24,6 +29,7 @@
   var sitekey = script && script.getAttribute("data-sitekey");
   var agent = script && script.getAttribute("data-agent");
   var business = script && (script.getAttribute("data-business") || "").trim();
+  var greeting = script && (script.getAttribute("data-greeting") || "").trim();
   var TURNS = 10, MAX_HISTORY = 8000, MAX_QUESTION = 2000, MAX_ANSWER = 4000;
   var turns = [];
   var conversation = null;
@@ -178,7 +184,14 @@
     turns = earlier.turns;
     shown = earlier.shown.filter(function (m) { return m && typeof m.text === "string" && (m.kind === "q" || m.kind === "a"); }).slice(-SHOWN);
     shown.forEach(function (m) { line(m.text, m.kind, m.at); });
-  } else conversation = newId();
+  } else {
+    conversation = newId();
+    if (greeting) {
+      var greeted = new Date().toISOString();
+      line(greeting, "a", greeted);
+      shown.push({ text: greeting, kind: "a", at: greeted });
+    }
+  }
 
   window.fabrikChatTurnstile = function () {
     // The check shows only while Cloudflare needs the visitor, and goes once it passes.

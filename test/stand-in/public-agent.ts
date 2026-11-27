@@ -17,7 +17,9 @@
 // once one is saved. fabrik chat-page builds a page for each agent and a list of them from a Brand record, in its colours
 // and with its logo. On a domain whose DNS Cloudflare runs, it puts them up as a Worker whose custom domain is the
 // address, and never replaces a DNS record in the way; on another domain it prints the CNAME record. widget.js, run in a page on another website, opens the page of the agent data-agent names in a
-// panel, where a question gets that agent's answer. Once today's tokens reach the cap, the answer is the resting message
+// panel, where a question gets that agent's answer. An agent's greeting is saved with it, written into its page escaped,
+// and drawn as its first answer in a new conversation. It is never posted or kept as an exchange, and a conversation the
+// tab kept draws it once. Once today's tokens reach the cap, the answer is the resting message
 // and Claude isn't called. No reply holds the key or the secret.
 //
 // Each question an agent answered, the resting answer and a failed answer included, is kept in public_exchange under
@@ -458,6 +460,18 @@ try {
     madeBookings.body.topic === "Visits" && madeCakes.body.topic === "" && cakesTopic.body.topic === "Celebrations" && cakesKept.body.topic === "Celebrations"
       && longTopic.status === 400 && cakesCleared.body.topic === "" && JSON.stringify(topicsListed) === '[["chat",""],["bookings","Visits"],["cakes",""]]',
     { madeBookings: madeBookings.body, cakesTopic, cakesKept, longTopic, cakesCleared, topicsListed });
+  // An agent's greeting is saved with it, its line breaks kept and its ends trimmed, changed with agent_change and taken
+  // away with an empty one.
+  const cakesGreeting = await post({ action: "agent_change", agent: "cakes", greeting: "  Hello!\r\nAsk me about cakes.\n" }, admin);
+  const greetingKept = await post({ action: "agent_change", agent: "cakes", topic: "Celebrations" }, admin);
+  const longGreeting = await post({ action: "agent_change", agent: "cakes", greeting: "x".repeat(601) }, admin);
+  const greetingsListed = (await post({ action: "agents_list" }, admin)).body.agents.map((a: any) => [a.slug, a.greeting]);
+  const greetingCleared = await post({ action: "agent_change", agent: "cakes", greeting: "", topic: "" }, admin);
+  check("an agent's greeting is saved with its line breaks and listed, kept when another field changes, refused past 600 characters, and taken away with an empty one",
+    madeCakes.body.greeting === "" && cakesGreeting.body.greeting === "Hello!\nAsk me about cakes." && greetingKept.body.greeting === "Hello!\nAsk me about cakes."
+      && longGreeting.status === 400 && JSON.stringify(greetingsListed) === '[["chat",""],["bookings",""],["cakes","Hello!\\nAsk me about cakes."]]'
+      && greetingCleared.body.greeting === "",
+    { cakesGreeting: cakesGreeting.body, greetingKept: greetingKept.body, longGreeting, greetingsListed, greetingCleared: greetingCleared.body });
   await post({ action: "settings", page: "https://fabrik-chat-abc.pages.dev/" }, admin);
   const AGENTS_MD = "- Chat, https://fabrik-chat-abc.pages.dev/chat/\n- Bookings, https://fabrik-chat-abc.pages.dev/bookings/: Books a table.\n" +
     "- Cakes, https://fabrik-chat-abc.pages.dev/cakes/: Answers questions about celebration cakes.\n";
@@ -668,6 +682,9 @@ try {
   reachAnswers.set("chat.joinery.example", [false, false, true]);
   const domainAnswers = ["3", "1", ""], asked: string[] = [];
   const options = { ask: () => Promise.reject(new Error("This command needs an interactive terminal.")), wrangler: [node!, `${tools}/wrangler.mjs`], home, env: Deno.env.toObject(), domains };
+  // Bookings greets a visitor, in two lines that need escaping in the page. Chat has no greeting.
+  const GREETING = 'Hello & welcome to "Bookings".\nAsk me <anything> about tables.';
+  await action({ action: "agent_change", agent: "bookings", greeting: GREETING });
   const built = await chatPage({ ref: "abcdefghijklmnopqrst", url: "https://abcdefghijklmnopqrst.supabase.co", readBrand: () => Promise.resolve(brandOf(brandRecord)), readAgents, savePage },
     { ...options, say: (l: string) => said.push(l), ask: (q: string) => { asked.push(q); return Promise.resolve(domainAnswers.shift()!); } });
   const wrangled = JSON.parse(await Deno.readTextFile(`${tools}/wrangler-state.json`));
@@ -844,10 +861,12 @@ try {
     bookingsHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && bookingsHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
       && bookingsHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && bookingsHtml.includes('"Fraunces"') && bookingsHtml.includes(`src="${logo}"`)
       && bookingsHtml.includes("<title>Bookings | Smith Joinery</title>") && bookingsHtml.includes("<h1>Bookings</h1>")
-      && bookingsHtml.includes(`<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery" data-mark="${logo}"></script>`)
+      && bookingsHtml.includes(`<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery" data-greeting="Hello &amp; welcome to &quot;Bookings&quot;.\nAsk me <anything> about tables." data-mark="${logo}"></script>`)
       && !bookingsHtml.includes("{{") && !bookingsHtml.includes("data-sitekey"),
     bookingsHtml.slice(0, 1500));
   const chatHtml = await Deno.readTextFile(`${built.folder}/chat/index.html`);
+  check("an agent with no greeting has no data-greeting on its page", chatHtml.includes('data-agent="chat"') && !chatHtml.includes("data-greeting"),
+    chatHtml.match(/<script src="..\/chat.js"[^>]*>/)?.[0]);
   const navOf = (html: string) => html.match(/<nav[^]*?<\/nav>/)?.[0];
   check("the root page, in the brand, lists the main agent first, the one with no topic, then the agents by name and purpose under their topic, each linked to its page, with a link closing the list back to the main agent",
     rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<main><div class="topics"><ul class="agents main"><li><a href="chat/"><strong>Chat</strong></a></li></ul>' +
@@ -930,17 +949,43 @@ try {
   Object.defineProperty(cdoc, "currentScript", { get: () => ctag, configurable: true });
   const rendered: string[] = [];
   (chat as any).turnstile = { render: (_: unknown, o: { sitekey: string }) => { rendered.push(o.sitekey); return 0; }, getResponse: () => GOOD_TOKEN, reset() {} };
-  const methods: string[] = [];
-  const chatFetch = (url: string, init: RequestInit) => { methods.push(String(init.method)); return handler!(new Request(url, init)); };
+  const methods: string[] = [], chatBodies: any[] = [];
+  const chatFetch = (url: string, init: RequestInit) => {
+    methods.push(String(init.method));
+    if (init.body) chatBodies.push(JSON.parse(String(init.body)));
+    return handler!(new Request(url, init));
+  };
   new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(chat, cdoc, chatFetch);
+  // Bookings' greeting is its first answer, drawn at once with the mark's bubble and its line break, before anything is posted.
+  const textOf = (li: any) => [...(li?.childNodes ?? [])].filter((n: any) => n.nodeName !== "TIME").map((n: any) => n.textContent).join("");
+  const greeted = [...cdoc.querySelectorAll("#fabrik-chat li")].map((li: any) => [li.className, textOf(li)]);
+  check("a new conversation on an agent's page opens with its greeting as the agent's first answer, line breaks kept, without posting anything",
+    JSON.stringify(greeted) === JSON.stringify([["a", GREETING]]) && !methods.includes("POST"), { greeted, methods });
   while (!cdoc.querySelector('script[src*="challenges.cloudflare.com"]')) await new Promise((r) => setTimeout(r, 5));
   (chat as any).fabrikChatTurnstile();
   (cdoc.querySelector("#fabrik-chat input") as any).value = "How do I book tables?";
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
   const thinking = cdoc.querySelector("#fabrik-chat li.thinking") as any;
   const thought = Boolean(thinking) && thinking.className === "thinking";
-  while (!cdoc.querySelector("#fabrik-chat li.a:not(.thinking)")) await new Promise((r) => setTimeout(r, 5));
-  const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: [...(cdoc.querySelector("#fabrik-chat li.a")?.childNodes ?? [])].filter((n: any) => n.nodeName !== "TIME").map((n: any) => n.textContent).join(""), time: cdoc.querySelector("#fabrik-chat li.a time")?.getAttribute("datetime") ?? "", kind: cdoc.querySelector("#fabrik-chat li.a")?.className, knowledge: sent.at(-1).system.at(-1).text };
+  while (cdoc.querySelectorAll("#fabrik-chat li.a").length < 2) await new Promise((r) => setTimeout(r, 5));
+  const greetedExchanges = await sql`select question, answer from fabrik_private.public_exchange where conversation = ${chatBodies[0].conversation}::uuid`;
+  check("the greeting is never posted: the first question goes with no history, and the conversation keeps that one exchange alone",
+    chatBodies.length === 1 && chatBodies[0].history.length === 0 && greetedExchanges.length === 1 && greetedExchanges[0].question === "How do I book tables?"
+      && !JSON.stringify(greetedExchanges).includes("welcome"), { chatBodies, greetedExchanges });
+  // The tab's conversation, drawn again on the same page, holds the greeting once, before the question and its answer.
+  const tabKept = Object.fromEntries(Object.keys(chat.sessionStorage).map((k) => [k, chat.sessionStorage.getItem(k)]));
+  const redrawPage = new Window({ url: `${site}/bookings/`, settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
+  for (const [k, v] of Object.entries(tabKept)) redrawPage.sessionStorage.setItem(k, String(v));
+  redrawPage.document.write(bookingsHtml);
+  const atag = redrawPage.document.querySelector('script[src="../chat.js"]')!;
+  Object.defineProperty(redrawPage.document, "currentScript", { get: () => atag, configurable: true });
+  new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(redrawPage, redrawPage.document,
+    () => Promise.resolve(Response.json({ sitekey: SITEKEY })));
+  const redrawn = [...redrawPage.document.querySelectorAll("#fabrik-chat li")].map((li: any) => [li.className, textOf(li)]);
+  check("a conversation the tab kept is drawn again with its greeting once, and no greeting is added over it",
+    JSON.stringify(redrawn) === JSON.stringify([["a", GREETING], ["q", "How do I book tables?"], ["a", "Tables: book by phone on 01234 567890."]]), redrawn);
+  await redrawPage.happyDOM.close();
+  const answered = { kept: cdoc.querySelector("#fabrik-chat p.kept")?.textContent, methods, rendered, thought, left: cdoc.querySelectorAll("#fabrik-chat li.thinking").length, answer: textOf([...cdoc.querySelectorAll("#fabrik-chat li.a")].at(-1)), time: [...cdoc.querySelectorAll("#fabrik-chat li.a time")].at(-1)?.getAttribute("datetime") ?? "", kind: [...cdoc.querySelectorAll("#fabrik-chat li.a")].at(-1)?.className, knowledge: sent.at(-1).system.at(-1).text };
   check("an agent's page says under the box that the business keeps the conversation, gets the site key with a GET, draws the Turnstile check with it, shows dots with no bubble while it waits, and a question gets that agent's answer with its time",
     answered.kept === "Smith Joinery keeps this conversation to improve its answers." && answered.thought && answered.left === 0 && JSON.stringify(methods) === JSON.stringify(["GET", "POST"]) && JSON.stringify(rendered) === JSON.stringify([SITEKEY])
       && answered.answer === "Tables: book by phone on 01234 567890." && !Number.isNaN(Date.parse(answered.time)) && answered.kind === "a" && answered.knowledge.includes(BOOKINGS), answered);
@@ -953,8 +998,8 @@ try {
   Object.defineProperty(early.document, "currentScript", { get: () => etag, configurable: true });
   const noKey = () => Promise.resolve(Response.json({ ok: false, problem: UNAVAILABLE, setup: "sitekey" }, { status: 503 }));
   new Function("window", "document", "fetch", await Deno.readTextFile(`${built.folder}/chat.js`))(early, early.document, noKey);
-  while (!early.document.querySelector("#fabrik-chat li")) await new Promise((r) => setTimeout(r, 5));
-  const earlyLine = early.document.querySelector("#fabrik-chat li")?.textContent;
+  while (!early.document.querySelector("#fabrik-chat li.problem")) await new Promise((r) => setTimeout(r, 5));
+  const earlyLine = early.document.querySelector("#fabrik-chat li.problem")?.textContent;
   check("before the site key is saved, the chat page says fabrik has no Turnstile site key", /no Turnstile site key/.test(String(earlyLine)), earlyLine);
   await early.happyDOM.close();
   await Deno.remove(home, { recursive: true });
