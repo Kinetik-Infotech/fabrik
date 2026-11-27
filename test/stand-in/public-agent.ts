@@ -840,11 +840,11 @@ try {
     /couldn't read the Brand record/.test(String(stopped)) && /no public agent yet/.test(String(noAgents)) && await Deno.readTextFile(`${tools}/wrangler-state.json`) === deployedBefore
       && await Deno.readTextFile(`${built.folder}/index.html`) === pageBefore, { stopped, noAgents });
   const logo = brandRecord.payload.graph.nodes[0].attributes.logo.data_address;
-  check("an agent's page takes the Brand record's colours in light and dark, its fonts and its logo, with the agent's name, and names the function's address, the agent and the business",
+  check("an agent's page takes the Brand record's colours in light and dark, its fonts and its logo, with the agent's name, and names the function's address, the agent, the business and its logo as the answers' mark",
     bookingsHtml.includes("--accent: light-dark(#3fa66b, #5cc78a)") && bookingsHtml.includes("--paper: light-dark(#fbfaf6, #121a15)")
       && bookingsHtml.includes("--ink: light-dark(#1d2a22, #eef2ee)") && bookingsHtml.includes('"Fraunces"') && bookingsHtml.includes(`src="${logo}"`)
       && bookingsHtml.includes("<title>Bookings | Smith Joinery</title>") && bookingsHtml.includes("<h1>Bookings</h1>")
-      && bookingsHtml.includes('<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery"></script>')
+      && bookingsHtml.includes(`<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery" data-mark="${logo}"></script>`)
       && !bookingsHtml.includes("{{") && !bookingsHtml.includes("data-sitekey"),
     bookingsHtml.slice(0, 1500));
   const chatHtml = await Deno.readTextFile(`${built.folder}/chat/index.html`);

@@ -3,6 +3,8 @@
 //
 //   <script src="../chat.js" data-address="https://<project>.supabase.co/functions/v1/public-agent" data-agent="chat" data-business="Northfield Bakery"></script>
 //
+// Where the business has a logo, data-mark gives it, and data-mark-dark its dark-mode copy, to show beside each answer.
+//
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
 // Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
 // turns that fit the function's limits: at most 10 turns and 8,000 characters. When the box is drawn it makes the
@@ -57,7 +59,12 @@
   if (!box) { box = document.createElement("div"); box.id = "fabrik-chat"; script.parentNode.insertBefore(box, script.nextSibling); }
   box.className = (box.className + " fabrik-chat").trim();
 
-  // fabrik's mark, the gold "f", beside each answer.
+  // The mark beside each answer: the business's logo that data-mark gives, and in dark mode the one data-mark-dark gives,
+  // or fabrik's mark, the gold "f", where data-mark gives none. A mark that isn't a base64 picture's data address is
+  // passed over, as the Brand record's own logos are such addresses.
+  var PICTURE = /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+\/]+={0,2}$/;
+  var pictureOf = function (name) { var v = script && script.getAttribute(name); return v && PICTURE.test(v) ? v : null; };
+  var logo = pictureOf("data-mark"), darkLogo = logo && pictureOf("data-mark-dark");
   var MARK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTEiIGZpbGw9IiNFM0E4MkIiLz48cGF0aCBkPSJNMjYuODcgMzUuNDhRMjYuODcgMzYuMDkgMjcuMDcgMzYuNDJRMjcuMjcgMzYuNzUgMjcuNzYgMzYuODFMMjkuODggMzcuMDlRMzAuMzcgMzcuMTQgMzAuNTggMzcuNDFRMzAuNzkgMzcuNjcgMzAuNzkgMzguMDVRMzAuNzkgMzkgMjkuNjQgMzlIMTcuNTlRMTcuMDggMzkgMTYuNzcgMzguNzZRMTYuNDYgMzguNTIgMTYuNDYgMzguMVExNi40NiAzNy43MSAxNi42NyAzNy40NlExNi44OSAzNy4yMiAxNy4zNiAzNy4wOEwxOC4xNSAzNi44N1ExOC43MSAzNi43IDE4LjkzIDM2LjRRMTkuMTQgMzYuMDkgMTkuMTQgMzUuNTVWMjMuNjdRMTkuMTQgMjMuMzMgMTguOTcgMjMuMDhRMTguNzkgMjIuODMgMTguMjkgMjIuNjNMMTcuMiAyMi4yM1ExNi41OCAyMS45NSAxNi4zNSAyMS42OVExNi4xMSAyMS40NCAxNi4xMSAyMS4xUTE2LjExIDIwLjczIDE2LjM5IDIwLjQ4UTE2LjY3IDIwLjI0IDE3LjI1IDIwLjI0SDIwLjU0TDE5LjE3IDIwLjgyVjIwLjNRMTkuMTcgMTkuODMgMTguODMgMTkuMzVRMTguNDggMTguODggMTguMDMgMTguM1ExNy41NyAxNy43MiAxNy4yMiAxNi45NFExNi44OCAxNi4xNSAxNi44OCAxNS4wNlExNi44OCAxMi4zIDE4LjkzIDEwLjY1UTIwLjk3IDkgMjQuNjcgOVEyNy4wNCA5IDI4LjY0IDkuNzRRMzAuMjUgMTAuNDcgMzEuMDcgMTEuNjlRMzEuODkgMTIuOSAzMS44OSAxNC4zM1EzMS44OSAxNS45MiAzMS4wMSAxNi43NFEzMC4xMyAxNy41NiAyOC43NSAxNy41NlEyNy4yMSAxNy41NiAyNi4yOCAxNi42M1EyNS4zNCAxNS43MSAyNS4zNCAxNC4xNVYxMi4zNVEyNS4zNCAxMS41IDI0Ljg5IDExLjFRMjQuNDMgMTAuNjkgMjMuNjcgMTAuNjlRMjIuNzMgMTAuNjkgMjIuMjUgMTEuMjhRMjEuNzYgMTEuODYgMjEuNzYgMTIuOTVRMjEuNzYgMTQuMDIgMjIuMjIgMTQuODhRMjIuNjggMTUuNzQgMjMuMzcgMTYuNDVRMjQuMDYgMTcuMTcgMjQuNzQgMTcuOFEyNS40MyAxOC40NCAyNS44OSAxOS4wN1EyNi4zNSAxOS42OSAyNi4zNSAyMC4zOFYyMS4yN0wyNS42MSAyMC4yNEgzMC4xMVEzMC42MiAyMC4yNCAzMC45MiAyMC40NVEzMS4yMSAyMC42NiAzMS4yMSAyMS4wNlEzMS4yMSAyMS42NyAzMC42MSAyMi4wOFEzMC4wMSAyMi40OSAyOC42NyAyMi40OUgyNi44N1oiIGZpbGw9IiMxQjI0MzMiLz48L3N2Zz4K";
   var style = document.createElement("style");
   style.textContent = ".fabrik-chat { font: inherit; color: inherit; display: grid; gap: 8px; }" +
@@ -65,7 +72,8 @@
     ".fabrik-chat li { padding: 6px 10px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }" +
     ".fabrik-chat li.q { justify-self: end; background: color-mix(in srgb, currentColor 10%, transparent); }" +
     ".fabrik-chat li.a { justify-self: start; position: relative; padding-left: 36px; border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }" +
-    ".fabrik-chat li.a::before { content: \"\"; position: absolute; left: 8px; top: 7px; width: 20px; height: 20px; background: url(" + MARK + ") center / contain no-repeat; }" +
+    ".fabrik-chat li.a::before { content: \"\"; position: absolute; left: 8px; top: 7px; width: 20px; height: 20px; background: url(\"" + (logo || MARK) + "\") center / contain no-repeat; }" +
+    (darkLogo ? "@media (prefers-color-scheme: dark) { .fabrik-chat li.a::before { background-image: url(\"" + darkLogo + "\"); } }" : "") +
     ".fabrik-chat li.problem { color: #b42318; }" +
     ".fabrik-chat li a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }" +
     ".fabrik-chat li time { display: block; margin-top: 2px; font-size: 0.75em; opacity: 0.65; }" +
