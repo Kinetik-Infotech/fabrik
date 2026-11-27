@@ -17,7 +17,9 @@ To set it up, ask Claude in your fabrik folder for a chat on your website, or fo
 
 Claude asks what the agent is for, and writes its purpose in a sentence. You agree its name, which visitors see, and a short slug, which names its page, such as bookings. Claude adds the agent once you approve all three.
 
-With many agents, give each one a topic too, such as Masks or Bookings, and Claude shows it with the other three for your approval. The list of agents puts them under a heading for each topic. An agent with no topic, where every other agent has one, is your main agent, and comes first, above the headings. An agent's page links to the list and to the other agents on its topic. The list's Close link takes a visitor back to the agent they came from, or to your main agent. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
+With many agents, give each one a topic too, such as Masks or Bookings, and Claude shows it with the other three for your approval. The list of agents puts them under a heading for each topic. An agent with no topic, where every other agent has one, is your main agent, and comes first, above the headings.
+
+An agent's page links to the list and to the other agents on its topic. The list's Close link takes a visitor back to the agent they came from, or to your main agent. Every other agent's page links home to your main agent, from its Home link and from your logo at the top left. The list's logo links there too. On a phone, an agent page's links fold behind a menu button. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
 
 ## 2. How it speaks
 

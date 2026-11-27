@@ -315,3 +315,42 @@ test("each answer shows the brand's logo, its dark-mode copy in dark mode, and f
   assert.deepEqual(["light", "dark"].map(mode => answerMark(null, mode)), ["fabrik", "fabrik"]);
   assert.equal(answerMark({ ...one, logo: null }, "light"), "fabrik");
 });
+
+/** What an agent page's header does in the browser at the window width given: whether the menu button and the nav show,
+ * and the button's aria-expanded, first as loaded, then after a click on the button, then after Escape, and whether the
+ * button has the focus then. Last, with the menu open again and the focus in the chat box, the same after Escape, and
+ * whether the chat box keeps the focus. */
+function menuAt(width) {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-menu-")));
+  try {
+    const agents = [{ slug: "main", name: "Ask us", purpose: "" }, { slug: "ethics", name: "Behavioural science ethics", purpose: "", topic: "Behavioural science" },
+      { slug: "nudges", name: "Nudges", purpose: "", topic: "Behavioural science" }, { slug: "trials", name: "Trials", purpose: "", topic: "Behavioural science" }];
+    buildChatPage({ brand: brandOf(RECORD), address: "http://127.0.0.1:9/functions/v1/public-agent", folder: join(work, "site"), agents });
+    const page = join(work, "site", "ethics", "check.html");
+    writeFileSync(page, readFileSync(join(work, "site", "ethics", "index.html"), "utf-8").replace("</body>", `<p id="out"></p><script>(function () {
+  var b = document.querySelector("header button.menu"), n = document.getElementById("agent-nav");
+  function state() { return [getComputedStyle(b).display !== "none" ? "button" : "-", getComputedStyle(n).display !== "none" ? "nav" : "-", b.getAttribute("aria-expanded")].join(" "); }
+  var seen = [state()]; b.focus(); b.click(); seen.push(state());
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); seen.push(state(), document.activeElement === b ? "focus" : "no focus");
+  var box = document.querySelector("input[type=text]"); b.click(); box.focus();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); seen.push(state(), document.activeElement === box ? "box keeps focus" : "box lost focus");
+  document.getElementById("out").textContent = "[" + seen.join("|") + "]";
+})();</script></body>`));
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", `--window-size=${width},800`, "--virtual-time-budget=3000", "--dump-dom", `file://${page}`],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1].split("|");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("at 375 pixels an agent page's nav folds behind the menu button, which opens it and closes it again on Escape, leaving the chat box its focus", { skip: !BROWSER }, () => {
+  assert.deepEqual(menuAt(375), ["button - false", "button nav true", "button - false", "focus", "button - false", "box keeps focus"]);
+});
+
+test("at desktop width an agent page's nav shows inline and the menu button is hidden", { skip: !BROWSER }, () => {
+  assert.equal(menuAt(1280)[0], "- nav false");
+});
