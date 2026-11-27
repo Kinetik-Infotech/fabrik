@@ -139,10 +139,13 @@ export function buildChatPage({ brand, address, folder, agents }) {
   // or to the main agent. Where there is no main agent, it shows only for a visitor who came from an agent's page.
   const close = `<a class="close" href="${main ? `${main.slug}/` : "./"}"${main ? "" : " hidden"} aria-label="Close the list of agents">` +
     `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>Close</a>`;
+  // The logo links home, to the main agent's page, on the list and on every other agent's page, as the Close link does.
+  // Where there is no main agent, and on the main agent's own page, it links nowhere.
+  const logoTo = href => href ? `<a class="home" href="${href}" aria-label="Home: ${esc(main.name)}">${logo}</a>` : logo;
   const slugs = JSON.stringify(agents.map(a => a.slug));
   const back = `<script>(function () { var from = new URLSearchParams(location.search).get("from"), close = document.querySelector("a.close");
   if (close && ${slugs}.indexOf(from) >= 0) { close.href = from + "/"; close.hidden = false; } })();</script>`;
-  const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon,
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logoTo(main && `${main.slug}/`), ICON: icon,
     NAV: agents.length > 1 ? close : "", MAIN: list, SCRIPT: agents.length > 1 ? back : "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
@@ -151,24 +154,25 @@ export function buildChatPage({ brand, address, folder, agents }) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
   writeFileSync(join(folder, "index.html"), root);
-  // An agent's page links to the list of agents, naming itself so the list's close link comes back to it, and by name to
-  // each other agent of its own topic, or with no topics
-  // to each other agent, with its purpose as the link's title. Where those are more than MOST_LINKED, it links to the
-  // list alone.
+  // An agent's page other than the main agent's links home to the main agent, where there is one. Every agent's page links
+  // to the list of agents, naming itself so the list's close link comes back to it, and by name to each other agent of
+  // its own topic, or with no topics to each other agent, with its purpose as the link's title. Where those are more than
+  // MOST_LINKED, it links to the list alone.
   const groupOf = new Map(groups.flatMap(g => g.agents.map(a => [a.slug, g])));
   const nav = slug => {
     if (agents.length < 2) return "";
     const g = groupOf.get(slug), others = g.agents.filter(o => o.slug !== slug);
     const shown = others.length <= MOST_LINKED ? others : [];
     const label = g.topic ? `${esc(g.topic)}: other agents` : "Other agents";
-    return `<nav aria-label="${label}"><a href="../?from=${slug}">All agents</a>` +
+    const home = main && main.slug !== slug ? `<a href="../${main.slug}/">Home</a>` : "";
+    return `<nav aria-label="${label}">${home}<a href="../?from=${slug}">All agents</a>` +
       `${g.topic && shown.length ? `<span class="topic">${esc(g.topic)}</span>` : ""}${shown
         .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
   };
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
-      TITLE: esc(business ? `${a.name} | ${business}` : a.name), HEADING: heading(a.name), STYLE: style, LOGO: logo, ICON: icon, NAV: nav(a.slug),
+      TITLE: esc(business ? `${a.name} | ${business}` : a.name), HEADING: heading(a.name), STYLE: style, LOGO: logoTo(main && main.slug !== a.slug && `../${main.slug}/`), ICON: icon, NAV: nav(a.slug),
       MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}${marks}></script>`,
     }));
   }
