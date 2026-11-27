@@ -79,11 +79,12 @@ Every build of the pages meets these rules, and a change to the pages keeps them
 - The list's Close link goes back to the agent page the visitor came from, and otherwise to the main agent.
 - The logo at the top left goes to the main agent, on the list and on every agent's page but the main agent's own.
 - Those agent pages also have a Home link beside All agents that goes to the main agent. With no main agent, there is no Home link and the logo links nowhere.
-- On a phone, an agent's page shows the logo and the menu button on the first row, and the agent's name on a row of its own below them, across the page's width. The button opens and closes the links, by mouse or keyboard, and Escape closes them too.
-- A page heading hidden because the logo already shows it stays hidden on a phone.
-- On a phone, the chat box's Send button shows a send icon, a paper plane pointing right, in place of the word. It keeps the name Send for screen readers, a touch target of at least 44 pixels, the outline it shows with the keyboard's focus, and the faded look it has while an answer is coming.
-- At desktop width, and without JavaScript, the links show in a row with no menu button.
-- At desktop width, the agent's name sits beside the logo and the Send button shows its word.
+- A page 640 pixels wide or less is laid out for a phone. That is a phone's screen, and also the website's chat panel, which is 380 pixels wide on a computer too.
+- At that width, an agent's page shows the logo and the menu button on the first row, and the agent's name on a row of its own below them, across the page's width. The button opens and closes the links, by mouse or keyboard, and Escape closes them too.
+- A page heading hidden because the logo already shows it stays hidden at that width.
+- At that width, the chat box's Send button shows a send icon, a paper plane pointing right, in place of the word. It keeps the name Send for screen readers, a touch target of at least 44 pixels, the outline it shows with the keyboard's focus, and the faded look it has while an answer is coming.
+- Wider than 640 pixels, and without JavaScript, the links show in a row with no menu button.
+- Wider than 640 pixels, the agent's name sits beside the logo and the Send button shows its word.
 - Each answer shows the brand's logo beside it, or fabrik's mark where the Brand record has no logo.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
