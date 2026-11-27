@@ -19,7 +19,9 @@ Claude asks what the agent is for, and writes its purpose in a sentence. You agr
 
 With many agents, give each one a topic too, such as Masks or Bookings, and Claude shows it with the other three for your approval. The list of agents puts them under a heading for each topic. An agent with no topic, where every other agent has one, is your main agent, and comes first, above the headings.
 
-An agent's page links to the list and to the other agents on its topic. The list's Close link takes a visitor back to the agent they came from, or to your main agent. Every other agent's page links home to your main agent, from its Home link and from your logo at the top left. The list's logo links there too. On a phone, an agent page's links fold behind a menu button. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
+An agent's page links to the list and to the other agents on its topic. The list's Close link takes a visitor back to the agent they came from, or to your main agent. Every other agent's page links home to your main agent, from its Home link and from your logo at the top left. The list's logo links there too. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
+
+On a phone, an agent page's name has a row of its own under your logo, and its links fold behind a menu button. Its Send button shows an icon there. The chat panel on your website is as narrow as a phone, so it looks the same there.
 
 ## 2. How it speaks
 

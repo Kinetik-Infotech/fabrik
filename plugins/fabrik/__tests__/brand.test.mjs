@@ -354,3 +354,59 @@ test("at 375 pixels an agent page's nav folds behind the menu button, which open
 test("at desktop width an agent page's nav shows inline and the menu button is hidden", { skip: !BROWSER }, () => {
   assert.equal(menuAt(1280)[0], "- nav false");
 });
+
+/** How an agent page lays out its header and its Send button in the browser at the width given, for the agent named.
+ * The page loads in an iframe of that width, since headless Chrome's window is never narrower than 500 pixels.
+ * heading: "own row" where the heading sits below the logo and the menu button and spans the header's width, "beside"
+ * where it shares the logo's row, or "hidden" where it is kept for screen readers alone. logoAndMenu: "one row" where
+ * the logo and the menu button share a row and both fit the width. send: what the button shows, "icon" or "word", then
+ * its accessible name, its width and height in pixels, its opacity while disabled, and its outline style once it has
+ * the focus. */
+function headerAt(width, name) {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-header-")));
+  try {
+    const agents = [{ slug: "main", name: "Ask us", purpose: "" }, { slug: "ethics", name, purpose: "", topic: "Behavioural science" },
+      { slug: "nudges", name: "Nudges", purpose: "", topic: "Behavioural science" }];
+    buildChatPage({ brand: brandOf(RECORD), address: "http://127.0.0.1:9/functions/v1/public-agent", folder: join(work, "site"), agents });
+    const html = readFileSync(join(work, "site", "ethics", "index.html"), "utf-8").replace("</body>", `<script>(function () {
+  var header = document.querySelector("header"), h = header.querySelector("h1"), logo = header.querySelector("img.logo").getBoundingClientRect();
+  var menu = header.querySelector("button.menu").getBoundingClientRect(), r = h.getBoundingClientRect(), cs = getComputedStyle(header);
+  var inner = header.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  var heading = h.classList.contains("in-logo") ? (r.width <= 1 ? "hidden" : "shown") : r.top >= Math.max(logo.bottom, menu.bottom) && r.width >= inner - 1 ? "own row" : r.top < logo.bottom ? "beside" : "other";
+  var logoAndMenu = menu.width === 0 ? "no menu" : menu.top < logo.bottom && logo.top < menu.bottom && menu.right <= innerWidth ? "one row" : "not one row";
+  var b = document.querySelector(".fabrik-chat button"), s = b.getBoundingClientRect();
+  var shows = getComputedStyle(b.querySelector("svg")).display !== "none" ? "icon" : getComputedStyle(b.querySelector(".label")).display !== "none" ? "word" : "nothing";
+  b.disabled = true; var dim = getComputedStyle(b).opacity; b.disabled = false;
+  b.focus(); var ring = getComputedStyle(b).outlineStyle;
+  parent.document.getElementById("out").textContent = "[" + [heading, logoAndMenu, shows, b.getAttribute("aria-label"), Math.round(s.width) + "x" + Math.round(s.height), dim, ring, innerWidth].join("|") + "]";
+})();</script></body>`);
+    // The frame's srcdoc takes the page's own address as its base, so the page's ../chat.js still loads.
+    const page = join(work, "site", "ethics", "check.html");
+    writeFileSync(page, `<!doctype html><html><body style="margin:0"><iframe style="border:0;width:${width}px;height:800px" srcdoc="${html.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe><p id="out"></p></body></html>`);
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", `--window-size=${Math.max(width, 500) + 40},900`, "--virtual-time-budget=3000", "--dump-dom", `file://${page}`],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    const seen = found[1].split("|");
+    assert.equal(seen.pop(), String(width), "the page's width in its frame");
+    return seen;
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("at 375 pixels an agent page's heading takes its own row under the logo and the menu button, and Send is a 48-pixel icon named Send", { skip: !BROWSER }, () => {
+  const [heading, logoAndMenu, ...send] = headerAt(375, "Behavioural science ethics");
+  assert.deepEqual([heading, logoAndMenu], ["own row", "one row"]);
+  assert.deepEqual(send, ["icon", "Send", "48x48", "0.55", "solid"]);
+});
+
+test("at 375 pixels a heading the logo already shows stays hidden", { skip: !BROWSER }, () => {
+  assert.equal(headerAt(375, "Smith Joinery")[0], "hidden");
+});
+
+test("at desktop width an agent page's heading sits beside the logo and Send shows its word", { skip: !BROWSER }, () => {
+  const [heading, , shows, name] = headerAt(1280, "Behavioural science ethics");
+  assert.deepEqual([heading, shows, name], ["beside", "word", "Send"]);
+});

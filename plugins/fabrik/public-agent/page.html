@@ -2,7 +2,8 @@
 <!-- fabrik's chat pages. fabrik chat-page fills in the title, icon, style, logo, name and links to the other agents from the Brand record, and the main
      part: an agent's chat box, at <slug>/index.html, or the list of agents by topic, at index.html, whose header holds the
      link that closes the list. Where there is a main agent, the logo links to its page, except on that page itself. On a
-     phone, an agent page's links fold behind a menu button. Cloudflare Pages hosts them
+     phone, and in any frame 640 pixels wide or less such as widget.js's panel, the page's heading takes a row of its own under the logo, an agent page's links fold behind a menu button, and
+     the chat box's Send button shows a send icon in place of its word. Cloudflare Pages hosts them
      beside chat.js and widget.js. -->
 <html lang="en">
 <head>
@@ -45,6 +46,7 @@ main .fabrik-chat form { flex-wrap: nowrap; gap: 8px; }
 main .fabrik-chat input[type=text] { padding: 12px 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); color: var(--ink); }
 main .fabrik-chat input[type=text]:focus-visible { outline: 3px solid var(--accent); outline-offset: 0; }
 main .fabrik-chat button { padding: 12px 22px; border: 0; border-radius: 999px; cursor: pointer; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+main .fabrik-chat button svg { display: none; }
 main .fabrik-chat button:disabled { opacity: 0.55; cursor: default; }
 main .fabrik-chat button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 main .fabrik-chat p.kept { color: var(--muted); opacity: 1; text-align: center; }
@@ -61,11 +63,15 @@ header button.menu { display: none; align-items: center; justify-content: center
 header button.menu:hover { border-color: var(--accent); }
 header button.menu:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 640px) {
-  header nav { margin-left: 0; flex-basis: 100%; }
-  header.has-menu h1 { flex: 1 1 0; min-width: 0; }
+  header h1 { order: 1; flex-basis: 100%; }
+  header nav { order: 2; margin-left: 0; flex-basis: 100%; }
   header.has-menu button.menu { display: inline-flex; }
   header.has-menu nav:not(.open) { display: none; }
   header.has-menu nav.open { flex-direction: column; gap: 12px; padding: 6px 0 4px; }
+  main .fabrik-chat form { align-items: center; }
+  main .fabrik-chat button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 48px; height: 48px; padding: 0; }
+  main .fabrik-chat button svg { display: block; }
+  main .fabrik-chat button .label { display: none; }
 }
 @media (max-width: 480px) { header { padding: 10px 16px; } main { padding: 12px 16px 16px; } }
 </style>

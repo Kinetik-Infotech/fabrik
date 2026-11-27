@@ -15,7 +15,8 @@
 // conversation lives in the page alone, and a reload starts afresh. A line under the box says the business keeps the conversation,
 // naming the business data-business gives. Three bouncing dots stand in the answer's place while the assistant thinks. Each
 // answer is shown as plain text, with each web address and email address as a link, and each message with the time it
-// was sent.
+// was sent. Its Send button holds the word and a send icon, and a page may show either: fabrik's chat pages show the
+// icon at 640 pixels wide or less.
 (function () {
   "use strict";
   var script = document.currentScript;
@@ -88,6 +89,7 @@
     ".fabrik-chat form { display: flex; gap: 6px; flex-wrap: wrap; }" +
     ".fabrik-chat input[type=text] { flex: 1 1 12em; min-width: 0; padding: 6px 8px; font: inherit; }" +
     ".fabrik-chat button { padding: 6px 12px; font: inherit; }" +
+    ".fabrik-chat button svg { display: none; }" +
     ".fabrik-chat p.kept { margin: 0; font-size: 0.85em; opacity: 0.75; }";
   document.head.appendChild(style);
 
@@ -99,7 +101,11 @@
   input.setAttribute("aria-label", "Your question");
   input.placeholder = "Ask a question";
   var send = document.createElement("button");
-  send.type = "submit"; send.textContent = "Send";
+  // The button's word, and a paper plane pointing right in its text colour. The page shows the plane in place of the word
+  // at 640 pixels wide or less, so the button's name is set apart from its word and stays "Send" either way.
+  send.type = "submit"; send.setAttribute("aria-label", "Send");
+  send.innerHTML = '<span class="label">Send</span><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+    '<path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.4 10.1 15 12 3.4 13.9z"/></svg>';
   var check = document.createElement("div");
   var kept = document.createElement("p");
   kept.className = "kept";
