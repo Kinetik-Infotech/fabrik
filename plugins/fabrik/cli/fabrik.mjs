@@ -83,6 +83,8 @@ puts the pages up on Cloudflare Pages, with the Cloudflare sign-in fabrik's sign
 domain, such as chat.example.com. It lists the domains on that Cloudflare account and asks which one, unless --domain
 names the address. --domain pages.dev keeps the pages.dev address. Later runs use the same address without asking. It
 prints each agent's page and the line that puts its chat button on any website. Run it again after you add or remove an agent.
+It puts nothing up when fabrik's Cloudflare sign-in doesn't hold the Cloudflare account the pages were first put on, and
+names both accounts.
 
 upgrade applies one signed upgrade to your fabrik, as you, when you are an administrator. The file is the request
 scripts/sign-upgrade.mjs writes. fabrik-upgrade applies it only when fabrik's upgrade key signed it, in order.

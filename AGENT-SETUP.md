@@ -24,7 +24,7 @@ Before the human types a password or token in a Terminal tab, tell them that not
    - **Organisation and project.** Pick by number, or choose a new project. For a new project, setup prompts for a name and a region near them.
    - **Type 'yes'.** Setup prints the name of the project it will set fabrik up in, and continues when they type `yes`.
    - **Name, email and password.** This is their fabrik sign-in. Setup suggests their Supabase account's email, and Enter accepts it. The password is a new one, and is asked twice.
-   - **Cloudflare.** A browser window opens. They sign in to Cloudflare, or make a free account, and allow Wrangler, Cloudflare's tool. Then they come back to the Terminal tab.
+   - **Cloudflare.** A browser window opens. They sign in to Cloudflare, or make a free account, and allow Wrangler, Cloudflare's tool. Then they come back to the Terminal tab. This sign-in is fabrik's own, apart from any other Wrangler sign-in on the computer. fabrik keeps the business's pages on the Cloudflare account chosen here.
 
    Setup prints one line as each step finishes. If it stops, read why, put it right, and run the same command again: it resumes at the step where it stopped.
 
