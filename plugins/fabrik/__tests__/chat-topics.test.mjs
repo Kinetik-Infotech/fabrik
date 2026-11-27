@@ -17,7 +17,9 @@ function built(agents) {
     const main = root.match(/<main>([^]*)<\/main>/)[1];
     const navs = Object.fromEntries(agents.map(a => [a.slug, readFileSync(join(folder, a.slug, "index.html"), "utf8").match(/<nav[^]*?<\/nav>/)?.[0] ?? null]));
     const close = root.match(/<a class="close"[^>]*>/)?.[0] ?? null, script = root.match(/<script>([^]*?)<\/script>/)?.[1] ?? null;
-    return { main, navs, close, script };
+    const logoLink = html => html.match(/<header>(<a class="home"[^>]*>)?<img/)[1] ?? null;
+    const logos = Object.fromEntries([["", root], ...agents.map(a => [a.slug, readFileSync(join(folder, a.slug, "index.html"), "utf8")])].map(([k, h]) => [k, logoLink(h)]));
+    return { main, navs, close, script, logos };
   } finally { rmSync(folder, { recursive: true, force: true }); }
 }
 const headings = main => [...main.matchAll(/<h2>([^<]*)<\/h2>/g)].map(m => m[1]);
@@ -107,4 +109,25 @@ test("with no main agent, the close link shows only for a visitor who came from 
   const one = built([{ slug: "chat", name: "Chat", purpose: "" }]);
   assert.equal(one.close, null);
   assert.equal(one.script, null);
+});
+
+test("with a main agent, every other agent's page links home to it from its logo and from a Home link beside All agents", () => {
+  const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
+  assert.equal(navs.n95, '<nav aria-label="masks: other agents"><a href="../main/">Home</a><a href="../?from=n95">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
+  assert.equal(logos.n95, '<a class="home" href="../main/" aria-label="Home: Ask us">');
+  assert.equal(logos.shampoo, '<a class="home" href="../main/" aria-label="Home: Ask us">');
+});
+
+test("the main agent's own page has no Home link and its logo links nowhere, and the list's logo links to the main agent", () => {
+  const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
+  assert.ok(!navs.main.includes(">Home<"));
+  assert.equal(logos.main, null);
+  assert.equal(logos[""], '<a class="home" href="main/" aria-label="Home: Ask us">');
+});
+
+test("with no main agent, or one agent, no page has a Home link and no logo links anywhere", () => {
+  const { navs, logos } = built(AGENTS);
+  assert.ok(Object.values(navs).every(nav => !nav.includes(">Home<")));
+  assert.ok(Object.values(logos).every(link => link === null));
+  assert.deepEqual(built([{ slug: "chat", name: "Chat", purpose: "" }]).logos, { "": null, chat: null });
 });
