@@ -1,6 +1,5 @@
 // Opens a built page in headless Chrome with puppeteer-core, for the checks and the renderer.
 // The Chrome path comes from CHROME_PATH, defaulting to Google Chrome on a Mac.
-// Lifted from humantra-marketplace plugins/humantra-brand/skills/brand/examples/bilby-demo/record.js.
 import puppeteer from 'puppeteer-core';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
