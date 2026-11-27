@@ -8,8 +8,7 @@
 -- password, and opens one with fabrik_open_login, which gives its password and previous password. An agent or an
 -- application opens none. The audit log gives each add, change, removal and opening, without the password. A scope
 -- that holds a login is not deleted. The Data API refuses fabrik_save_login and fabrik_open_login to every token: the
--- fabrik-apps function calls them as the person, over its own database connection, for the Login card alone. From
--- ACMEKB's upgrade 0143-shared-logins.
+-- fabrik-apps function calls them as the person, over its own database connection, for the Login card alone.
 -- The same text is in setup.sql. Safe to run twice. Run as the postgres login.
 
 -- Each shared login. The password is the Vault secret secret_id, and the password before the last change

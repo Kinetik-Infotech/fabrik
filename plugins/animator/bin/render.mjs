@@ -5,8 +5,7 @@
 //   node render.mjs <job-dir> video    video.mp4: every frame at 30 fps as H.264 (CRF 18), with one narration
 //                                      track that places each scene's clip at its start + 0.5 s, as AAC 192k
 //
-// Needs Google Chrome (CHROME_PATH) and ffmpeg. Lifted from acme-marketplace
-// plugins/acme-brand/skills/brand/examples/bilby-demo/record.js and its video-presentations.md.
+// Needs Google Chrome (CHROME_PATH) and ffmpeg.
 import { readFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { spawn, execFileSync } from 'node:child_process';
 import path from 'node:path';

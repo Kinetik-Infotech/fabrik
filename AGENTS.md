@@ -4,6 +4,10 @@
 
 Load the `humanizer:translate` skill before writing anything a person reads, and follow all of its rules, not only the ones its checks catch. Run `checks.mjs` on prose and `checkPage` on a page. Software and services take the field's own verbs: Supabase and Cloudflare host, fabrik stores, setup prompts.
 
+## Other businesses' and people's information
+
+No other business's or person's information leaves where it belongs. Code, comments, tests, documents, plans, commit messages, branch names, PR titles and PR descriptions never name a client, another business, its products, its people, its repositories, or its plans, PRs or commit ids. They never hold personal details. The one exception is a repository's own author, named in its plugin manifests. A change ported from another codebase is described by what it does, never by where it came from. Examples and test data are made up. Before each commit, push and PR, search what is added for such names and remove them. Something already leaked is removed from the files and from the git history.
+
 ## The name
 
 Write fabrik in lower case everywhere, at the start of a sentence and in a heading too. Code names such as `exposeFabrik` keep their own case.
