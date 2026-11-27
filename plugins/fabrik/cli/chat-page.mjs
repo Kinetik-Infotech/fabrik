@@ -94,6 +94,12 @@ export const MOST_LINKED = 12;
 
 const byText = (a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric: true }) || (a < b ? -1 : a > b ? 1 : 0);
 const topicOf = a => String(a?.topic ?? "").replace(/\s+/g, " ").trim();
+/** An agent's greeting, which chat.js draws as the first message of a new conversation: empty for none. Its line breaks
+ * stay, as chat.js keeps them. */
+const greetingOf = a => String(a?.greeting ?? "").replace(/\r\n?/g, "\n").trim();
+/** Text escaped for a double-quoted attribute, where only & and " need it, so a page's parser gives back the text
+ * exactly: & becomes &amp; and " becomes &quot;. */
+const escAttribute = v => String(v ?? "").replace(/[&"]/g, c => (c === "&" ? "&amp;" : "&quot;"));
 
 /** The agents in groups by topic: [{ topic, agents }], the topics in alphabetical order and each one's agents by name,
  * then the agents with no topic, whose group's topic is empty. Topics that differ only in capitals are one group, named
@@ -124,7 +130,8 @@ export function mainAgent(agents) {
 
 /** Writes the chat pages into folder: a page in the brand for each agent at <slug>/index.html, index.html listing the
  * agents under a heading for each topic, with the main agent first, chat.js, and widget.js with the brand's accent. agents is
- * [{ slug, name, purpose, topic }], at least one, and topic may be left out. */
+ * [{ slug, name, purpose, topic, greeting }], at least one, and topic and greeting may be left out. An agent's page gives its
+ * greeting to chat.js as data-greeting. */
 export function buildChatPage({ brand, address, folder, agents }) {
   if (!/^https?:\/\/[^\s"'<>]+$/.test(String(address))) throw new Error(`${address} is not the public-agent function's address.`);
   if (!Array.isArray(agents) || !agents.length) throw new Error("fabrik has no public agent yet, so there's no chat page to put up. Add an agent first.");
@@ -189,7 +196,8 @@ export function buildChatPage({ brand, address, folder, agents }) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
       TITLE: esc(business ? `${a.name} | ${business}` : a.name), HEADING: heading(a.name), STYLE: style, LOGO: logoTo(main && main.slug !== a.slug && `../${main.slug}/`), ICON: icon, NAV: nav(a.slug),
-      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}${marks}></script>`,
+      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}` +
+        `${greetingOf(a) ? ` data-greeting="${escAttribute(greetingOf(a))}"` : ""}${marks}></script>`,
     }));
   }
   writeFileSync(join(folder, "chat.js"), readFileSync(join(SOURCE, "chat.js")));

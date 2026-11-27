@@ -1,5 +1,6 @@
 // fabrik's public agents answer chat boxes on the owner's website. fabrik_private.public_agent holds each agent's slug,
-// name, purpose, topic, model and daily cap. The chat pages group the agents by topic. An administrator writes two files for each agent in the private bucket
+// name, purpose, topic, greeting, model and daily cap. The chat pages group the agents by topic, and an agent's chat page
+// shows its greeting as the first message of a new conversation, without calling Claude. An administrator writes two files for each agent in the private bucket
 // public-agent. agents/<slug>/instructions.md says who the agent is, how it speaks and what it answers. agents/<slug>/
 // knowledge.md holds what it knows. The agents have no tools and read no record.
 //
@@ -51,8 +52,10 @@
 // deletes the key, which stops every agent answering.
 //
 // agents_list gives every agent, with its settings and today's tokens, and the page's address. agent_create makes the
-// agent given with name, and purpose, topic, model and daily_cap_tokens when given. agent_change sets any of the five,
-// and an empty topic takes the agent out of its topic.
+// agent given with name, and purpose, topic, greeting, model and daily_cap_tokens when given. agent_change sets any of
+// the six. An empty topic takes the agent out of its topic, and an empty greeting removes the greeting. The greeting is
+// never posted back: the chat box keeps it out of the history it sends, so it is never sent to Claude or kept as an
+// exchange.
 // agent_remove deletes the agent, its files and its tokens.
 //
 // knowledge_get, knowledge_save, instructions_get and instructions_save read and replace one agent's files. settings
@@ -94,6 +97,8 @@ const MAX_ANSWER = 4000;
 const utf8 = new TextEncoder();
 const MAX_KNOWLEDGE = 100_000;
 const MAX_INSTRUCTIONS = 20_000;
+// The longest greeting, in characters. The database checks the same limit.
+const MAX_GREETING = 600;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** The most conversations conversations_list gives, and how many when limit isn't given. */
 const MAX_LIST = 500;
@@ -168,16 +173,16 @@ async function settings(): Promise<{ turnstile_sitekey: string | null; page: str
   const [s] = await sql`select turnstile_sitekey, page_address from fabrik_private.public_agent_setting where id`;
   return { turnstile_sitekey: s?.turnstile_sitekey ?? null, page: s?.page_address ?? null };
 }
-type Agent = { slug: string; name: string; purpose: string; topic: string; model: string; daily_cap_tokens: number };
+type Agent = { slug: string; name: string; purpose: string; topic: string; greeting: string; model: string; daily_cap_tokens: number };
 async function agents(): Promise<(Agent & { today_tokens: number })[]> {
-  return (await sql`select a.slug, a.name, a.purpose, a.topic, a.model, a.daily_cap_tokens, coalesce(u.tokens, 0)::bigint as today_tokens
+  return (await sql`select a.slug, a.name, a.purpose, a.topic, a.greeting, a.model, a.daily_cap_tokens, coalesce(u.tokens, 0)::bigint as today_tokens
     from fabrik_private.public_agent a left join fabrik_private.public_agent_usage u on u.slug = a.slug and u.day = (now() at time zone 'utc')::date
     order by a.created_at, a.slug`).map((a) => ({ ...a, today_tokens: Number(a.today_tokens) })) as (Agent & { today_tokens: number })[];
 }
 /** The agent with the slug given, or a 404 refusal. */
 async function agentOf(given: unknown): Promise<Agent> {
   const slug = typeof given === "string" ? given : "";
-  const [a] = SLUG.test(slug) ? await sql`select slug, name, purpose, topic, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${slug}` : [];
+  const [a] = SLUG.test(slug) ? await sql`select slug, name, purpose, topic, greeting, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${slug}` : [];
   if (!a) throw refuse(404, `fabrik has no public agent ${JSON.stringify(slug)}.`);
   return a as Agent;
 }
@@ -488,18 +493,22 @@ async function saveInstructions(agent: Agent, given: unknown) {
   return { ok: true, agent: agent.slug, saved: true, characters: given.length };
 }
 
-/** The name, purpose, topic, model and cap given, checked. Each is null when not given. */
+/** The name, purpose, topic, greeting, model and cap given, checked. Each is null when not given. */
 async function agentFields(args: Record<string, unknown>) {
   const { model, daily_cap_tokens: cap } = args;
   // AGENTS.md gives each agent one line, so a name or purpose is kept on one line.
   const line = (given: unknown) => typeof given === "string" ? given.replace(/\s+/g, " ").trim() : given;
   const name = line(args.name), purpose = line(args.purpose), topic = line(args.topic);
+  // A greeting may run over several lines, as the chat box shows it, so only its line endings and its ends are tidied.
+  const greeting = typeof args.greeting === "string" ? args.greeting.replace(/\r\n?/g, "\n").trim() : args.greeting;
   if (name !== undefined && (typeof name !== "string" || name.length < 1 || name.length > 80))
     throw refuse(400, "name is the agent's name, 1 to 80 characters.");
   if (purpose !== undefined && (typeof purpose !== "string" || purpose.length > 500))
     throw refuse(400, "purpose says what the agent is for, at most 500 characters.");
   if (topic !== undefined && (typeof topic !== "string" || topic.length > 80))
     throw refuse(400, "topic is the topic the chat pages list the agent under, at most 80 characters, or empty for none.");
+  if (greeting !== undefined && (typeof greeting !== "string" || greeting.length > MAX_GREETING))
+    throw refuse(400, `greeting is the agent's first message in a new conversation, plain text of at most ${MAX_GREETING} characters, or empty for none.`);
   if (model !== undefined && (typeof model !== "string" || !/^claude-[a-z0-9.-]{1,60}$/.test(model)))
     throw refuse(400, `model is a Claude model's id, such as ${DEFAULT_MODEL}.`);
   if (cap !== undefined && (!Number.isInteger(cap) || (cap as number) < MIN_CAP || (cap as number) > 100_000_000))
@@ -512,6 +521,7 @@ async function agentFields(args: Record<string, unknown>) {
     });
   }
   return { name: typeof name === "string" ? name : null, purpose: typeof purpose === "string" ? purpose : null, topic: typeof topic === "string" ? topic : null,
+    greeting: typeof greeting === "string" ? greeting : null,
     model: typeof model === "string" ? model : null, cap: typeof cap === "number" ? cap : null };
 }
 
@@ -525,8 +535,8 @@ async function createAgent(args: Record<string, unknown>) {
   if (!SLUG.test(slug)) throw refuse(400, "agent is the new agent's slug: 1 to 40 characters of a to z, 0 to 9 and hyphens.");
   if (typeof args.name !== "string") throw refuse(400, "Give the new agent's name as name.");
   const f = await agentFields(args);
-  const [made] = await sql`insert into fabrik_private.public_agent(slug, name, purpose, topic, model, daily_cap_tokens)
-    values (${slug}, ${f.name}, ${f.purpose ?? ""}, ${f.topic ?? ""}, coalesce(${f.model}::text, ${DEFAULT_MODEL}), coalesce(${f.cap}::integer, ${DEFAULT_CAP}))
+  const [made] = await sql`insert into fabrik_private.public_agent(slug, name, purpose, topic, greeting, model, daily_cap_tokens)
+    values (${slug}, ${f.name}, ${f.purpose ?? ""}, ${f.topic ?? ""}, ${f.greeting ?? ""}, coalesce(${f.model}::text, ${DEFAULT_MODEL}), coalesce(${f.cap}::integer, ${DEFAULT_CAP}))
     on conflict (slug) do nothing returning slug`;
   if (!made) throw refuse(409, `fabrik already has a public agent ${slug}. Nothing was changed.`);
   if ((await read(instructionsFile(slug))) === null) await write(instructionsFile(slug), STARTING);
@@ -538,7 +548,7 @@ async function changeAgent(args: Record<string, unknown>) {
   const agent = await agentOf(args.agent);
   const f = await agentFields(args);
   await sql`update fabrik_private.public_agent set name = coalesce(${f.name}::text, name), purpose = coalesce(${f.purpose}::text, purpose),
-    topic = coalesce(${f.topic}::text, topic),
+    topic = coalesce(${f.topic}::text, topic), greeting = coalesce(${f.greeting}::text, greeting),
     model = coalesce(${f.model}::text, model), daily_cap_tokens = coalesce(${f.cap}::integer, daily_cap_tokens), updated_at = now()
     where slug = ${agent.slug}`;
   if (f.name !== null || f.purpose !== null) await writeAgents();
