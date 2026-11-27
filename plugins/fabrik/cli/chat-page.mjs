@@ -82,15 +82,22 @@ const byText = (a, b) => a.localeCompare(b, "en", { sensitivity: "base", numeric
 const topicOf = a => String(a?.topic ?? "").replace(/\s+/g, " ").trim();
 
 /** The agents in groups by topic: [{ topic, agents }], the topics in alphabetical order and each one's agents by name,
- * then the agents with no topic, whose group's topic is empty. */
+ * then the agents with no topic, whose group's topic is empty. Topics that differ only in capitals are one group, named
+ * with the spelling most of its agents have, and on a tie the one that sorts first by code point, so capitals win. */
 export function topicGroups(agents) {
   const groups = new Map();
   for (const a of agents) {
     const topic = topicOf(a), key = topic.toLowerCase();
-    if (!groups.has(key)) groups.set(key, { topic, agents: [] });
-    groups.get(key).agents.push(a);
+    if (!groups.has(key)) groups.set(key, { topic, agents: [], spellings: new Map() });
+    const g = groups.get(key);
+    g.agents.push(a);
+    g.spellings.set(topic, (g.spellings.get(topic) ?? 0) + 1);
   }
-  for (const g of groups.values()) g.agents.sort((x, y) => byText(x.name, y.name) || byText(x.slug, y.slug));
+  for (const g of groups.values()) {
+    g.agents.sort((x, y) => byText(x.name, y.name) || byText(x.slug, y.slug));
+    g.topic = [...g.spellings].sort(([s, n], [t, m]) => m - n || (s < t ? -1 : s > t ? 1 : 0))[0][0];
+    delete g.spellings;
+  }
   return [...groups.values()].sort((x, y) => (!x.topic) - (!y.topic) || byText(x.topic, y.topic));
 }
 
