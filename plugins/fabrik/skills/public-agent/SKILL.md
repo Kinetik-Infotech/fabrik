@@ -63,9 +63,15 @@ The file is at most 100,000 characters. Every question sends the agent's three f
 
 fabrik builds a page for each agent from the Brand record, with its logo, colours and fonts. Beside a logo, a page heading that is the business's own name, or the logo's alt text, is hidden, since the logo shows it. A page at the address's root lists the agents by name and purpose. With no Brand record they take fabrik's own look. Cloudflare hosts them, on the Cloudflare account fabrik's sign-in page uses, at an address on the owner's own domain, such as chat.example.com. They stay at the `fabrik-chat-<ref>.pages.dev` address too.
 
-The list has a heading for each topic, in alphabetical order, with each topic's agents by name. Topics that differ only in capitals are one topic, and its heading takes the spelling most of its agents have. Agents with no topic come last, under Other agents. With no topics, it lists every agent by name.
+Each answer in the chat shows the logo beside it, and the logo's dark-mode copy in dark mode where the Brand record has one. With no logo, it shows fabrik's mark, the gold "f".
 
-An agent's page links to the list, and to the other agents of its own topic. With no topics, it links to every other agent. Past 12 such agents, it links to the list alone.
+The list has a heading for each topic, in alphabetical order, with each topic's agents by name. Topics that differ only in capitals are one topic, and its heading takes the spelling most of its agents have. With no topics, it lists every agent by name.
+
+Where every agent but one has a topic, that one is the business's main agent. It is often the agent that answers any question and points visitors to the others. The main agent comes first, above the headings. So to put an agent first, leave it the only agent with no topic. Where more than one agent has no topic, there is no main agent, and those agents come last, under Other agents.
+
+An agent's page links to the list, under All agents, and to the other agents of its own topic. With no topics, it links to every other agent. Past 12 such agents, it links to the list alone.
+
+The list has a Close link at the top right. It takes the visitor back to the agent page they opened the list from, where their conversation is as they left it. A visitor who opened the list directly goes to the main agent. Where there is no main agent, the Close link shows only for a visitor who came from an agent's page.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
