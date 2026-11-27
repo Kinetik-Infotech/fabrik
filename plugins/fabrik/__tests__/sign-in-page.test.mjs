@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { accountsFile, pagesProject, putUpSignInPage, wranglerHome } from "../cli/sign-in-page.mjs";
+import { workerFolder } from "../cli/chat-domain.mjs";
 
 const REF = "abcdefghijklmnopqrst";
 const NAME = pagesProject(REF);
@@ -152,5 +153,20 @@ test("a sign-in that sees several accounts, one of them the saved one: no questi
   writeFileSync(accountsFile(s.home), JSON.stringify({ [REF]: { id: "acc-2", name: "Olive's Business" } }));
   await s.go();
   assert.deepEqual(s.asked, []);
+  assert.ok(s.log().filter(x => x.args[0] === "pages").every(x => x.account === "acc-2"), JSON.stringify(s.log()));
+});
+
+test("a project put up before accounts were saved keeps its chat Worker's account: a sign-in without it stops, and one with it saves it", async t => {
+  const s = stage(t, { projects: [NAME], accounts: [{ id: "acc-1", name: "Olive's Account" }] });
+  mkdirSync(workerFolder(REF, s.home), { recursive: true });
+  writeFileSync(join(workerFolder(REF, s.home), "wrangler.json"), JSON.stringify({ name: "fabrik-chat-x", account_id: "acc-2" }));
+  await assert.rejects(s.go(), { message: "fabrik's Cloudflare sign-in is olive@owner.example, with the Cloudflare account Olive's Account (acc-1), but this fabrik's pages are on the Cloudflare account acc-2. fabrik put nothing up. "
+    + `To sign fabrik in to Cloudflare as a person on acc-2, delete the folder ${join(wranglerHome(s.home), ".wrangler")}, then run this command again in a terminal, and sign in in the browser.` });
+  assert.ok(!s.log().some(x => x.args[0] === "pages"), "nothing is put up");
+  assert.ok(!existsSync(accountsFile(s.home)), "no account is saved");
+  writeFileSync(join(s.dir, "wrangler-state.json"), JSON.stringify({ ...s.st(), accounts: [{ id: "acc-1", name: "Olive's Account" }, { id: "acc-2", name: "Olive's Business" }] }));
+  await s.go();
+  assert.deepEqual(s.asked, []);
+  assert.deepEqual(JSON.parse(readFileSync(accountsFile(s.home), "utf8")), { [REF]: { id: "acc-2", name: "Olive's Business" } });
   assert.ok(s.log().filter(x => x.args[0] === "pages").every(x => x.account === "acc-2"), JSON.stringify(s.log()));
 });
