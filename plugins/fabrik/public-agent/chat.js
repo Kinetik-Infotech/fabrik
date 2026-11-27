@@ -11,8 +11,12 @@
 // it to Claude or keeps it as an exchange.
 //
 // It asks the address with a GET for the Turnstile widget's site key, unless data-sitekey gives one. The box is drawn in the element with id fabrik-chat, or after the script tag when the page has none. It loads
-// Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something. Each question is posted with a new Turnstile token and the latest
-// turns that fit the function's limits: at most 10 turns and 8,000 characters. When the box is drawn it makes the
+// Cloudflare's Turnstile script and draws its widget, which shows only when Cloudflare needs the visitor to do something.
+// The first question is posted with a Turnstile token, and each answer brings the conversation's pass, which the next
+// questions are posted with in place of a token, so the visitor passes the check once a conversation. A pass the function
+// refuses, as one out of date, is dropped, the check runs again and the question goes back in the box. Each question is
+// posted with the latest turns that fit the function's limits: at most 10 turns and 8,000 characters. It asks for the
+// answer streamed, and draws it as Claude writes it, then as the function kept it once it ends. When the box is drawn it makes the
 // conversation's id, a random UUID, and sends it with each question as conversation, so the business can read the
 // conversation whole. The page keeps each agent's conversation, its id and its messages with their times, in the browser
 // tab's session storage, so a visitor who goes to another page of the chat and comes back finds the conversation as they
@@ -35,6 +39,9 @@
   var conversation = null;
   var shown = [];
   var widget = null;
+  // The conversation's pass from the function, which lets its questions skip the check, or null before the first answer.
+  var pass = null;
+  var PASS = /^[0-9]{13}\.[0-9a-f]{64}$/;
   // This agent's conversation in the tab's session storage: { conversation, turns, shown }, shown being each message
   // drawn, as { text, kind, at }. Storage the browser refuses leaves the conversation in the page alone.
   var KEY = "fabrik-chat:" + (agent || "chat");
@@ -46,7 +53,7 @@
   }
   function store() {
     // Storage that refuses the write, as when it is full, holds no older copy of the conversation either.
-    try { window.sessionStorage.setItem(KEY, JSON.stringify({ conversation: conversation, turns: turns, shown: shown })); }
+    try { window.sessionStorage.setItem(KEY, JSON.stringify({ conversation: conversation, turns: turns, shown: shown, pass: pass })); }
     catch (e) { try { window.sessionStorage.removeItem(KEY); } catch (f) { /* the page alone */ } }
   }
 
@@ -183,6 +190,7 @@
     && pairs(earlier.turns) && Array.isArray(earlier.shown)) {
     conversation = earlier.conversation;
     turns = earlier.turns;
+    pass = typeof earlier.pass === "string" && PASS.test(earlier.pass) ? earlier.pass : null;
     shown = earlier.shown.filter(function (m) { return m && typeof m.text === "string" && (m.kind === "q" || m.kind === "a"); }).slice(-SHOWN);
     shown.forEach(function (m) { line(m.text, m.kind, m.at); });
   } else {
@@ -207,7 +215,9 @@
       "after-interactive-callback": function () { waiting = false; },
       callback: function () { waiting = false; failures = 0; settle(); setTimeout(function () { check.hidden = true; }, 1500); },
       "error-callback": function () { waiting = false; failures++; if (failures < FAILURES) again(2000 * failures); return true; },
-      "expired-callback": function () { again(0); },
+      // A token expires unused while the conversation has a pass, and is made again only once the pass is refused.
+      "refresh-expired": "manual",
+      "expired-callback": function () { if (!pass) again(0); },
       "timeout-callback": function () { waiting = false; again(0); } });
   };
   // One note about the check at a time: a new one replaces the last, and a passed check clears it.
@@ -254,18 +264,46 @@
   }
 
   function posted(question, history, token) {
-    var body = { question: question, history: history, turnstile_token: token };
+    var body = { question: question, history: history, stream: true };
+    if (pass) body.pass = pass; else body.turnstile_token = token;
     if (agent) body.agent = agent;
     if (conversation) body.conversation = conversation;
     return body;
+  }
+
+  // The events of a streamed answer, each a data line of JSON, read as they come where the browser can, else whole once
+  // the answer ends. each gets every event, and the promise ends with the stream.
+  function events(res, each) {
+    var decoder = new TextDecoder(), rest = "";
+    function take(text, last) {
+      rest += text;
+      var parts = rest.split("\n\n");
+      rest = last ? "" : parts.pop();
+      parts.forEach(function (part) {
+        part.split("\n").forEach(function (l) {
+          if (l.indexOf("data: ") !== 0) return;
+          try { each(JSON.parse(l.slice(6))); } catch (e) { /* not an event */ }
+        });
+      });
+    }
+    if (!res.body || !res.body.getReader) return res.text().then(function (t) { take(t, true); });
+    var reader = res.body.getReader();
+    function next() {
+      return reader.read().then(function (r) {
+        if (r.done) { take(decoder.decode(), true); return; }
+        take(decoder.decode(r.value, { stream: true }), false);
+        return next();
+      });
+    }
+    return next();
   }
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var question = input.value.trim();
     if (!question) return;
-    var token = widget !== null && window.turnstile ? window.turnstile.getResponse(widget) : "";
-    if (!token) {
+    var token = pass ? "" : widget !== null && window.turnstile ? window.turnstile.getResponse(widget) : "";
+    if (!pass && !token) {
       if (widget !== null && failures >= FAILURES) {
         noted("The security check couldn't run in this browser. Reload the page and try again.");
         failures = 0; again(0);
@@ -279,33 +317,72 @@
     settle();
     var asked = new Date().toISOString();
     line(question, "q", asked);
+    var mine = list.lastChild;
     input.value = "";
     send.disabled = true;
     var dots = thinking();
     var history = fitting();
+    // The answer's bubble while Claude writes it, drawn at its first piece.
+    var writing = null;
+    function answered(answer, kept) {
+      dots.remove();
+      if (writing) writing.remove();
+      // A pass is a conversation's, so a page that could make no conversation id keeps none.
+      if (conversation && typeof kept === "string" && PASS.test(kept)) pass = kept;
+      var at = new Date().toISOString();
+      line(answer, "a", at);
+      turns.push({ role: "user", content: question }, { role: "assistant", content: answer });
+      turns = turns.slice(-TURNS * 2);
+      shown.push({ text: question, kind: "q", at: asked }, { text: answer, kind: "a", at: at });
+      shown = shown.slice(-SHOWN);
+      store();
+    }
+    function problem(text) {
+      dots.remove();
+      if (writing) writing.remove();
+      line(text || "The assistant can't answer right now. Try again later.", "a problem");
+    }
     fetch(address, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(posted(question, history, token)),
     }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (body) { return { ok: res.ok, body: body }; });
-    }).then(function (r) {
-      dots.remove();
-      if (r.ok && typeof r.body.answer === "string") {
-        var answered = new Date().toISOString();
-        line(r.body.answer, "a", answered);
-        turns.push({ role: "user", content: question }, { role: "assistant", content: r.body.answer });
-        turns = turns.slice(-TURNS * 2);
-        shown.push({ text: question, kind: "q", at: asked }, { text: r.body.answer, kind: "a", at: answered });
-        shown = shown.slice(-SHOWN);
-        store();
-      } else line(r.body.problem || "The assistant can't answer right now. Try again later.", "a problem");
-    }, function () {
-      dots.remove();
-      line("The assistant can't be reached. Check your connection and try again.", "a problem");
+      if (res.ok && /event-stream/.test(res.headers.get("Content-Type") || "")) {
+        var ended = false;
+        return events(res, function (ev) {
+          if (ev.type === "text" && typeof ev.text === "string" && !ended) {
+            if (!writing) {
+              dots.remove();
+              writing = document.createElement("li");
+              writing.className = "a writing";
+              writing.appendChild(document.createTextNode(""));
+              list.appendChild(writing);
+            }
+            writing.firstChild.nodeValue += ev.text;
+            writing.scrollIntoView({ block: "nearest" });
+          } else if (ev.type === "done" && typeof ev.answer === "string" && !ended) { ended = true; answered(ev.answer, ev.pass); }
+          else if (ev.type === "problem" && !ended) { ended = true; problem(ev.problem); }
+        }).then(function () { if (!ended) problem(); });
+      }
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (res.ok && typeof body.answer === "string") return answered(body.answer, body.pass);
+        if (res.status === 403 && body.check) {
+          // The pass, or the token, was refused: the check runs again, and the question goes back in the box.
+          dots.remove();
+          mine.remove();
+          if (!input.value) input.value = question;
+          pass = null; store(); again(0);
+          noted("Wait a moment for the security check, then send again.");
+          return;
+        }
+        problem(body.problem);
+      });
+    }).catch(function () {
+      problem("The assistant can't be reached. Check your connection and try again.");
     }).then(function () {
       send.disabled = false;
-      if (widget !== null && window.turnstile) window.turnstile.reset(widget);
+      // A token is spent once posted: without a pass to use next, the check makes a new one.
+      if (!pass) again(0);
     });
   });
 })();
