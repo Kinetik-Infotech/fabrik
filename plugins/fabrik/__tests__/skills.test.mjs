@@ -288,9 +288,9 @@ test("an SOP is printed from the version in force, not an approved version", () 
 
 test("no skill, nor the agent or the README, names another product's commands or names", () => {
   const files = [...SKILL_NAMES.flatMap(skillFiles), join(PLUGIN, "agents", "assistant.md"), join(ROOT, "README.md")];
-  // The other product's names, in base64 so this file doesn't spell them out.
-  const names = ["SFVNVkk=", "SHVtYW50cmE="].map((b) => Buffer.from(b, "base64").toString()).join("|");
-  const pattern = new RegExp(`\\bht_[a-z_]+|\`acmekb\\b|\\bhed:[a-z]|${names}`, "g");
+  // The other product's names, its short name and its command prefix, in base64 so this file doesn't spell them out.
+  const [prefix, short, ...full] = ["aHRf", "aGVk", "SFVNVkk=", "SHVtYW50cmE="].map((b) => Buffer.from(b, "base64").toString());
+  const pattern = new RegExp(`\\b${prefix}[a-z_]+|\`${short}\\b|\\b${short}:[a-z]|${full.join("|")}`, "g");
   const found = files.flatMap((file) => [...read(file).matchAll(pattern)].map((m) => `${file}: ${m[0]}`));
   assert.deepEqual(found, []);
 });

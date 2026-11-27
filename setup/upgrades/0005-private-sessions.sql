@@ -1,6 +1,6 @@
 -- 0005-private-sessions
 -- base: new
--- From ACMEKB's upgrade 0084-private-sessions. An administrator makes one person's sessions scope private, owned by that
+-- An administrator makes one person's sessions scope private, owned by that
 -- person, with fabrik_make_sessions_private, and its owner makes it ordinary again with fabrik_make_sessions_ordinary.
 -- fabrik_add_scope makes a private sessions scope for the person its code names. The audit log gives
 -- sessions_made_private and sessions_made_ordinary. The same text is in setup.sql. Safe to run twice. Run as the
@@ -15,7 +15,7 @@
 -- fabrik_make_sessions_private: each grant there ends, and the person holds one grant on evidence, issued in their own
 -- name. An administrator then sees the scope's name and owner, and nothing in it. Its owner alone makes it ordinary
 -- again, with fabrik_make_sessions_ordinary. fabrik_add_scope makes a private sessions scope for the person its code names.
--- The audit log gives sessions_made_private and sessions_made_ordinary. From ACMEKB's upgrade 0084-private-sessions.
+-- The audit log gives sessions_made_private and sessions_made_ordinary.
 set role fabrik_owner;
 alter table fabrik.scope_change drop constraint if exists scope_change_field_check;
 alter table fabrik.scope_change add constraint scope_change_field_check check (field in ('display_name','description','owner_actor_id','is_private'));
