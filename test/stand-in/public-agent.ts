@@ -442,12 +442,22 @@ try {
   const CAKES = "Celebration cakes: order a week ahead.\n";
   const BEA = "You are Bea, who takes the bakery's bookings. Speak briskly and kindly.\n";
   const badSlug = await post({ action: "agent_create", agent: "Bookings!", name: "Bookings" }, admin);
-  const madeBookings = await post({ action: "agent_create", agent: "bookings", name: "Bookings", purpose: "Books a table." }, admin);
+  const madeBookings = await post({ action: "agent_create", agent: "bookings", name: "Bookings", purpose: "Books a table.", topic: "  Visits\n" }, admin);
   const madeCakes = await post({ action: "agent_create", agent: "cakes", name: "Cakes", purpose: "Answers questions about celebration cakes." }, admin);
   const twice = await post({ action: "agent_create", agent: "cakes", name: "Cakes again" }, admin);
   check("agent_create makes an agent with its slug, name and purpose, and refuses a slug that isn't one or is taken",
     badSlug.status === 400 && madeBookings.body.slug === "bookings" && madeCakes.body.purpose === "Answers questions about celebration cakes."
       && twice.status === 409 && files.get("agents/cakes/instructions.md") === STARTING, { badSlug, madeBookings, madeCakes, twice });
+  // An agent's topic is saved with it, on one line, changed with agent_change and taken away with an empty one.
+  const cakesTopic = await post({ action: "agent_change", agent: "cakes", topic: "Celebrations" }, admin);
+  const cakesKept = await post({ action: "agent_change", agent: "cakes", purpose: "Answers questions about celebration cakes." }, admin);
+  const longTopic = await post({ action: "agent_change", agent: "cakes", topic: "x".repeat(81) }, admin);
+  const cakesCleared = await post({ action: "agent_change", agent: "cakes", topic: "" }, admin);
+  const topicsListed = (await post({ action: "agents_list" }, admin)).body.agents.map((a: any) => [a.slug, a.topic]);
+  check("an agent's topic is saved with it on one line, kept when another field changes, changed and taken away with agent_change, and refused past 80 characters",
+    madeBookings.body.topic === "Visits" && madeCakes.body.topic === "" && cakesTopic.body.topic === "Celebrations" && cakesKept.body.topic === "Celebrations"
+      && longTopic.status === 400 && cakesCleared.body.topic === "" && JSON.stringify(topicsListed) === '[["chat",""],["bookings","Visits"],["cakes",""]]',
+    { madeBookings: madeBookings.body, cakesTopic, cakesKept, longTopic, cakesCleared, topicsListed });
   await post({ action: "settings", page: "https://fabrik-chat-abc.pages.dev/" }, admin);
   const AGENTS_MD = "- Chat, https://fabrik-chat-abc.pages.dev/chat/\n- Bookings, https://fabrik-chat-abc.pages.dev/bookings/: Books a table.\n" +
     "- Cakes, https://fabrik-chat-abc.pages.dev/cakes/: Answers questions about celebration cakes.\n";
@@ -837,13 +847,18 @@ try {
       && bookingsHtml.includes('<script src="../chat.js" data-address="https://abcdefghijklmnopqrst.supabase.co/functions/v1/public-agent" data-agent="bookings" data-business="Smith Joinery"></script>')
       && !bookingsHtml.includes("{{") && !bookingsHtml.includes("data-sitekey"),
     bookingsHtml.slice(0, 1500));
-  check("the root page, in the brand, lists the agents by name and purpose, each linked to its page",
-    rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<a href="chat/"><strong>Chat</strong></a>')
-      && rootHtml.includes('<a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a>') && !rootHtml.includes("<script") && !rootHtml.includes("{{"),
+  const chatHtml = await Deno.readTextFile(`${built.folder}/chat/index.html`);
+  const navOf = (html: string) => html.match(/<nav[^]*?<\/nav>/)?.[0];
+  check("the root page, in the brand, lists the agents by name and purpose under their topic, with the agents of no topic last, each linked to its page",
+    rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<main><div class="topics"><section><h2>Visits</h2><ul class="agents">' +
+      '<li><a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a></li></ul></section>' +
+      '<section><h2>Other agents</h2><ul class="agents"><li><a href="chat/"><strong>Chat</strong></a></li></ul></section></div></main>')
+      && !rootHtml.includes("<script") && !rootHtml.includes("{{"),
     rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
-  check("an agent's page links to the list of agents and to each other agent, and the list's own page has no such links",
-    bookingsHtml.includes('<nav aria-label="Other agents"><a href="../">All agents</a><a href="../chat/"') && !bookingsHtml.includes('<a href="../bookings/"')
-      && !rootHtml.includes("<nav"), bookingsHtml.slice(bookingsHtml.indexOf("<header>"), bookingsHtml.indexOf("</header>") + 9));
+  check("an agent's page links to the list of agents and to the other agents of its own topic alone, and the list's own page has no such links",
+    navOf(bookingsHtml) === '<nav aria-label="Visits: other agents"><a href="../">All agents</a></nav>'
+      && navOf(chatHtml) === '<nav aria-label="Other agents"><a href="../">All agents</a></nav>' && !rootHtml.includes("<nav"),
+    { bookings: navOf(bookingsHtml), chat: navOf(chatHtml) });
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
     widgetJs.slice(0, 1200));
 

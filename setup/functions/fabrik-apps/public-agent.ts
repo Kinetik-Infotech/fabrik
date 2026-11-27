@@ -149,7 +149,7 @@ const turnOff = appTool([CARD], {
 
 const agentsList = tool({
   name: "public_agents_list",
-  description: "List the public agents: each one's slug, name, purpose, model, daily cap and today's tokens, and the chat page's address. " +
+  description: "List the public agents: each one's slug, name, purpose, topic, model, daily cap and today's tokens, and the chat page's address. " +
     "Administrators only.",
   input: z.object({}),
   run: (ctx) => run(ctx, { action: "agents_list" }, { address: address() }),
@@ -159,16 +159,18 @@ const agentCreate = tool({
   name: "public_agent_create",
   description: "Add a public agent. agent is its slug, 1 to 40 characters of a to z, 0 to 9 and hyphens, which names its page. name is " +
     "what visitors see, and purpose says what it is for, in a sentence, which every other agent reads in AGENTS.md. Its INSTRUCTIONS.md " +
-    "starts as fabrik's starting rules, and it answers once its KNOWLEDGE.md is saved. Administrators only.",
-  input: z.object({ agent: AGENT, name: z.string(), purpose: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
+    "starts as fabrik's starting rules, and it answers once its KNOWLEDGE.md is saved. topic, at most 80 characters, is the heading the " +
+    "chat pages list it under, beside the other agents of the same topic. Administrators only.",
+  input: z.object({ agent: AGENT, name: z.string(), purpose: z.string().optional(), topic: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
   run: (ctx, args) => run(ctx, { action: "agent_create", ...args }),
 });
 
 const agentChange = tool({
   name: "public_agent_change",
-  description: "Change a public agent's name, purpose, model or daily_cap_tokens, or several. fabrik rewrites AGENTS.md when the name or " +
-    "purpose changes. Administrators only.",
-  input: z.object({ agent: AGENT, name: z.string().optional(), purpose: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
+  description: "Change a public agent's name, purpose, topic, model or daily_cap_tokens, or several. An empty topic takes it out of its " +
+    "topic. fabrik rewrites AGENTS.md when the name or purpose changes. Run fabrik chat-page again for the pages to show a new name, " +
+    "purpose or topic. Administrators only.",
+  input: z.object({ agent: AGENT, name: z.string().optional(), purpose: z.string().optional(), topic: z.string().optional(), model: z.string().optional(), daily_cap_tokens: z.number().int().optional() }),
   run: (ctx, args) => run(ctx, { action: "agent_change", ...args }),
 });
 
