@@ -229,7 +229,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 let handler: ((req: Request) => Promise<Response>) | undefined;
 const serve = Deno.serve;
 (Deno as unknown as { serve: unknown }).serve = (h: typeof handler) => { handler = h; return { finished: Promise.resolve(), shutdown() {} }; };
-const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences, passFor, PASS_MS } = await import(FUNCTION.href);
+const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences, passFor, PASS_MS, PASS_QUESTIONS } = await import(FUNCTION.href);
 (Deno as unknown as { serve: unknown }).serve = serve;
 seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
@@ -984,7 +984,7 @@ try {
   cdoc.querySelector("#fabrik-chat form")!.dispatchEvent(new chat.Event("submit", { cancelable: true }));
   const thinking = cdoc.querySelector("#fabrik-chat li.thinking") as any;
   const thought = Boolean(thinking) && thinking.className === "thinking";
-  while (cdoc.querySelectorAll("#fabrik-chat li.a").length < 2) await new Promise((r) => setTimeout(r, 5));
+  while (cdoc.querySelectorAll("#fabrik-chat li.a:not(.writing)").length < 2) await new Promise((r) => setTimeout(r, 5));
   const greetedExchanges = await sql`select question, answer from fabrik_private.public_exchange where conversation = ${chatBodies[0].conversation}::uuid`;
   check("the greeting is never posted: the first question goes with no history, and the conversation keeps that one exchange alone",
     chatBodies.length === 1 && chatBodies[0].history.length === 0 && greetedExchanges.length === 1 && greetedExchanges[0].question === "How do I book tables?"
@@ -1089,10 +1089,11 @@ try {
   const passesRefused = await Promise.all([
     fromVisitor({ conversation: one, question: "Opening hours?", pass: passed.body.pass }),
     fromVisitor({ conversation: three, question: "Opening hours?", pass: forgedPass }),
-    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor(SECRET, three, Date.now() - PASS_MS - 1000) }),
-    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor("another-secret", three) }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor(SECRET, "chat", three, Date.now() - PASS_MS - 1000) }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor("another-secret", "chat", three) }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor(SECRET, "bookings", three) }),
   ]);
-  check("another conversation's pass, a forged pass, one out of date and one signed with another secret get 403 with check true, and Claude isn't called",
+  check("another conversation's pass, a forged pass, one out of date, one signed with another secret and another agent's get 403 with check true, and Claude isn't called",
     passesRefused.every((r) => r.status === 403 && r.body.check === true && r.body.problem === NOT_CHECKED) && sent.length === claudeBefore + 1,
     passesRefused);
 
@@ -1124,6 +1125,15 @@ try {
   const streamRefused = await streamOf({ conversation: three, question: "Opening hours?", turnstile_token: "forged" });
   check("a streamed question that fails the check gets JSON 403 with check true",
     streamRefused.status === 403 && streamRefused.json?.check === true, streamRefused);
+  // A pass answers at most PASS_QUESTIONS questions: once its conversation kept that many, it is refused until a new check.
+  const keptSoFar = (await sql`select count(*)::int as n from fabrik_private.public_exchange where conversation = ${three}::uuid`)[0].n;
+  await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer)
+    select ${three}::uuid, 'chat', 'Filler question', 'Filler answer' from generate_series(1, ${PASS_QUESTIONS - keptSoFar})`;
+  const usedUp = await fromVisitor({ conversation: three, question: "Opening hours?", pass: passed.body.pass });
+  const checkedAgain = await fromVisitor({ conversation: three, question: "Opening hours?", turnstile_token: GOOD_TOKEN });
+  check(`a pass whose conversation kept ${PASS_QUESTIONS} questions gets 403 with check true, and a new check brings a new pass`,
+    usedUp.status === 403 && usedUp.body.check === true && checkedAgain.status === 200 && checkedAgain.body.pass !== passed.body.pass,
+    { keptSoFar, usedUp, checkedAgain });
   for (const { t } of tables) {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like any($1)`, [[`%${IP}%`, `%${GOOD_TOKEN}%`, "%StandInBrowser%"]]);
     if (n) identifying.push(t);

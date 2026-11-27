@@ -14,10 +14,11 @@
 // Cloudflare's siteverify, using the Vault's turnstile_secret, and answers 403 with check true when it fails. An unknown
 // agent gets 404.
 //
-// Each answer carries a pass: the conversation's proof that a visitor passed Turnstile, signed with the Turnstile secret
-// and good for PASS_MS. A question that brings a good pass for its own conversation needs no new token, so a visitor
-// passes Cloudflare's check once a conversation, not once a question. A pass that is forged, another conversation's or
-// out of date gets 403 with check true, and the page runs Turnstile again. A new secret ends every pass.
+// Each answer carries a pass: the proof that a visitor passed Turnstile in this conversation with this agent, signed with
+// the Turnstile secret and good for PASS_MS and PASS_QUESTIONS questions. A question that brings a good pass needs no new
+// token, so a visitor passes Cloudflare's check once a conversation, not once a question. A pass that is forged, another
+// conversation's or agent's, out of date or used up gets 403 with check true, and the page runs Turnstile again. So one
+// check can't be replayed without end against the agent's daily cap. A new secret ends every pass.
 //
 // A post with stream true gets the answer as server-sent events once Claude starts writing: { type: "text", text } for
 // each piece of the answer, then { type: "done", answer, pass }, the answer as kept, or { type: "problem", problem }.
@@ -129,6 +130,8 @@ export const UNAVAILABLE = "The assistant can't answer right now. Try again late
 export const NOT_CHECKED = "The page couldn't confirm you're a person. Reload it and try again.";
 /** How long a pass lets a conversation's questions skip Turnstile: an hour. */
 export const PASS_MS = 60 * 60 * 1000;
+/** The most questions one pass answers, counted in the exchanges its conversation kept since the pass was made. */
+export const PASS_QUESTIONS = 20;
 const PASS = /^[0-9]{13}\.[0-9a-f]{64}$/;
 
 /** Anthropic's client, Supabase Auth's check of a sign-in, Storage and Turnstile's siteverify. The tests replace them. */
@@ -275,20 +278,22 @@ async function turnstile(secret: string, token: string, ip: string | null): Prom
 /** The HMAC-SHA256 key of passes: the Turnstile secret, so a new secret ends every pass. */
 const passKey = (secret: string) =>
   crypto.subtle.importKey("raw", utf8.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
-const passText = (conversation: string, until: string) => utf8.encode(`fabrik-public-agent-pass:${conversation}:${until}`);
-/** A pass for the conversation, good for PASS_MS: the time it ends, in milliseconds, then its signature in hex. */
-export async function passFor(secret: string, conversation: string, now = Date.now()): Promise<string> {
+const passText = (agent: string, conversation: string, until: string) =>
+  utf8.encode(`fabrik-public-agent-pass:${agent}:${conversation}:${until}`);
+/** A pass for the agent's conversation, good for PASS_MS: the time it ends, in milliseconds, then its signature in hex. */
+export async function passFor(secret: string, agent: string, conversation: string, now = Date.now()): Promise<string> {
   const until = String(now + PASS_MS);
-  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await passKey(secret), passText(conversation, until)));
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await passKey(secret), passText(agent, conversation, until)));
   return `${until}.${[...sig].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
-/** Whether pass is the conversation's, signed with the secret, and not yet ended. The signature is checked in constant time. */
-export async function passGood(secret: string, conversation: string, pass: string, now = Date.now()): Promise<boolean> {
+/** Whether pass is the agent's conversation's, signed with the secret, and not yet ended. The signature is checked in
+ * constant time. */
+export async function passGood(secret: string, agent: string, conversation: string, pass: string, now = Date.now()): Promise<boolean> {
   if (!PASS.test(pass)) return false;
   const [until, hex] = pass.split(".");
   if (Number(until) <= now || Number(until) > now + PASS_MS) return false;
   const sig = new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
-  return await crypto.subtle.verify("HMAC", await passKey(secret), sig, passText(conversation, until));
+  return await crypto.subtle.verify("HMAC", await passKey(secret), sig, passText(agent, conversation, until));
 }
 
 type Turn = { role: "user" | "assistant"; content: string };
@@ -343,9 +348,12 @@ async function ask({ agent, conversation, question, history, token, pass: given 
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
   if (!secret) throw refuse(503, UNAVAILABLE, { setup: "turnstile" });
-  const passed = !!given && await passGood(secret, conversation, given);
+  // A good pass is used up once its conversation kept PASS_QUESTIONS exchanges with this agent since it was made.
+  const passed = !!given && await passGood(secret, agent, conversation, given) && (await sql`select count(*)::int as n
+    from fabrik_private.public_exchange where conversation = ${conversation}::uuid and slug = ${agent}
+    and at > to_timestamp(${(Number(given.split(".")[0]) - PASS_MS) / 1000})`)[0].n < PASS_QUESTIONS;
   if (!passed && (!token || !(await turnstile(secret, token, ip)).success)) throw refuse(403, NOT_CHECKED, { check: true });
-  const pass = passed ? given : await passFor(secret, conversation);
+  const pass = passed ? given : await passFor(secret, agent, conversation);
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const [s] = await sql`select slug, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${agent}`;
   if (!s) throw refuse(404, UNAVAILABLE);

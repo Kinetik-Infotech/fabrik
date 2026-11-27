@@ -354,7 +354,7 @@
             if (!writing) {
               dots.remove();
               writing = document.createElement("li");
-              writing.className = "a";
+              writing.className = "a writing";
               writing.appendChild(document.createTextNode(""));
               list.appendChild(writing);
             }
