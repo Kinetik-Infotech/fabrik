@@ -55,6 +55,23 @@ const sql = postgres(DB, { max: 1, prepare: false, onnotice() {} });
 // A question holding "long answer" gets 830 characters. Every answer reads 6,000 tokens from the cache, which count 600,
 // so it costs 1,030 tokens.
 const sent: any[] = [];
+// A reply as Claude sends it: whole, or as server-sent events in pieces of 20 characters when the request streams.
+const answerAs = (body: any, message: any) => {
+  if (!body.stream) return Response.json(message);
+  const { content, stop_reason, usage, ...rest } = message;
+  const text = (content ?? []).map((b: any) => b.text).join("");
+  const lines: string[] = [];
+  const event = (type: string, data: any) => lines.push(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
+  event("message_start", { message: { ...rest, content: [], stop_reason: null, stop_sequence: null, usage: { ...usage, output_tokens: 1 } } });
+  event("content_block_start", { index: 0, content_block: { type: "text", text: "" } });
+  for (let i = 0; i < text.length; i += 20) event("content_block_delta", { index: 0, delta: { type: "text_delta", text: text.slice(i, i + 20) } });
+  event("content_block_stop", { index: 0 });
+  event("message_delta", { delta: { stop_reason, stop_sequence: null }, usage: { output_tokens: usage.output_tokens } });
+  event("message_stop", {});
+  streamedReplies++;
+  return new Response(lines.join(""), { headers: { "Content-Type": "text/event-stream" } });
+};
+let streamedReplies = 0;
 const CUT = "We open at 8am. The café closes at 4pm, \"or later in summer!\"\nThe kitchen stops serving at";
 const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
   const url = new URL(req.url);
@@ -78,13 +95,13 @@ const anthropic = Deno.serve({ port: 0, onListen() {} }, async (req) => {
     const text = String(body.messages.at(-1).content).includes("long answer") ? `Long answer. ${"z".repeat(817)}`
       : line ? line.trim() : "I don't know. Please contact the owner.";
     // A reply with no content list, which the function can't read after Claude has charged for it.
-    if (String(body.messages.at(-1).content).includes("broken reply")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
+    if (String(body.messages.at(-1).content).includes("broken reply")) return answerAs(body, { id: "msg_standin", type: "message", role: "assistant",
       model: body.model, stop_reason: "end_turn", content: null, usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
     // A reply that stops at the output cap, part way through its third sentence.
-    if (String(body.messages.at(-1).content).includes("cut answer")) return Response.json({ id: "msg_standin", type: "message", role: "assistant",
+    if (String(body.messages.at(-1).content).includes("cut answer")) return answerAs(body, { id: "msg_standin", type: "message", role: "assistant",
       model: body.model, stop_reason: "max_tokens", stop_sequence: null, content: [{ type: "text", text: CUT }],
       usage: { input_tokens: 400, output_tokens: 4000, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 } });
-    return Response.json({
+    return answerAs(body, {
       id: "msg_standin", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null,
       content: [{ type: "text", text }],
       usage: { input_tokens: 400, output_tokens: 30, cache_creation_input_tokens: 0, cache_read_input_tokens: 6000 },
@@ -212,7 +229,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", SERVICE_KEY);
 let handler: ((req: Request) => Promise<Response>) | undefined;
 const serve = Deno.serve;
 (Deno as unknown as { serve: unknown }).serve = (h: typeof handler) => { handler = h; return { finished: Promise.resolve(), shutdown() {} }; };
-const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences } = await import(FUNCTION.href);
+const { seam, STARTING, RESTING, UNAVAILABLE, NOT_CHECKED, wholeSentences, passFor, PASS_MS } = await import(FUNCTION.href);
 (Deno as unknown as { serve: unknown }).serve = serve;
 seam.client = (apiKey: string) => new Anthropic({ apiKey, baseURL: `http://127.0.0.1:${anthropic.addr.port}`, maxRetries: 0 });
 seam.siteverify = `http://127.0.0.1:${cloudflare.addr.port}/turnstile/v0/siteverify`;
@@ -1056,6 +1073,57 @@ try {
   check("a question holding a NUL character gets its answer, is kept without it, and costs the agent its 1,030 tokens, not what was held",
     nul.status === 200 && nulKept?.question === "Do you sell bread?" && tokensAfterNul - tokensBeforeNul === 1030, { nul, nulKept, tokensBeforeNul, tokensAfterNul });
   const identifying: string[] = [];
+
+  // A pass: the answer to a checked question brings its conversation's pass, and the next question of that conversation
+  // brings it in place of a token, so siteverify isn't asked again. Another conversation's pass, a forged one and one out
+  // of date are refused with check true, and Claude isn't called.
+  const three = crypto.randomUUID();
+  const passed = await fromVisitor({ conversation: three, question: "What are your opening hours?", turnstile_token: GOOD_TOKEN });
+  const [checksBefore, claudeBefore] = [verified.length, sent.length];
+  const withPass = await fromVisitor({ conversation: three, question: "Do you make cakes to order?", pass: passed.body.pass });
+  check("an answer brings the conversation's pass, and its next question with the pass and no token is answered without asking siteverify",
+    passed.status === 200 && /^[0-9]{13}\.[0-9a-f]{64}$/.test(passed.body.pass ?? "") && withPass.status === 200
+      && withPass.body.answer === "Services: bread, cakes to order, and wholesale for cafes." && withPass.body.pass === passed.body.pass
+      && verified.length === checksBefore, { passed, withPass, asked: verified.length - checksBefore });
+  const forgedPass = passed.body.pass.slice(0, -1) + (passed.body.pass.endsWith("0") ? "1" : "0");
+  const passesRefused = await Promise.all([
+    fromVisitor({ conversation: one, question: "Opening hours?", pass: passed.body.pass }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: forgedPass }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor(SECRET, three, Date.now() - PASS_MS - 1000) }),
+    fromVisitor({ conversation: three, question: "Opening hours?", pass: await passFor("another-secret", three) }),
+  ]);
+  check("another conversation's pass, a forged pass, one out of date and one signed with another secret get 403 with check true, and Claude isn't called",
+    passesRefused.every((r) => r.status === 403 && r.body.check === true && r.body.problem === NOT_CHECKED) && sent.length === claudeBefore + 1,
+    passesRefused);
+
+  // A streamed answer: the streamPieces as Claude writes them, then the answer as kept with the pass. A refusal stays JSON.
+  const streamOf = async (body: Record<string, unknown>) => {
+    const r = await handler!(new Request("http://function/", { method: "POST", body: JSON.stringify({ ...body, stream: true }),
+      headers: { "Content-Type": "application/json" } }));
+    const text = await r.text();
+    const events = r.headers.get("Content-Type")?.startsWith("text/event-stream")
+      ? text.split("\n\n").filter((e) => e.startsWith("data: ")).map((e) => JSON.parse(e.slice(6))) : null;
+    return { status: r.status, events, json: events ? null : JSON.parse(text) };
+  };
+  const tokensBeforeStream = (await post({ action: "settings", agent: "chat" }, admin)).body.today_tokens;
+  const streamedBefore = streamedReplies;
+  const flowed = await streamOf({ conversation: three, question: "Do you sell wholesale?", pass: passed.body.pass });
+  const streamPieces = (flowed.events ?? []).filter((e) => e.type === "text").map((e) => e.text);
+  const lastEvent = flowed.events?.at(-1);
+  const tokensAfterStream = (await post({ action: "settings", agent: "chat" }, admin)).body.today_tokens;
+  const [streamedKept] = await sql`select answer, input_tokens, output_tokens from fabrik_private.public_exchange where conversation = ${three}::uuid and question = 'Do you sell wholesale?'`;
+  check("a streamed answer comes in pieces, ends with the answer as kept and the pass, is kept with its tokens and costs its 1,030 tokens",
+    flowed.status === 200 && streamedReplies === streamedBefore + 1 && streamPieces.length > 1
+      && streamPieces.join("") === "Services: bread, cakes to order, and wholesale for cafes." && lastEvent?.type === "done" && lastEvent.answer === streamPieces.join("")
+      && lastEvent.pass === passed.body.pass && streamedKept?.answer === lastEvent.answer && streamedKept.input_tokens === 6400 && streamedKept.output_tokens === 30
+      && tokensAfterStream - tokensBeforeStream === 1030, { flowed, streamedKept, tokensBeforeStream, tokensAfterStream });
+  const cutStreamed = await streamOf({ conversation: three, question: "Give me the cut answer", pass: passed.body.pass });
+  check("a streamed answer cut at the output cap ends with the answer up to its last full sentence",
+    cutStreamed.events?.filter((e) => e.type === "text").map((e) => e.text).join("") === CUT
+      && cutStreamed.events?.at(-1)?.answer === wholeSentences(CUT), cutStreamed.events?.at(-1));
+  const streamRefused = await streamOf({ conversation: three, question: "Opening hours?", turnstile_token: "forged" });
+  check("a streamed question that fails the check gets JSON 403 with check true",
+    streamRefused.status === 403 && streamRefused.json?.check === true, streamRefused);
   for (const { t } of tables) {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like any($1)`, [[`%${IP}%`, `%${GOOD_TOKEN}%`, "%StandInBrowser%"]]);
     if (n) identifying.push(t);

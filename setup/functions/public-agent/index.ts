@@ -7,12 +7,21 @@
 // Deploy the function with verify_jwt off, since a visitor has no sign-in. Cloudflare Turnstile checks a visitor, and
 // an administrator's own sign-in is the check for the settings actions.
 //
-// The chat box posts { agent, conversation, question, history, turnstile_token }, where agent is a slug, chat when it
-// is left out, and conversation is the UUID the page made when it opened. A post with no conversation, from a page built
-// before there was one, gets a new one for each question. A
-// post with no token, or one too long, is refused before the function opens a database connection. The function
-// checks the token with Cloudflare's siteverify, using the Vault's turnstile_secret, and answers 403 when it fails. An
-// unknown agent gets 404.
+// The chat box posts { agent, conversation, question, history, turnstile_token, pass, stream }, where agent is a slug,
+// chat when it is left out, and conversation is the UUID the page made when it opened. A post with no conversation, from
+// a page built before there was one, gets a new one for each question. A post with neither a token nor a pass, or with
+// one too long, is refused before the function opens a database connection. The function checks the token with
+// Cloudflare's siteverify, using the Vault's turnstile_secret, and answers 403 with check true when it fails. An unknown
+// agent gets 404.
+//
+// Each answer carries a pass: the conversation's proof that a visitor passed Turnstile, signed with the Turnstile secret
+// and good for PASS_MS. A question that brings a good pass for its own conversation needs no new token, so a visitor
+// passes Cloudflare's check once a conversation, not once a question. A pass that is forged, another conversation's or
+// out of date gets 403 with check true, and the page runs Turnstile again. A new secret ends every pass.
+//
+// A post with stream true gets the answer as server-sent events once Claude starts writing: { type: "text", text } for
+// each piece of the answer, then { type: "done", answer, pass }, the answer as kept, or { type: "problem", problem }.
+// A question refused before Claude is called, and the resting answer, are answered as JSON, as without stream.
 //
 // It holds the most this answer could cost against the agent's daily cap. When that would pass the cap, it answers
 // RESTING and calls nothing. Else it sends Claude the agent's INSTRUCTIONS.md as the system prompt, then AGENTS.md, then
@@ -118,6 +127,9 @@ export const RESTING = "The assistant is resting until tomorrow.";
 export const UNAVAILABLE = "The assistant can't answer right now. Try again later.";
 /** What a visitor reads when Turnstile refuses them. */
 export const NOT_CHECKED = "The page couldn't confirm you're a person. Reload it and try again.";
+/** How long a pass lets a conversation's questions skip Turnstile: an hour. */
+export const PASS_MS = 60 * 60 * 1000;
+const PASS = /^[0-9]{13}\.[0-9a-f]{64}$/;
 
 /** Anthropic's client, Supabase Auth's check of a sign-in, Storage and Turnstile's siteverify. The tests replace them. */
 export const seam = {
@@ -260,6 +272,25 @@ async function turnstile(secret: string, token: string, ip: string | null): Prom
   return { success: got?.success === true, codes: Array.isArray(got?.["error-codes"]) ? got["error-codes"] : [] };
 }
 
+/** The HMAC-SHA256 key of passes: the Turnstile secret, so a new secret ends every pass. */
+const passKey = (secret: string) =>
+  crypto.subtle.importKey("raw", utf8.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+const passText = (conversation: string, until: string) => utf8.encode(`fabrik-public-agent-pass:${conversation}:${until}`);
+/** A pass for the conversation, good for PASS_MS: the time it ends, in milliseconds, then its signature in hex. */
+export async function passFor(secret: string, conversation: string, now = Date.now()): Promise<string> {
+  const until = String(now + PASS_MS);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await passKey(secret), passText(conversation, until)));
+  return `${until}.${[...sig].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+/** Whether pass is the conversation's, signed with the secret, and not yet ended. The signature is checked in constant time. */
+export async function passGood(secret: string, conversation: string, pass: string, now = Date.now()): Promise<boolean> {
+  if (!PASS.test(pass)) return false;
+  const [until, hex] = pass.split(".");
+  if (Number(until) <= now || Number(until) > now + PASS_MS) return false;
+  const sig = new Uint8Array(hex.match(/../g)!.map((h) => parseInt(h, 16)));
+  return await crypto.subtle.verify("HMAC", await passKey(secret), sig, passText(conversation, until));
+}
+
 type Turn = { role: "user" | "assistant"; content: string };
 /** The latest turns of the history given that fit: at most TURNS, each question and answer within its limit, and at most
  * MAX_HISTORY characters in all. Older turns are left out. null when the history isn't a list of questions and answers. */
@@ -293,22 +324,28 @@ function visitor(args: Record<string, unknown>) {
   const history = historyOf(args.history);
   if (!history) throw refuse(400, "history is a list of turns, a question then its answer, each { role, content }.");
   const token = typeof args.turnstile_token === "string" ? args.turnstile_token : "";
-  if (!token || token.length > 2048) throw refuse(403, NOT_CHECKED);
+  const pass = typeof args.pass === "string" ? args.pass : "";
+  if ((!token && !pass) || token.length > 2048 || pass.length > 100) throw refuse(403, NOT_CHECKED, { check: true });
   const agent = args.agent === undefined ? FIRST : args.agent;
   if (typeof agent !== "string" || !SLUG.test(agent)) throw refuse(404, UNAVAILABLE);
   if (args.conversation !== undefined && (typeof args.conversation !== "string" || !UUID.test(args.conversation)))
     throw refuse(400, "conversation is the UUID the chat page made when it opened.");
   const conversation = typeof args.conversation === "string" ? args.conversation.toLowerCase() : crypto.randomUUID();
-  return { agent, conversation, question, history, token };
+  return { agent, conversation, question, history, token, pass, stream: args.stream === true };
 }
 
+/** What ask tells a streamed reply: that Claude has started, and each piece of the answer as it comes. */
+type Out = { start(): void; text(piece: string): void };
+
 /** A visitor's question, answered as the agent's INSTRUCTIONS.md says, from its KNOWLEDGE.md. */
-async function ask({ agent, conversation, question, history, token }: ReturnType<typeof visitor>, ip: string | null) {
+async function ask({ agent, conversation, question, history, token, pass: given }: ReturnType<typeof visitor>, ip: string | null, out?: Out) {
   let secret: string, key: string;
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
   if (!secret) throw refuse(503, UNAVAILABLE, { setup: "turnstile" });
-  if (!(await turnstile(secret, token, ip)).success) throw refuse(403, NOT_CHECKED);
+  const passed = !!given && await passGood(secret, conversation, given);
+  if (!passed && (!token || !(await turnstile(secret, token, ip)).success)) throw refuse(403, NOT_CHECKED, { check: true });
+  const pass = passed ? given : await passFor(secret, conversation);
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const [s] = await sql`select slug, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${agent}`;
   if (!s) throw refuse(404, UNAVAILABLE);
@@ -326,7 +363,7 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     where slug = ${agent} and day = (now() at time zone 'utc')::date and tokens + ${held} <= ${s.daily_cap_tokens} returning day`;
   if (!reserved) {
     await keep(conversation, agent, question, RESTING, 0, 0);
-    return { answer: RESTING };
+    return { answer: RESTING, pass };
   }
   // What was held is put back on every way out, and the answer's own tokens take its place once Claude answers. The
   // exchange is kept after that, the answer a visitor reads when Claude fails included.
@@ -346,10 +383,27 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
         messages: [...history, { role: "user" as const, content: question }],
       };
       // An older model, such as Claude Haiku 4.5, answers 400 to the effort setting, and Anthropic charges nothing for that.
-      reply = await seam.client(key).messages.create({ ...request, output_config: { effort: "low" } }).catch((err) => {
-        if (err instanceof Anthropic.BadRequestError && /effort/i.test(err.message)) return seam.client(key).messages.create(request);
-        throw err;
-      });
+      const effort = <T,>(call: (r: typeof request & { output_config?: { effort: "low" } }) => Promise<T>) =>
+        call({ ...request, output_config: { effort: "low" } }).catch((err) => {
+          if (err instanceof Anthropic.BadRequestError && /effort/i.test(err.message)) return call(request);
+          throw err;
+        });
+      if (out) {
+        // The answer as Claude writes it: its pieces go to the visitor, and the whole is read as a reply once it ends.
+        const events = await effort((r) => seam.client(key).messages.create({ ...r, stream: true }));
+        out.start();
+        let text = "", stop: string | null = null;
+        const usage: Record<string, number> = {};
+        for await (const e of events) {
+          if (e.type === "message_start") Object.assign(usage, e.message.usage);
+          else if (e.type === "content_block_delta" && e.delta.type === "text_delta") { text += e.delta.text; out.text(e.delta.text); }
+          else if (e.type === "message_delta") {
+            stop = e.delta.stop_reason;
+            for (const [k, v] of Object.entries(e.usage ?? {})) if (typeof v === "number") usage[k] = v;
+          }
+        }
+        reply = { content: [{ type: "text", text }], stop_reason: stop, usage } as unknown as Anthropic.Message;
+      } else reply = await effort((r) => seam.client(key).messages.create(r));
     } catch (err) {
       console.error("public-agent: Claude did not answer:", err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : "no reply");
       throw refuse(502, UNAVAILABLE);
@@ -361,7 +415,7 @@ async function ask({ agent, conversation, question, history, token }: ReturnType
     kept.output = u?.output_tokens ?? 0;
     const text = reply.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
     kept.answer = (reply.stop_reason === "max_tokens" ? wholeSentences(text) : text).trim() || UNAVAILABLE;
-    return { answer: kept.answer };
+    return { answer: kept.answer, pass };
   } finally {
     await sql`update fabrik_private.public_agent_usage set tokens = greatest(tokens + ${spent - held}, 0) where slug = ${agent} and day = ${reserved.day}`;
     await keep(conversation, agent, question, kept.answer, kept.input, kept.output);
@@ -673,12 +727,42 @@ Deno.serve(async (req) => {
     catch (err) { if (err instanceof Refusal) return json(err.status, err.body); throw err; }
   }
   const db = seam.connect();
+  if (given?.stream) return streamed(req, given, db);
   try {
     return await runs.run({ sql: db, secrets: [] }, () => serve(req, args, given));
   } finally {
     await db.end();
   }
 });
+
+/** A visitor's question answered as server-sent events once Claude starts writing. Until then, a refusal or the resting
+ * answer is JSON, as without stream. The connection ends once the answer is settled and kept. */
+async function streamed(req: Request, asked: ReturnType<typeof visitor>, db: postgres.Sql): Promise<Response> {
+  let sink!: ReadableStreamDefaultController<Uint8Array>;
+  const body = new ReadableStream<Uint8Array>({ start(c) { sink = c; } });
+  // A visitor who leaves mid-answer closes the stream, and the answer is still settled and kept.
+  const send = (event: Record<string, unknown>) => { try { sink.enqueue(utf8.encode(`data: ${clean(JSON.stringify(event))}\n\n`)); } catch { /* gone */ } };
+  let begin!: () => void;
+  const begun = new Promise<"begun">((r) => { begin = () => r("begun"); });
+  const ip = req.headers.get("CF-Connecting-IP") ?? req.headers.get("x-real-ip");
+  const work = runs.run({ sql: db, secrets: [] }, () => ask(asked, ip, { start: begin, text: (text) => send({ type: "text", text }) }));
+  const first = await Promise.race([begun, work.then((answer) => ({ answer }), (err) => ({ err }))]);
+  if (first !== "begun") {
+    await db.end();
+    if ("answer" in first) return json(200, first.answer);
+    if (first.err instanceof Refusal) return json(first.err.status, first.err.body);
+    console.error("public-agent failed:", message(first.err));
+    return json(500, { ok: false, problem: UNAVAILABLE });
+  }
+  work.then((answer) => send({ type: "done", ...answer }), (err) => {
+    if (!(err instanceof Refusal)) console.error("public-agent failed:", message(err));
+    send({ type: "problem", problem: err instanceof Refusal ? err.body.problem : UNAVAILABLE });
+  }).finally(async () => {
+    try { sink.close(); } catch { /* gone */ }
+    await db.end();
+  });
+  return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache", ...CORS } });
+}
 
 async function serve(req: Request, args: Record<string, unknown>, asked: ReturnType<typeof visitor> | null): Promise<Response> {
   try {
