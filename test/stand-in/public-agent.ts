@@ -855,8 +855,8 @@ try {
       && rootHtml.includes('<a class="close" href="chat/" aria-label="Close the list of agents">') && !rootHtml.includes("<script src") && !rootHtml.includes("{{"),
     rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
   check("an agent's page links home to the main agent, except the main agent's own, to the list of agents and to the other agents of its own topic alone, and the list's own page has no such links",
-    navOf(bookingsHtml) === '<nav aria-label="Visits: other agents"><a href="../chat/">Home</a><a href="../?from=bookings">All agents</a></nav>'
-      && navOf(chatHtml) === '<nav aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
+    navOf(bookingsHtml) === '<nav id="agent-nav" aria-label="Visits: other agents"><a href="../chat/">Home</a><a href="../?from=bookings">All agents</a></nav>'
+      && navOf(chatHtml) === '<nav id="agent-nav" aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
     { bookings: navOf(bookingsHtml), chat: navOf(chatHtml) });
   check("the logo links to the main agent's page on the list and on another agent's page, and nowhere on the main agent's own page",
     rootHtml.includes('<header><a class="home" href="chat/" aria-label="Home: Chat"><img') && bookingsHtml.includes('<header><a class="home" href="../chat/" aria-label="Home: Chat"><img')

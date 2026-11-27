@@ -74,6 +74,19 @@ export function pageStyle(brand) {
 }${brand?.logo?.dark ? `\n${LOGO_CSS.trimEnd()}` : ""}`;
 }
 
+/** The button that opens an agent page's nav on a phone. page.html shows it only at phone width, and only once
+ * MENU_SCRIPT has run, so without JavaScript the nav shows as it does at desktop width. */
+const MENU = '<button class="menu" type="button" aria-expanded="false" aria-controls="agent-nav" aria-label="Menu">' +
+  '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg></button>';
+/** Opens and closes the nav from the button, and closes it on Escape, giving the button back its focus. */
+const MENU_SCRIPT = `<script>(function () { var b = document.querySelector("header button.menu"), n = document.getElementById("agent-nav");
+  if (!b || !n) return;
+  b.parentNode.classList.add("has-menu");
+  function set(open) { b.setAttribute("aria-expanded", String(open)); n.classList.toggle("open", open); }
+  b.addEventListener("click", function () { set(b.getAttribute("aria-expanded") !== "true"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && b.getAttribute("aria-expanded") === "true") { set(false); b.focus(); } });
+})();</script>`;
+
 const SLUG = /^[a-z0-9-]{1,40}$/;
 /** The most agents an agent's page links to by name. Past it, the page links to the list of agents alone. */
 export const MOST_LINKED = 12;
@@ -165,9 +178,9 @@ export function buildChatPage({ brand, address, folder, agents }) {
     const shown = others.length <= MOST_LINKED ? others : [];
     const label = g.topic ? `${esc(g.topic)}: other agents` : "Other agents";
     const home = main && main.slug !== slug ? `<a href="../${main.slug}/">Home</a>` : "";
-    return `<nav aria-label="${label}">${home}<a href="../?from=${slug}">All agents</a>` +
+    return MENU + `<nav id="agent-nav" aria-label="${label}">${home}<a href="../?from=${slug}">All agents</a>` +
       `${g.topic && shown.length ? `<span class="topic">${esc(g.topic)}</span>` : ""}${shown
-        .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
+        .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>${MENU_SCRIPT}`;
   };
   for (const a of agents) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });

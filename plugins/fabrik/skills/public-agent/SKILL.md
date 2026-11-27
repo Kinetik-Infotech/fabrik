@@ -73,7 +73,15 @@ An agent's page links to the list, under All agents, and to the other agents of 
 
 The list has a Close link at the top right. It takes the visitor back to the agent page they opened the list from, where their conversation is as they left it. A visitor who opened the list directly goes to the main agent. Where there is no main agent, the Close link shows only for a visitor who came from an agent's page.
 
-Every agent's page but the main agent's has a Home link beside All agents, which goes to the main agent. The logo at the top left goes there too, on the list and on every agent's page but the main agent's own. The logo is not visibly a link, so the Home link is the one a visitor sees. Where there is no main agent, no page has a Home link and the logo links nowhere.
+Every build of the pages meets these rules, and a change to the pages keeps them:
+
+- The main agent comes first on the list, above the topic headings.
+- The list's Close link goes back to the agent page the visitor came from, and otherwise to the main agent.
+- The logo at the top left goes to the main agent, on the list and on every agent's page but the main agent's own.
+- Those agent pages also have a Home link beside All agents that goes to the main agent. With no main agent, there is no Home link and the logo links nowhere.
+- On a phone, an agent's page shows the logo, the agent's name and a menu button. The button opens and closes the links, by mouse or keyboard, and Escape closes them too.
+- At desktop width, and without JavaScript, the links show in a row with no menu button.
+- Each answer shows the brand's logo beside it, or fabrik's mark where the Brand record has no logo.
 
 1. Run `node ~/.claude/plugins/marketplaces/fabrik/plugins/fabrik/cli/fabrik.mjs chat-page` with Bash in the session's folder.
 2. The first time, it lists the domains on the Cloudflare account and stops, since it can't ask from Bash. Ask the owner which domain the chat goes on. Offer `chat.` and their website's domain, such as chat.example.com, and say their website stays as it is. Then run the command again with `--domain` and that address. `--domain pages.dev` keeps the `fabrik-chat-<ref>.pages.dev` address instead. Later runs use the same address without asking.
