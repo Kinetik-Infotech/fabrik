@@ -101,8 +101,15 @@ export function topicGroups(agents) {
   return [...groups.values()].sort((x, y) => (!x.topic) - (!y.topic) || byText(x.topic, y.topic));
 }
 
+/** The business's main agent: where some agents have a topic, the one agent that has none, or null where no agent has a
+ * topic or more than one has none. */
+export function mainAgent(agents) {
+  const none = agents.filter(a => !topicOf(a));
+  return none.length === 1 && none.length < agents.length ? none[0] : null;
+}
+
 /** Writes the chat pages into folder: a page in the brand for each agent at <slug>/index.html, index.html listing the
- * agents under a heading for each topic, chat.js, and widget.js with the brand's accent. agents is
+ * agents under a heading for each topic, with the main agent first, chat.js, and widget.js with the brand's accent. agents is
  * [{ slug, name, purpose, topic }], at least one, and topic may be left out. */
 export function buildChatPage({ brand, address, folder, agents }) {
   if (!/^https?:\/\/[^\s"'<>]+$/.test(String(address))) throw new Error(`${address} is not the public-agent function's address.`);
@@ -118,13 +125,22 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const heading = name => `<h1${brand?.logo && shown.has(name.trim().toLowerCase()) ? ' class="in-logo"' : ""}>${esc(name)}</h1>`;
   // The tab's icon: the brand's logo where it has one, and fabrik's mark otherwise.
   const icon = esc(brand?.logo?.src || FABRIK_MARK);
-  const groups = topicGroups(agents), topical = groups.some(g => g.topic);
-  const items = list => `<ul class="agents">${list.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
+  const groups = topicGroups(agents), topical = groups.some(g => g.topic), main = mainAgent(agents);
+  const items = (list, kind = "agents") => `<ul class="${kind}">${list.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
-  // With topics, each topic has a heading over its agents, and the agents with none come last, under Other agents.
-  const list = !topical ? items(groups[0].agents) : `<div class="topics">${groups.map(g =>
-    `<section><h2>${esc(g.topic || "Other agents")}</h2>${items(g.agents)}</section>`).join("")}</div>`;
-  const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon, NAV: "", MAIN: list, SCRIPT: "" });
+  // With topics, the main agent comes first, above the headings. Each topic has a heading over its agents, and the
+  // agents with none, where there is no main agent, come last, under Other agents.
+  const list = !topical ? items(groups[0].agents) : `<div class="topics">${main ? items([main], "agents main") : ""}${groups
+    .filter(g => g.topic || !main).map(g => `<section><h2>${esc(g.topic || "Other agents")}</h2>${items(g.agents)}</section>`).join("")}</div>`;
+  // The list's close link goes back to the agent page the visitor came from, which the All agents link names in from,
+  // or to the main agent. Where there is no main agent, it shows only for a visitor who came from an agent's page.
+  const close = `<a class="close" href="${main ? `${main.slug}/` : "./"}"${main ? "" : " hidden"} aria-label="Close the list of agents">` +
+    `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>Close</a>`;
+  const slugs = JSON.stringify(agents.map(a => a.slug));
+  const back = `<script>(function () { var from = new URLSearchParams(location.search).get("from"), close = document.querySelector("a.close");
+  if (close && ${slugs}.indexOf(from) >= 0) { close.href = from + "/"; close.hidden = false; } })();</script>`;
+  const root = fill(template, { TITLE: esc(business || "Ask a question"), HEADING: heading(business || "Ask a question"), STYLE: style, LOGO: logo, ICON: icon,
+    NAV: agents.length > 1 ? close : "", MAIN: list, SCRIPT: agents.length > 1 ? back : "" });
   const [accent] = token(brand, "accent");
   // A widget line from before there were many agents names none, and opens the agent chat, which was that one chat box.
   const fallback = agents.some(a => a.slug === "chat") ? "chat" : "";
@@ -132,7 +148,8 @@ export function buildChatPage({ brand, address, folder, agents }) {
   rmSync(folder, { recursive: true, force: true });
   mkdirSync(folder, { recursive: true, mode: 0o700 });
   writeFileSync(join(folder, "index.html"), root);
-  // An agent's page links to the list of agents, and by name to each other agent of its own topic, or with no topics
+  // An agent's page links to the list of agents, naming itself so the list's close link comes back to it, and by name to
+  // each other agent of its own topic, or with no topics
   // to each other agent, with its purpose as the link's title. Where those are more than MOST_LINKED, it links to the
   // list alone.
   const groupOf = new Map(groups.flatMap(g => g.agents.map(a => [a.slug, g])));
@@ -141,7 +158,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
     const g = groupOf.get(slug), others = g.agents.filter(o => o.slug !== slug);
     const shown = others.length <= MOST_LINKED ? others : [];
     const label = g.topic ? `${esc(g.topic)}: other agents` : "Other agents";
-    return `<nav aria-label="${label}"><a href="../">All agents</a>` +
+    return `<nav aria-label="${label}"><a href="../?from=${slug}">All agents</a>` +
       `${g.topic && shown.length ? `<span class="topic">${esc(g.topic)}</span>` : ""}${shown
         .map(o => `<a href="../${o.slug}/"${o.purpose?.trim() ? ` title="${esc(o.purpose.trim())}"` : ""}>${esc(o.name)}</a>`).join("")}</nav>`;
   };
