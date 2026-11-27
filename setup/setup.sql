@@ -8382,6 +8382,21 @@ set role fabrik_owner;
 alter table fabrik_private.public_agent add column if not exists greeting text not null default '' check (length(greeting) <= 600);
 reset role;
 
+-- Each public-agent pass's questions, as upgrade 0023 adds them: the pass's signature, the time it ends and how many
+-- questions it has answered. The public-agent function takes one question from the row before it calls Claude, and
+-- refuses the pass once it has answered 20. Nothing in a row names a visitor. Only the public-agent function reads or
+-- changes it.
+set role fabrik_owner;
+create table if not exists fabrik_private.public_agent_pass (
+ signature text primary key check (signature ~ '^[0-9a-f]{64}$'),
+ until timestamptz not null,
+ questions integer not null default 0 check (questions >= 0)
+);
+create index if not exists public_agent_pass_until on fabrik_private.public_agent_pass (until);
+alter table fabrik_private.public_agent_pass enable row level security;
+revoke all on fabrik_private.public_agent_pass from public, anon, authenticated;
+reset role;
+
 -- The public agents' conversations, as upgrade 0015 keeps them: one row for each question an agent answered, with the
 -- conversation's id the chat page made, the agent, the time, the question, the answer shown and its tokens. Nothing
 -- that identifies a visitor is kept. Only the public-agent function reads or changes it.
@@ -9253,7 +9268,7 @@ revoke create on schema fabrik from fabrik_reader;
 
 notify pgrst, 'reload schema';
 
-insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms'), ('0019-shared-logins'), ('0020-own-records-set'), ('0021-public-agent-topic'), ('0022-public-agent-greeting');
+insert into fabrik_private.schema_upgrade(id) values ('0001-baseline'), ('0002-set-based-lookups'), ('0003-second-factor'), ('0004-graph-reader'), ('0005-private-sessions'), ('0006-record-source'), ('0007-ported-tools'), ('0008-mailbox'), ('0009-save-version-check'), ('0010-mail-send'), ('0011-mail-signature'), ('0012-public-agent'), ('0013-public-agent-sitekey'), ('0014-public-agents'), ('0015-public-exchanges'), ('0016-waiting-for-classes'), ('0017-glossary-tags'), ('0018-unextracted-terms'), ('0019-shared-logins'), ('0020-own-records-set'), ('0021-public-agent-topic'), ('0022-public-agent-greeting'), ('0023-public-agent-pass');
 
 -- ===================================================================
 -- Next: bootstrap.sql creates the first administrator, the first scope

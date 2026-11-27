@@ -1125,15 +1125,27 @@ try {
   const streamRefused = await streamOf({ conversation: three, question: "Opening hours?", turnstile_token: "forged" });
   check("a streamed question that fails the check gets JSON 403 with check true",
     streamRefused.status === 403 && streamRefused.json?.check === true, streamRefused);
-  // A pass answers at most PASS_QUESTIONS questions: once its conversation kept that many, it is refused until a new check.
-  const keptSoFar = (await sql`select count(*)::int as n from fabrik_private.public_exchange where conversation = ${three}::uuid`)[0].n;
-  await sql`insert into fabrik_private.public_exchange(conversation, slug, question, answer)
-    select ${three}::uuid, 'chat', 'Filler question', 'Filler answer' from generate_series(1, ${PASS_QUESTIONS - keptSoFar})`;
-  const usedUp = await fromVisitor({ conversation: three, question: "Opening hours?", pass: passed.body.pass });
+  // A pass answers at most PASS_QUESTIONS questions, counted in its own row, so questions sent side by side can't pass
+  // the limit together, and one whose conversation another agent holds is counted all the same.
+  const [, passSig] = passed.body.pass.split(".");
+  const usedSoFar = (await sql`select questions from fabrik_private.public_agent_pass where signature = ${passSig}`)[0]?.questions;
+  await sql`update fabrik_private.public_agent_pass set questions = ${PASS_QUESTIONS - 3} where signature = ${passSig}`;
+  const claudeBeforeBurst = sent.length;
+  const burst = await Promise.all(Array.from({ length: 6 }, () => fromVisitor({ conversation: three, question: "Opening hours?", pass: passed.body.pass })));
   const checkedAgain = await fromVisitor({ conversation: three, question: "Opening hours?", turnstile_token: GOOD_TOKEN });
-  check(`a pass whose conversation kept ${PASS_QUESTIONS} questions gets 403 with check true, and a new check brings a new pass`,
-    usedUp.status === 403 && usedUp.body.check === true && checkedAgain.status === 200 && checkedAgain.body.pass !== passed.body.pass,
-    { keptSoFar, usedUp, checkedAgain });
+  const [, newSig] = (checkedAgain.body.pass ?? ".").split(".");
+  const newRow = (await sql`select questions from fabrik_private.public_agent_pass where signature = ${newSig}`)[0]?.questions;
+  check(`a pass answers ${PASS_QUESTIONS} questions in all: of 6 sent side by side with 3 left, 3 are answered and 3 get 403 with check true, and a new check brings a new pass with its question taken`,
+    usedSoFar === 4 && burst.filter((r) => r.status === 200).length === 3 && burst.filter((r) => r.status === 403 && r.body.check === true).length === 3
+      && sent.length === claudeBeforeBurst + 4 && checkedAgain.status === 200 && checkedAgain.body.pass !== passed.body.pass && newRow === 1,
+    { usedSoFar, burst: burst.map((r) => r.status), calls: sent.length - claudeBeforeBurst, checkedAgain, newRow });
+  const heldElsewhere = crypto.randomUUID();
+  await fromVisitor({ agent: "bookings", conversation: heldElsewhere, question: "Can I book a table?", turnstile_token: GOOD_TOKEN });
+  const crossedPass = (await fromVisitor({ conversation: heldElsewhere, question: "Opening hours?", turnstile_token: GOOD_TOKEN })).body.pass;
+  await fromVisitor({ conversation: heldElsewhere, question: "Opening hours?", pass: crossedPass });
+  const crossedRow = (await sql`select questions from fabrik_private.public_agent_pass where signature = ${crossedPass.split(".")[1]}`)[0]?.questions;
+  check("a pass for a conversation another agent holds counts its questions all the same",
+    crossedRow === 2, { crossedPass, crossedRow });
   for (const { t } of tables) {
     const [{ n }] = await sql.unsafe(`select count(*)::int as n from ${t} r where r::text like any($1)`, [[`%${IP}%`, `%${GOOD_TOKEN}%`, "%StandInBrowser%"]]);
     if (n) identifying.push(t);

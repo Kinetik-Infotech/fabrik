@@ -130,7 +130,7 @@ export const UNAVAILABLE = "The assistant can't answer right now. Try again late
 export const NOT_CHECKED = "The page couldn't confirm you're a person. Reload it and try again.";
 /** How long a pass lets a conversation's questions skip Turnstile: an hour. */
 export const PASS_MS = 60 * 60 * 1000;
-/** The most questions one pass answers, counted in the exchanges its conversation kept since the pass was made. */
+/** The most questions one pass answers, counted in its row of public_agent_pass. */
 export const PASS_QUESTIONS = 20;
 const PASS = /^[0-9]{13}\.[0-9a-f]{64}$/;
 
@@ -296,6 +296,17 @@ export async function passGood(secret: string, agent: string, conversation: stri
   return await crypto.subtle.verify("HMAC", await passKey(secret), sig, passText(agent, conversation, until));
 }
 
+/** Takes one question from a good pass's row: true when the pass had one left. A pass with no row, as one made before its
+ * row was kept, gets one with this question taken. */
+async function useOf(pass: string): Promise<boolean> {
+  const [until, signature] = pass.split(".");
+  await sql`insert into fabrik_private.public_agent_pass(signature, until) values (${signature}, to_timestamp(${Number(until) / 1000}))
+    on conflict (signature) do nothing`;
+  const [row] = await sql`update fabrik_private.public_agent_pass set questions = questions + 1
+    where signature = ${signature} and questions < ${PASS_QUESTIONS} returning questions`;
+  return !!row;
+}
+
 type Turn = { role: "user" | "assistant"; content: string };
 /** The latest turns of the history given that fit: at most TURNS, each question and answer within its limit, and at most
  * MAX_HISTORY characters in all. Older turns are left out. null when the history isn't a list of questions and answers. */
@@ -348,12 +359,19 @@ async function ask({ agent, conversation, question, history, token, pass: given 
   try { [secret, key] = [await vault(TURNSTILE_NAME), await vault(KEY_NAME)]; }
   catch (err) { console.error("public-agent could not read the Vault:", message(err)); throw refuse(503, UNAVAILABLE); }
   if (!secret) throw refuse(503, UNAVAILABLE, { setup: "turnstile" });
-  // A good pass is used up once its conversation kept PASS_QUESTIONS exchanges with this agent since it was made.
-  const passed = !!given && await passGood(secret, agent, conversation, given) && (await sql`select count(*)::int as n
-    from fabrik_private.public_exchange where conversation = ${conversation}::uuid and slug = ${agent}
-    and at > to_timestamp(${(Number(given.split(".")[0]) - PASS_MS) / 1000})`)[0].n < PASS_QUESTIONS;
+  // A good pass takes one of its PASS_QUESTIONS questions from its row, in one statement, before Claude is called, so
+  // questions sent side by side can't pass the limit together. A used-up pass is refused.
+  const passed = !!given && await passGood(secret, agent, conversation, given) && await useOf(given);
   if (!passed && (!token || !(await turnstile(secret, token, ip)).success)) throw refuse(403, NOT_CHECKED, { check: true });
-  const pass = passed ? given : await passFor(secret, agent, conversation);
+  let pass = given;
+  if (!passed) {
+    pass = await passFor(secret, agent, conversation);
+    // A new pass's row, with this question taken. Rows of passes ended a day ago go.
+    const [until, signature] = pass.split(".");
+    await sql`insert into fabrik_private.public_agent_pass(signature, until, questions) values (${signature}, to_timestamp(${Number(until) / 1000}), 1)
+      on conflict (signature) do nothing`;
+    await sql`delete from fabrik_private.public_agent_pass where until < now() - interval '1 day'`;
+  }
   if (!key) throw refuse(503, UNAVAILABLE, { setup: "key" });
   const [s] = await sql`select slug, model, daily_cap_tokens from fabrik_private.public_agent where slug = ${agent}`;
   if (!s) throw refuse(404, UNAVAILABLE);
