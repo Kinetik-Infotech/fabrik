@@ -5,7 +5,7 @@
 -- second time after three more records and two links. Each one reads the grants as often the second
 -- time as the first, and each read calls fabrik_private.can_read_record no times. The counts are
 -- the functions' calls in this transaction, from pg_stat_xact_user_functions. Run.sh grants
--- postgres track_functions. Upgrade 0005-set-based-lookups, from ACMEKB's 0072.
+-- postgres track_functions. Upgrade 0005-set-based-lookups.
 -- Ends in an error, so nothing is kept.
 begin;
 set local track_functions = 'all';
