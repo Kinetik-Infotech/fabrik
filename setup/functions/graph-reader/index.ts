@@ -22,7 +22,7 @@
 // key in the Vault, as the secret anthropic_api_key, once the Models API accepts it, which turns the reader on.
 // "remove_key" deletes it, which turns the reader off. "check" reports the key as available, missing or refused. The
 // key is read on every call, from the Vault, and no reply or error holds it. A failed read of the Vault answers 503,
-// "fabrik is busy. Try again in a minute.". From HED's graph-reader.
+// "fabrik is busy. Try again in a minute.".
 //
 // Request: {} with the schedule's secret, for a run
 //      or: { "action": "check" } or { "action": "remove_key" } with an administrator's sign-in

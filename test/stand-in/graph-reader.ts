@@ -15,7 +15,7 @@
 // fabrik_get_file_parts gives each part and its graph, and fabrik_get_graph_reader says the reader is on and which scopes
 // it reads. No batch is sent once the month's cost reaches the cap. A person with read and create in the scope
 // replaces Graph reader's save. The audit log gives each batch to an administrator alone. remove_key turns the
-// reader off again. No reply holds the key. From HED's. run.sh runs it.
+// reader off again. No reply holds the key. run.sh runs it.
 import postgres from "npm:postgres@3.4.9";
 import Anthropic from "npm:@anthropic-ai/sdk@0.137.0";
 

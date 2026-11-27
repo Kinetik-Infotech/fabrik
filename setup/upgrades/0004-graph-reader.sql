@@ -1,7 +1,7 @@
 -- 0004-graph-reader
 -- base: new
 -- redeploy: graph-reader
--- From HED's upgrades 0105-graph-reader and 0108-graph-batch-drops. The graph reader, off until an administrator
+-- The graph reader, off until an administrator
 -- keeps the business's own Anthropic API key in the Vault with graph-reader's set_key: Graph reader, the actor it
 -- saves as; the scopes it reads; fabrik_get_graph_reader and fabrik_get_file_parts; each read fitted to the glossary, with
 -- what fits none dropped and kept; its 15-minute schedule, with the secret graph_reader_secret; and its batches in the
@@ -20,7 +20,7 @@
 -- subscription, as before. It reads no private scope's files, no sessions scope's and no Administration file. Each entity's type is one of the glossary's classes and each relation one of its
 -- relationships; a finding that fits none is dropped and kept with its reason. fabrik_get_graph_reader says whether it
 -- is on and which scopes it reads, and fabrik_get_file_parts gives a file's parts, for a person to correct one. The
--- audit log gives each batch to administrators. From HED's upgrades 0105-graph-reader and 0108-graph-batch-drops.
+-- audit log gives each batch to administrators.
 -- Owned by the postgres login, which owns file search and reads the Vault.
 
 -- Graph reader's actor id, or null before its first save.

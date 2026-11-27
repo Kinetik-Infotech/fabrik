@@ -1,6 +1,6 @@
 -- 0002-set-based-lookups
 -- base: new
--- From HED's upgrade 0072. A record named by its title is looked up among the readable records whose titles hold its
+-- A record named by its title is looked up among the readable records whose titles hold its
 -- words, and a record named by its id must be readable too. A read's cutoff is the highest change number among the
 -- readable records, found as a set. Row-level security reads the person's grants a fixed number of times, however
 -- many records fabrik holds, and matches each record's scope, kind and creator against them. Who may read what is
@@ -8,7 +8,7 @@
 
 -- ===================================================================
 -- 8w. A record named by its title, and a read's cutoff, found from the readable records as a set.
--- Upgrade 0002-set-based-lookups, from HED's 0072.
+-- Upgrade 0002-set-based-lookups.
 -- ===================================================================
 grant create on schema fabrik_private to fabrik_identity;
 set role fabrik_identity;

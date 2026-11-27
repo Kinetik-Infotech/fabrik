@@ -2,7 +2,7 @@
 // Claude, taken from section 19 of the fabrik plugin's records skill, "Reading a part for its connections", in this repository.
 // A developer runs it after section 19 changes, and commits prompt.ts:
 //   deno run --allow-read --allow-write scripts/graph-reader-prompt.ts
-// With --check, it writes nothing, and fails when prompt.ts differs from what it would write. From HED's.
+// With --check, it writes nothing, and fails when prompt.ts differs from what it would write.
 const HERE = new URL("../setup/functions/graph-reader/", import.meta.url);
 const SKILL = new URL("../plugins/fabrik/skills/records/SKILL.md", import.meta.url).pathname;
 

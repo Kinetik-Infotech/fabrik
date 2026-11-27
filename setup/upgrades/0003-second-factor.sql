@@ -1,7 +1,7 @@
 -- 0003-second-factor
 -- base: new
 -- redeploy: fabrik-upgrade, file-search, file-search-purge
--- From HED's upgrade 0109-second-factor. A second factor at sign-in, for administrators. Adds the setting, off to
+-- A second factor at sign-in, for administrators. Adds the setting, off to
 -- start, fabrik_set_second_factor, and the log of its changes. request_auth_uid() gives no caller for an administrator's
 -- password-only sign-in once the setting is administrators, so each fabrik function, Storage policy and file search
 -- policy refuses it. Each hosted function named above passes the sign-in's level. The same text is in setup.sql.
@@ -14,7 +14,6 @@
 -- actor whose authority class is administrator: request_auth_uid() gives no caller for it, so each fabrik function, Storage
 -- policy and file search policy refuses it. Every other actor keeps its password sign-in. The
 -- level of a sign-in is the access token's aal claim: aal2 once the sign-in gave a code from an authenticator app.
--- From HED's upgrade 0109-second-factor.
 set role fabrik_owner;
 create table if not exists fabrik_private.sign_in_setting (
  only_row boolean primary key default true check (only_row),
