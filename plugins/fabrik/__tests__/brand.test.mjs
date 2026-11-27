@@ -318,7 +318,8 @@ test("each answer shows the brand's logo, its dark-mode copy in dark mode, and f
 
 /** What an agent page's header does in the browser at the window width given: whether the menu button and the nav show,
  * and the button's aria-expanded, first as loaded, then after a click on the button, then after Escape, and whether the
- * button has the focus at the end. */
+ * button has the focus then. Last, with the menu open again and the focus in the chat box, the same after Escape, and
+ * whether the chat box keeps the focus. */
 function menuAt(width) {
   const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-menu-")));
   try {
@@ -329,8 +330,10 @@ function menuAt(width) {
     writeFileSync(page, readFileSync(join(work, "site", "ethics", "index.html"), "utf-8").replace("</body>", `<p id="out"></p><script>(function () {
   var b = document.querySelector("header button.menu"), n = document.getElementById("agent-nav");
   function state() { return [getComputedStyle(b).display !== "none" ? "button" : "-", getComputedStyle(n).display !== "none" ? "nav" : "-", b.getAttribute("aria-expanded")].join(" "); }
-  var seen = [state()]; b.click(); seen.push(state());
+  var seen = [state()]; b.focus(); b.click(); seen.push(state());
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); seen.push(state(), document.activeElement === b ? "focus" : "no focus");
+  var box = document.querySelector("input[type=text]"); b.click(); box.focus();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); seen.push(state(), document.activeElement === box ? "box keeps focus" : "box lost focus");
   document.getElementById("out").textContent = "[" + seen.join("|") + "]";
 })();</script></body>`));
     const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
@@ -344,8 +347,8 @@ function menuAt(width) {
   }
 }
 
-test("at 375 pixels an agent page's nav folds behind the menu button, which opens it and closes it again on Escape", { skip: !BROWSER }, () => {
-  assert.deepEqual(menuAt(375), ["button - false", "button nav true", "button - false", "focus"]);
+test("at 375 pixels an agent page's nav folds behind the menu button, which opens it and closes it again on Escape, leaving the chat box its focus", { skip: !BROWSER }, () => {
+  assert.deepEqual(menuAt(375), ["button - false", "button nav true", "button - false", "focus", "button - false", "box keeps focus"]);
 });
 
 test("at desktop width an agent page's nav shows inline and the menu button is hidden", { skip: !BROWSER }, () => {

@@ -78,13 +78,14 @@ export function pageStyle(brand) {
  * MENU_SCRIPT has run, so without JavaScript the nav shows as it does at desktop width. */
 const MENU = '<button class="menu" type="button" aria-expanded="false" aria-controls="agent-nav" aria-label="Menu">' +
   '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg></button>';
-/** Opens and closes the nav from the button, and closes it on Escape, giving the button back its focus. */
+/** Opens and closes the nav from the button, and closes it on Escape. Escape gives the button back its focus only where
+ * the focus was in the nav or on the button, so a visitor typing in the chat box keeps their place. */
 const MENU_SCRIPT = `<script>(function () { var b = document.querySelector("header button.menu"), n = document.getElementById("agent-nav");
   if (!b || !n) return;
   b.parentNode.classList.add("has-menu");
   function set(open) { b.setAttribute("aria-expanded", String(open)); n.classList.toggle("open", open); }
   b.addEventListener("click", function () { set(b.getAttribute("aria-expanded") !== "true"); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && b.getAttribute("aria-expanded") === "true") { set(false); b.focus(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && b.getAttribute("aria-expanded") === "true") { var inside = b === document.activeElement || n.contains(document.activeElement); set(false); if (inside) b.focus(); } });
 })();</script>`;
 
 const SLUG = /^[a-z0-9-]{1,40}$/;
@@ -154,7 +155,9 @@ export function buildChatPage({ brand, address, folder, agents }) {
     `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>Close</a>`;
   // The logo links home, to the main agent's page, on the list and on every other agent's page, as the Close link does.
   // Where there is no main agent, and on the main agent's own page, it links nowhere.
-  const logoTo = href => href ? `<a class="home" href="${href}" aria-label="Home: ${esc(main.name)}">${logo}</a>` : logo;
+  // Its name starts with the logo's alt text, the label a visitor sees, so a speech-control user can say it.
+  const seen = (brand?.logo?.src ? brand.logo.alt?.trim() || business : "fabrik") || "Logo";
+  const logoTo = href => href ? `<a class="home" href="${href}" aria-label="${esc(seen)}: home">${logo}</a>` : logo;
   const slugs = JSON.stringify(agents.map(a => a.slug));
   const back = `<script>(function () { var from = new URLSearchParams(location.search).get("from"), close = document.querySelector("a.close");
   if (close && ${slugs}.indexOf(from) >= 0) { close.href = from + "/"; close.hidden = false; } })();</script>`;
