@@ -27,19 +27,25 @@ const AGENTS = [
   { slug: "n95", name: "N95 masks", purpose: "", topic: "Masks" },
   { slug: "hair", name: "Hair loss", purpose: "", topic: "  hair care " },
   { slug: "cloth", name: "cloth masks", purpose: "", topic: "masks" },
+  { slug: "ffp2", name: "FFP2 masks", purpose: "", topic: "masks" },
   { slug: "shampoo", name: "Shampoo", purpose: "Answers about shampoo.", topic: "Hair care" },
   { slug: "other", name: "Allergy", purpose: "", topic: "" },
 ];
 
 test("the list of agents has a heading for each topic in alphabetical order, its agents by name, and the agents of no topic last", () => {
   const { main } = built(AGENTS);
-  assert.deepEqual(headings(main), ["hair care", "Masks", "Other agents"]);
-  assert.deepEqual(names(main), ["Hair loss", "Shampoo", "cloth masks", "N95 masks", "Allergy", "Ask us"]);
+  assert.deepEqual(headings(main), ["Hair care", "masks", "Other agents"]);
+  assert.deepEqual(names(main), ["Hair loss", "Shampoo", "cloth masks", "FFP2 masks", "N95 masks", "Allergy", "Ask us"]);
+});
+
+test("a topic's heading takes the spelling most of its agents have, and capitals on a tie", () => {
+  const { main } = built(AGENTS.filter(a => a.slug !== "ffp2"));
+  assert.deepEqual(headings(main), ["Hair care", "Masks", "Other agents"]);
 });
 
 test("an agent's page links to the list and to the other agents of its own topic, labelled with the topic", () => {
   const { navs } = built(AGENTS);
-  assert.equal(navs.n95, '<nav aria-label="Masks: other agents"><a href="../">All agents</a><span class="topic">Masks</span><a href="../cloth/">cloth masks</a></nav>');
+  assert.equal(navs.n95, '<nav aria-label="masks: other agents"><a href="../">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
   assert.deepEqual(linked(navs.shampoo), ["../", "../hair/"]);
   assert.equal(navs.main, '<nav aria-label="Other agents"><a href="../">All agents</a><a href="../other/">Allergy</a></nav>');
 });
@@ -49,8 +55,8 @@ test("with no topics, the list has no headings and every page links to every oth
   const { main, navs } = built(plain);
   assert.deepEqual(headings(main), []);
   assert.match(main, /^<ul class="agents">/);
-  assert.deepEqual(names(main), ["Allergy", "Ask us", "cloth masks", "Hair loss", "N95 masks", "Shampoo"]);
-  assert.deepEqual(linked(navs.main), ["../", "../other/", "../cloth/", "../hair/", "../n95/", "../shampoo/"]);
+  assert.deepEqual(names(main), ["Allergy", "Ask us", "cloth masks", "FFP2 masks", "Hair loss", "N95 masks", "Shampoo"]);
+  assert.deepEqual(linked(navs.main), ["../", "../other/", "../cloth/", "../ffp2/", "../hair/", "../n95/", "../shampoo/"]);
 });
 
 test("past the most agents a page links to by name, it links to the list alone", () => {
