@@ -849,15 +849,14 @@ try {
     bookingsHtml.slice(0, 1500));
   const chatHtml = await Deno.readTextFile(`${built.folder}/chat/index.html`);
   const navOf = (html: string) => html.match(/<nav[^]*?<\/nav>/)?.[0];
-  check("the root page, in the brand, lists the agents by name and purpose under their topic, with the agents of no topic last, each linked to its page",
-    rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<main><div class="topics"><section><h2>Visits</h2><ul class="agents">' +
-      '<li><a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a></li></ul></section>' +
-      '<section><h2>Other agents</h2><ul class="agents"><li><a href="chat/"><strong>Chat</strong></a></li></ul></section></div></main>')
-      && !rootHtml.includes("<script") && !rootHtml.includes("{{"),
+  check("the root page, in the brand, lists the main agent first, the one with no topic, then the agents by name and purpose under their topic, each linked to its page, with a link closing the list back to the main agent",
+    rootHtml.includes("<title>Smith Joinery</title>") && rootHtml.includes('<main><div class="topics"><ul class="agents main"><li><a href="chat/"><strong>Chat</strong></a></li></ul>' +
+      '<section><h2>Visits</h2><ul class="agents"><li><a href="bookings/"><strong>Bookings</strong><span>Books a table.</span></a></li></ul></section></div></main>')
+      && rootHtml.includes('<a class="close" href="chat/" aria-label="Close the list of agents">') && !rootHtml.includes("<script src") && !rootHtml.includes("{{"),
     rootHtml.slice(rootHtml.indexOf("<main>"), rootHtml.indexOf("<main>") + 600));
   check("an agent's page links to the list of agents and to the other agents of its own topic alone, and the list's own page has no such links",
-    navOf(bookingsHtml) === '<nav aria-label="Visits: other agents"><a href="../">All agents</a></nav>'
-      && navOf(chatHtml) === '<nav aria-label="Other agents"><a href="../">All agents</a></nav>' && !rootHtml.includes("<nav"),
+    navOf(bookingsHtml) === '<nav aria-label="Visits: other agents"><a href="../?from=bookings">All agents</a></nav>'
+      && navOf(chatHtml) === '<nav aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
     { bookings: navOf(bookingsHtml), chat: navOf(chatHtml) });
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),
     widgetJs.slice(0, 1200));
