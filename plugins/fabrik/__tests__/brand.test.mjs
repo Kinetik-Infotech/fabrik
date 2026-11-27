@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { brandOf, headLogoHtml, LOGO_CSS, LOGO_SWITCH, logoHtml, MAX_LOGO, printStyle, readBrand } from "../cli/lib/brand.mjs";
+import { brandOf, FABRIK_MARK, headLogoHtml, LOGO_CSS, LOGO_SWITCH, logoHtml, MAX_LOGO, printStyle, readBrand } from "../cli/lib/brand.mjs";
 import { buildChatPage, pageStyle } from "../cli/chat-page.mjs";
 import { createTools } from "../cli/lib/pages.mjs";
 
@@ -268,4 +268,50 @@ test("a chat page hides a heading that is the business's own name beside its log
   assert.equal(readFileSync(join(work, "alt", "sons", "index.html"), "utf-8").match(/<h1[^>]*>[^<]*<\/h1>/)[0], '<h1 class="in-logo">smith &amp; sons</h1>');
   const plain = { ...brandOf(RECORD), logo: null };
   assert.deepEqual(headings(plain, join(work, "plain")), ["<h1>Smith Joinery</h1>", "<h1>smith JOINERY</h1>", "<h1>Help</h1>"]);
+});
+
+/** The mark an agent page's chat box shows beside an answer, with the computer in light or dark mode: "light" or "dark"
+ * for the brand's logo of that name, "one" for the logo of a brand with no dark-mode copy, or "fabrik" for fabrik's mark. */
+function answerMark(brand, mode) {
+  const work = realpathSync(mkdtempSync(join(tmpdir(), "fabrik-mark-")));
+  try {
+    buildChatPage({ brand, address: "http://127.0.0.1:9/functions/v1/public-agent", folder: join(work, "site"), agents: [{ slug: "help", name: "Help", purpose: "" }] });
+    const page = join(work, "site", "help", "check.html");
+    const marks = JSON.stringify({ light: brand?.logo?.dark ? brand.logo.src : null, dark: brand?.logo?.dark ?? null, one: brand?.logo?.dark ? null : brand?.logo?.src ?? null, fabrik: FABRIK_MARK });
+    writeFileSync(page, readFileSync(join(work, "site", "help", "index.html"), "utf-8").replace("</body>", `<p id="out"></p><script>(function () {
+  var li = document.createElement("li"); li.className = "a"; document.querySelector(".fabrik-chat ol").appendChild(li);
+  var shown = getComputedStyle(li, "::before").backgroundImage, marks = ${marks};
+  document.getElementById("out").textContent = "[" + Object.keys(marks).filter(function (k) { return marks[k] && shown === 'url("' + marks[k] + '")'; }).join(",") + "]";
+})();</script></body>`));
+    const ran = spawnSync(BROWSER, ["--headless=new", "--disable-gpu", "--use-mock-keychain", "--password-store=basic", `--user-data-dir=${join(work, "profile")}`,
+      "--disable-features=MacAppCodeSignClone", `--blink-settings=preferredColorScheme=${mode === "dark" ? 0 : 1}`, "--virtual-time-budget=3000", "--dump-dom", `file://${page}`],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000, killSignal: "SIGTERM" });
+    const found = (ran.stdout ?? "").match(/<p id="out">\[([^\]]*)\]<\/p>/);
+    assert.ok(found, `Chrome wrote no page: status ${ran.status}, signal ${ran.signal}, ${ran.error ?? ""} ${(ran.stderr ?? "").slice(-500)}`);
+    return found[1];
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
+test("an agent page's script tag gives the brand's logo and its dark-mode copy as the answers' mark, and none without a logo", t => {
+  const work = mkdtempSync(join(tmpdir(), "fabrik-chat-mark-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const tag = (brand, name) => {
+    buildChatPage({ brand, address: "https://x.example/functions/v1/public-agent", folder: join(work, name), agents: [{ slug: "help", name: "Help", purpose: "" }] });
+    return readFileSync(join(work, name, "help", "index.html"), "utf-8").match(/<script src="\.\.\/chat\.js"[^>]*>/)[0];
+  };
+  const dark = brandOf(DARK_RECORD), one = brandOf(RECORD);
+  assert.ok(tag(dark, "dark").endsWith(` data-mark="${dark.logo.src}" data-mark-dark="${dark.logo.dark}">`));
+  assert.ok(tag(one, "one").endsWith(` data-mark="${one.logo.src}">`));
+  assert.ok(!/data-mark/.test(tag({ ...one, logo: null }, "plain")));
+  assert.ok(!/data-mark/.test(tag(null, "none")));
+});
+
+test("each answer shows the brand's logo, its dark-mode copy in dark mode, and fabrik's mark only where the brand has no logo", { skip: !BROWSER }, () => {
+  const dark = brandOf(DARK_RECORD), one = brandOf(RECORD);
+  assert.deepEqual(["light", "dark"].map(mode => answerMark(dark, mode)), ["light", "dark"]);
+  assert.deepEqual(["light", "dark"].map(mode => answerMark(one, mode)), ["one", "one"]);
+  assert.deepEqual(["light", "dark"].map(mode => answerMark(null, mode)), ["fabrik", "fabrik"]);
+  assert.equal(answerMark({ ...one, logo: null }, "light"), "fabrik");
 });
