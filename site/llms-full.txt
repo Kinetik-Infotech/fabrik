@@ -758,6 +758,10 @@ With many agents, give each one a topic too, such as Masks or Bookings, and Clau
 
 An agent's page links to the list and to the other agents on its topic. The list's Close link takes a visitor back to the agent they came from, or to your main agent. Every other agent's page links home to your main agent, from its Home link and from your logo at the top left. The list's logo links there too. Ask Claude to set or change an agent's topic, then to put the chat pages up again.
 
+An agent can also greet visitors. Its greeting is the first message of a new conversation, shown at once beside your logo, before the visitor types anything. It says where they are and what they can ask, in two or three short sentences of plain text, at most 600 characters.
+
+Claude doesn't write the greeting each time, so it costs nothing, and it isn't sent to Claude or kept with the conversations. Claude offers one for your main agent, and for any agent visitors open first. Ask Claude to add, change or remove an agent's greeting, then to put the chat pages up again. An agent with no greeting opens with an empty chat.
+
 On a phone, an agent page's name has a row of its own under your logo, and its links fold behind a menu button. Its Send button shows an icon there. The chat panel on your website is as narrow as a phone, so it looks the same there.
 
 ## 2. How it speaks
