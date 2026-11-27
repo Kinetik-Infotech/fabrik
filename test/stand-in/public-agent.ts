@@ -859,7 +859,7 @@ try {
       && navOf(chatHtml) === '<nav id="agent-nav" aria-label="Other agents"><a href="../?from=chat">All agents</a></nav>' && !rootHtml.includes("<nav"),
     { bookings: navOf(bookingsHtml), chat: navOf(chatHtml) });
   check("the logo links to the main agent's page on the list and on another agent's page, and nowhere on the main agent's own page",
-    rootHtml.includes('<header><a class="home" href="chat/" aria-label="Home: Chat"><img') && bookingsHtml.includes('<header><a class="home" href="../chat/" aria-label="Home: Chat"><img')
+    rootHtml.includes('<header><a class="home" href="chat/" aria-label="Smith Joinery: home"><img') && bookingsHtml.includes('<header><a class="home" href="../chat/" aria-label="Smith Joinery: home"><img')
       && chatHtml.includes("<header><img") && !chatHtml.includes('class="home"'),
     { root: rootHtml.match(/<header>.{0,80}/)?.[0], bookings: bookingsHtml.match(/<header>.{0,80}/)?.[0], chat: chatHtml.match(/<header>.{0,80}/)?.[0] });
   check("widget.js carries the brand's accent and a readable colour on it", widgetJs.includes('"data-accent": "#3fa66b"') && /"data-on-accent": "#(111111|ffffff)"/.test(widgetJs) && !widgetJs.includes("{{"),

@@ -114,15 +114,15 @@ test("with no main agent, the close link shows only for a visitor who came from 
 test("with a main agent, every other agent's page links home to it from its logo and from a Home link beside All agents", () => {
   const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
   assert.equal(navs.n95, '<nav id="agent-nav" aria-label="masks: other agents"><a href="../main/">Home</a><a href="../?from=n95">All agents</a><span class="topic">masks</span><a href="../cloth/">cloth masks</a><a href="../ffp2/">FFP2 masks</a></nav>');
-  assert.equal(logos.n95, '<a class="home" href="../main/" aria-label="Home: Ask us">');
-  assert.equal(logos.shampoo, '<a class="home" href="../main/" aria-label="Home: Ask us">');
+  assert.equal(logos.n95, '<a class="home" href="../main/" aria-label="fabrik: home">');
+  assert.equal(logos.shampoo, '<a class="home" href="../main/" aria-label="fabrik: home">');
 });
 
 test("the main agent's own page has no Home link and its logo links nowhere, and the list's logo links to the main agent", () => {
   const { navs, logos } = built(AGENTS.filter(a => a.slug !== "other"));
   assert.ok(!navs.main.includes(">Home<"));
   assert.equal(logos.main, null);
-  assert.equal(logos[""], '<a class="home" href="main/" aria-label="Home: Ask us">');
+  assert.equal(logos[""], '<a class="home" href="main/" aria-label="fabrik: home">');
 });
 
 test("with no main agent, or one agent, no page has a Home link and no logo links anywhere", () => {
