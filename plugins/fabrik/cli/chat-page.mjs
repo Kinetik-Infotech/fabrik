@@ -125,6 +125,9 @@ export function buildChatPage({ brand, address, folder, agents }) {
   const heading = name => `<h1${brand?.logo && shown.has(name.trim().toLowerCase()) ? ' class="in-logo"' : ""}>${esc(name)}</h1>`;
   // The tab's icon: the brand's logo where it has one, and fabrik's mark otherwise.
   const icon = esc(brand?.logo?.src || FABRIK_MARK);
+  // The mark beside each answer: the brand's logo, and its dark-mode copy, where it has them. chat.js shows fabrik's mark
+  // where it has none.
+  const marks = `${brand?.logo?.src ? ` data-mark="${esc(brand.logo.src)}"` : ""}${brand?.logo?.dark ? ` data-mark-dark="${esc(brand.logo.dark)}"` : ""}`;
   const groups = topicGroups(agents), topical = groups.some(g => g.topic), main = mainAgent(agents);
   const items = (list, kind = "agents") => `<ul class="${kind}">${list.map(a => `<li><a href="${a.slug}/"><strong>${esc(a.name)}</strong>` +
     `${a.purpose?.trim() ? `<span>${esc(a.purpose.trim())}</span>` : ""}</a></li>`).join("")}</ul>`;
@@ -166,7 +169,7 @@ export function buildChatPage({ brand, address, folder, agents }) {
     mkdirSync(join(folder, a.slug), { mode: 0o700 });
     writeFileSync(join(folder, a.slug, "index.html"), fill(template, {
       TITLE: esc(business ? `${a.name} | ${business}` : a.name), HEADING: heading(a.name), STYLE: style, LOGO: logo, ICON: icon, NAV: nav(a.slug),
-      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}></script>`,
+      MAIN: '<div id="fabrik-chat"></div>', SCRIPT: `<script src="../chat.js" data-address="${esc(address)}" data-agent="${a.slug}"${business ? ` data-business="${esc(business)}"` : ""}${marks}></script>`,
     }));
   }
   writeFileSync(join(folder, "chat.js"), readFileSync(join(SOURCE, "chat.js")));
