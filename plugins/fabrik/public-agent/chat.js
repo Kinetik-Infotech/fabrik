@@ -117,7 +117,8 @@
   kept.className = "kept";
   kept.textContent = business ? business + " keeps this conversation to improve its answers." : "This conversation is kept to improve its answers.";
   form.appendChild(input); form.appendChild(send);
-  box.appendChild(list); box.appendChild(form); box.appendChild(kept); box.appendChild(check);
+  // The check sits just above the question box, so a visitor sees it where they type, even on a phone's short screen.
+  box.appendChild(list); box.appendChild(check); box.appendChild(form); box.appendChild(kept);
 
   // A web address or an email address in a message. Punctuation that ends a sentence stays outside the link.
   var LINK = /(https?:\/\/[^\s<>"']+|[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/g;
@@ -193,12 +194,30 @@
     }
   }
 
+  // The check's state: waiting while Cloudflare needs the visitor to tick its box, and failures counting the checks in a
+  // row that failed. A failed, expired or timed-out check is run again, up to FAILURES failures in a row.
+  var waiting = false, failures = 0, FAILURES = 3;
+  function again(delay) {
+    setTimeout(function () { if (widget !== null && window.turnstile) window.turnstile.reset(widget); }, delay);
+  }
   window.fabrikChatTurnstile = function () {
     // The check shows only while Cloudflare needs the visitor, and goes once it passes.
-    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible", appearance: "interaction-only",
-      "before-interactive-callback": function () { check.hidden = false; },
-      callback: function () { setTimeout(function () { check.hidden = true; }, 1500); } });
+    widget = window.turnstile.render(check, { sitekey: sitekey, size: "flexible", appearance: "interaction-only", retry: "never",
+      "before-interactive-callback": function () { waiting = true; check.hidden = false; },
+      "after-interactive-callback": function () { waiting = false; },
+      callback: function () { waiting = false; failures = 0; settle(); setTimeout(function () { check.hidden = true; }, 1500); },
+      "error-callback": function () { waiting = false; failures++; if (failures < FAILURES) again(2000 * failures); return true; },
+      "expired-callback": function () { again(0); },
+      "timeout-callback": function () { waiting = false; again(0); } });
   };
+  // One note about the check at a time: a new one replaces the last, and a passed check clears it.
+  var notice = null;
+  function settle() { if (notice) { notice.remove(); notice = null; } }
+  function noted(text) {
+    settle();
+    line(text, "problem");
+    notice = list.lastChild;
+  }
   function loadTurnstile() {
     var api = document.createElement("script");
     api.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=fabrikChatTurnstile";
@@ -246,7 +265,18 @@
     var question = input.value.trim();
     if (!question) return;
     var token = widget !== null && window.turnstile ? window.turnstile.getResponse(widget) : "";
-    if (!token) { line("Wait a moment for the security check, then send again.", "problem"); return; }
+    if (!token) {
+      if (widget !== null && failures >= FAILURES) {
+        noted("The security check couldn't run in this browser. Reload the page and try again.");
+        failures = 0; again(0);
+      } else if (waiting) {
+        check.hidden = false;
+        noted("Tick the box above the question box to show you're a person, then send again.");
+        check.scrollIntoView({ block: "nearest" });
+      } else noted("Wait a moment for the security check, then send again.");
+      return;
+    }
+    settle();
     var asked = new Date().toISOString();
     line(question, "q", asked);
     input.value = "";
