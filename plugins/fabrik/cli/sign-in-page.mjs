@@ -19,6 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { workerFolder } from "./chat-domain.mjs";
 
 /** The Wrangler setup runs, through npx, at a fixed version. */
 export const WRANGLER = ["npx", "--yes", "wrangler@4.123.0"];
@@ -46,6 +47,12 @@ export function wranglerEnv(env, home = homedir()) {
 }
 
 const readAccounts = home => { try { return JSON.parse(readFileSync(accountsFile(home), "utf8")) ?? {}; } catch { return {}; } };
+/** The account a project's chat Worker was put on, from the account_id its Wrangler config keeps, or null. fabrik
+ * 0.38.0 and earlier saved no account, but wrote this config on each chat deploy on the owner's own domain. */
+const workerAccount = (ref, home) => {
+  try { const id = JSON.parse(readFileSync(join(workerFolder(ref, home), "wrangler.json"), "utf8")).account_id; return typeof id === "string" && id ? id : null; }
+  catch { return null; }
+};
 /** The folder setup makes one fabrik project's sign-in page in, beside fabrik's Cloudflare sign-in, never in the owner's folder. */
 export const pageFolder = (ref, home = homedir()) => join(home, ".config", "fabrik", "sign-in", ref);
 /** The Pages project of one fabrik project's sign-in page. */
@@ -110,9 +117,12 @@ export async function publishPage({ ref, name, folder, what }, { ask, say, wrang
     if (lacking().length) throw new PageStopped(`Cloudflare's sign-in didn't give fabrik ${lacking().join(" and ")}. Run the command again, and allow Wrangler everything it asks for in the browser.`);
   }
   const accounts = Array.isArray(me.accounts) ? me.accounts : [];
-  const named = a => `${a.name} (${a.id})`;
+  const named = a => a.name === a.id ? a.id : `${a.name} (${a.id})`;
   const saved = readAccounts(home);
-  const target = saved[ref];
+  // A project put up before accounts were saved, with a chat Worker, keeps the Worker's account. Its name is unknown,
+  // so it is named by the sign-in's account of that id, or by its id.
+  const earlier = saved[ref] ? null : workerAccount(ref, home);
+  const target = saved[ref] ?? (earlier ? accounts.find(a => a.id === earlier) ?? { id: earlier, name: earlier } : null);
   if (target) {
     // The project's pages are on the account saved the first time. A sign-in without it puts nothing up, so a page
     // never moves to another business's Cloudflare account.
@@ -122,6 +132,7 @@ export async function publishPage({ ref, name, folder, what }, { ask, say, wrang
         + `To sign fabrik in to Cloudflare as a person on ${target.name}, delete the folder ${join(wranglerHome(home), ".wrangler")}, then run this command again in a terminal, and sign in in the browser.`);
     }
     accountId = target.id;
+    if (!saved[ref]) writeFileSync(accountsFile(home), `${JSON.stringify({ ...saved, [ref]: { id: target.id, name: target.name } }, null, 2)}\n`, { mode: 0o600 });
   } else {
     if (accounts.length > 1) {
       accounts.forEach((a, i) => say(`${i + 1}. ${a.name}`));
